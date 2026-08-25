@@ -54,3 +54,77 @@ def check_consistent_length[
             "len(y) == " + String(len(y)),
             "check_consistent_length",
         )
+
+
+def check_sparse[dtype: DType](
+    rows: Int,
+    cols: Int,
+    data: List[Scalar[dtype]],
+    indices: List[Int],
+    indptr: List[Int],
+    is_csr: Bool = True,
+    caller: String = "SparseMatrix.__init__",
+) raises:
+    """Validates CSR/CSC sparse matrix format invariants."""
+    if rows <= 0 or cols <= 0:
+        raise DimensionMismatchError.error(
+            "rows > 0 and cols > 0",
+            "rows=" + String(rows) + ", cols=" + String(cols),
+            caller,
+        )
+    var major_dim = rows if is_csr else cols
+    var minor_dim = cols if is_csr else rows
+
+    if len(indptr) != major_dim + 1:
+        raise DimensionMismatchError.error(
+            "len(indptr) == " + String(major_dim + 1),
+            "len(indptr) == " + String(len(indptr)),
+            caller,
+        )
+    if len(indptr) > 0 and indptr[0] != 0:
+        raise DimensionMismatchError.error(
+            "indptr[0] == 0",
+            "indptr[0] == " + String(indptr[0]),
+            caller,
+        )
+    for i in range(major_dim):
+        if indptr[i] > indptr[i + 1]:
+            raise DimensionMismatchError.error(
+                "indptr monotonic non-decreasing",
+                "indptr["
+                + String(i)
+                + "] ("
+                + String(indptr[i])
+                + ") > indptr["
+                + String(i + 1)
+                + "] ("
+                + String(indptr[i + 1])
+                + ")",
+                caller,
+            )
+    if len(data) != len(indices):
+        raise DimensionMismatchError.error(
+            "len(data) == len(indices)",
+            "len(data)="
+            + String(len(data))
+            + ", len(indices)="
+            + String(len(indices)),
+            caller,
+        )
+    if len(indptr) > 0 and indptr[major_dim] != len(data):
+        raise DimensionMismatchError.error(
+            "indptr[-1] == len(data)",
+            "indptr[-1]="
+            + String(indptr[major_dim])
+            + ", len(data)="
+            + String(len(data)),
+            caller,
+        )
+    for idx in range(len(indices)):
+        var c = indices[idx]
+        if c < 0 or c >= minor_dim:
+            raise DimensionMismatchError.error(
+                "index in [0, " + String(minor_dim) + ")",
+                "index=" + String(c),
+                caller,
+            )

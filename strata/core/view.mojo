@@ -42,6 +42,8 @@ struct MatrixView[
         return (self.rows, self.cols)
 
     def __getitem__(self, r: Int, c: Int) -> Scalar[Self.dtype]:
+        debug_assert(r >= 0 and r < self.rows, "row index out of bounds")
+        debug_assert(c >= 0 and c < self.cols, "column index out of bounds")
         return self.ptr[unsafe_offset=r * self.row_stride + c * self.col_stride]
 
     def slice_rows(

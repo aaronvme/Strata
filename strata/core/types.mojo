@@ -13,3 +13,6 @@ trait ArrayLike:
 
     def num_elements(self) -> Int:
         ...
+
+    def shape(self) -> Tuple[Int, Int]:
+        ...

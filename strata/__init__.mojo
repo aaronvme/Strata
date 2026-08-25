@@ -44,6 +44,7 @@ from .utils import (
     check_X_y,
     check_array,
     check_consistent_length,
+    check_sparse,
     sigmoid,
     softmax,
     log_sum_exp,

@@ -3,6 +3,7 @@ from .validation import (
     check_X_y,
     check_array,
     check_consistent_length,
+    check_sparse,
 )
 from .math import sigmoid, softmax, log_sum_exp
 from .random import permutation, shuffle, PRNG

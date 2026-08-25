@@ -1,6 +1,7 @@
 from .types import ArrayLike
 from .sparse import SparseMatrix
 from .matrix import Matrix
+from .csr_matrix import CSRMatrix
 from ..exceptions.errors import DimensionMismatchError
 
 
@@ -20,7 +21,12 @@ struct CSCMatrix[dtype: DType = DType.float64](
         var data: List[Scalar[Self.dtype]],
         var indices: List[Int],
         var indptr: List[Int],
-    ):
+    ) raises:
+        from ..utils.validation import check_sparse
+
+        check_sparse(
+            rows, cols, data, indices, indptr, False, "CSCMatrix.__init__"
+        )
         self.rows = rows
         self.cols = cols
         self.data = data^
@@ -28,7 +34,7 @@ struct CSCMatrix[dtype: DType = DType.float64](
         self.indptr = indptr^
 
     @staticmethod
-    def from_dense(dense: Matrix[Self.dtype]) -> Self:
+    def from_dense(dense: Matrix[Self.dtype]) raises -> Self:
         var data = List[Scalar[Self.dtype]]()
         var indices = List[Int]()
         var indptr = List[Int](capacity=dense.cols + 1)
@@ -54,6 +60,67 @@ struct CSCMatrix[dtype: DType = DType.float64](
                 var val = self.data[idx]
                 res[r, c] = val
         return res^
+
+    def to_csr(self) raises -> CSRMatrix[Self.dtype]:
+        from .csr_matrix import CSRMatrix
+
+        var csr_indptr = List[Int](capacity=self.rows + 1)
+        for _ in range(self.rows + 1):
+            csr_indptr.append(0)
+
+        for i in range(len(self.indices)):
+            var r = self.indices[i]
+            csr_indptr[r + 1] += 1
+
+        for r in range(self.rows):
+            csr_indptr[r + 1] += csr_indptr[r]
+
+        var csr_data = List[Scalar[Self.dtype]](capacity=len(self.data))
+        var csr_indices = List[Int](capacity=len(self.indices))
+        for _ in range(len(self.data)):
+            csr_data.append(0)
+            csr_indices.append(0)
+
+        var next_pos = csr_indptr.copy()
+        for c in range(self.cols):
+            var start = self.indptr[c]
+            var end = self.indptr[c + 1]
+            for idx in range(start, end):
+                var r = self.indices[idx]
+                var dest = next_pos[r]
+                next_pos[r] += 1
+                csr_data[dest] = self.data[idx]
+                csr_indices[dest] = c
+
+        return CSRMatrix[Self.dtype](
+            self.rows, self.cols, csr_data^, csr_indices^, csr_indptr^
+        )
+
+    def dot_vec(
+        self, vec: List[Scalar[Self.dtype]]
+    ) raises -> List[Scalar[Self.dtype]]:
+        if len(vec) != self.cols:
+            raise DimensionMismatchError.error(
+                "Vector length " + String(self.cols),
+                String(len(vec)),
+                "CSCMatrix.dot_vec",
+            )
+        var res = List[Scalar[Self.dtype]](capacity=self.rows)
+        for _ in range(self.rows):
+            res.append(0)
+        for c in range(self.cols):
+            var x_c = Float64(vec[c])
+            if x_c == 0:
+                continue
+            var start = self.indptr[c]
+            var end = self.indptr[c + 1]
+            for idx in range(start, end):
+                var r = self.indices[idx]
+                res[r] += Scalar[Self.dtype](Float64(self.data[idx]) * x_c)
+        return res^
+
+    def dot_dense(self, dense: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
+        return self.to_csr().dot_dense(dense)
 
     def num_rows(self) -> Int:
         return self.rows

@@ -84,9 +84,13 @@ struct Matrix[dtype: DType = DType.float64](
         return self.view().slice_2d(start_row, end_row, start_col, end_col)
 
     def __getitem__(self, r: Int, c: Int) -> Scalar[Self.dtype]:
+        debug_assert(r >= 0 and r < self.rows, "row index out of bounds")
+        debug_assert(c >= 0 and c < self.cols, "column index out of bounds")
         return self.data[r * self.cols + c]
 
     def __setitem__(mut self, r: Int, c: Int, val: Scalar[Self.dtype]):
+        debug_assert(r >= 0 and r < self.rows, "row index out of bounds")
+        debug_assert(c >= 0 and c < self.cols, "column index out of bounds")
         self.data[r * self.cols + c] = val
 
     def row(self, r: Int) -> List[Scalar[Self.dtype]]:

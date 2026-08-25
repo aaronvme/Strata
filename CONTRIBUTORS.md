@@ -185,6 +185,7 @@ To ensure compile-time trait enforcement, type safety, and effortless `model.pre
 - Use the shared validation functions in `strata.utils.validation`:
   - `check_array[dtype](X)` — checks for non-empty 2D matrices.
   - `check_X_y(X, y)` — verifies consistent sample counts between features and targets.
+  - `check_sparse[dtype](rows, cols, data, indices, indptr, is_csr)` — validates sparse matrix structure and index invariants.
   - `check_is_fitted("EstimatorName", self.is_fitted)` — ensures models are trained before calling `predict` or `transform`.
 - Raise domain-specific errors from `strata.exceptions.errors` (`DimensionMismatchError`, `InvalidParameterError`, `NotFittedError`).
 

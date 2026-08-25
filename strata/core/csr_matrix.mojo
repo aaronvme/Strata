@@ -2,6 +2,7 @@ from std.python import PythonObject
 from .types import ArrayLike
 from .sparse import SparseMatrix
 from .matrix import Matrix
+from .csc_matrix import CSCMatrix
 from ..exceptions.errors import DimensionMismatchError
 
 
@@ -21,7 +22,12 @@ struct CSRMatrix[dtype: DType = DType.float64](
         var data: List[Scalar[Self.dtype]],
         var indices: List[Int],
         var indptr: List[Int],
-    ):
+    ) raises:
+        from ..utils.validation import check_sparse
+
+        check_sparse(
+            rows, cols, data, indices, indptr, True, "CSRMatrix.__init__"
+        )
         self.rows = rows
         self.cols = cols
         self.data = data^
@@ -29,7 +35,7 @@ struct CSRMatrix[dtype: DType = DType.float64](
         self.indptr = indptr^
 
     @staticmethod
-    def empty(rows: Int, cols: Int) -> Self:
+    def empty(rows: Int, cols: Int) raises -> Self:
         var indptr = List[Int](capacity=rows + 1)
         for _ in range(rows + 1):
             indptr.append(0)
@@ -49,7 +55,7 @@ struct CSRMatrix[dtype: DType = DType.float64](
         return csr_to_scipy[Self.dtype](self)
 
     @staticmethod
-    def from_dense(dense: Matrix[Self.dtype]) -> Self:
+    def from_dense(dense: Matrix[Self.dtype]) raises -> Self:
         var data = List[Scalar[Self.dtype]]()
         var indices = List[Int]()
         var indptr = List[Int](capacity=dense.rows + 1)
@@ -75,6 +81,41 @@ struct CSRMatrix[dtype: DType = DType.float64](
                 var val = self.data[idx]
                 res[r, c] = val
         return res^
+
+    def to_csc(self) raises -> CSCMatrix[Self.dtype]:
+        from .csc_matrix import CSCMatrix
+
+        var csc_indptr = List[Int](capacity=self.cols + 1)
+        for _ in range(self.cols + 1):
+            csc_indptr.append(0)
+
+        for i in range(len(self.indices)):
+            var c = self.indices[i]
+            csc_indptr[c + 1] += 1
+
+        for c in range(self.cols):
+            csc_indptr[c + 1] += csc_indptr[c]
+
+        var csc_data = List[Scalar[Self.dtype]](capacity=len(self.data))
+        var csc_indices = List[Int](capacity=len(self.indices))
+        for _ in range(len(self.data)):
+            csc_data.append(0)
+            csc_indices.append(0)
+
+        var next_pos = csc_indptr.copy()
+        for r in range(self.rows):
+            var start = self.indptr[r]
+            var end = self.indptr[r + 1]
+            for idx in range(start, end):
+                var c = self.indices[idx]
+                var dest = next_pos[c]
+                next_pos[c] += 1
+                csc_data[dest] = self.data[idx]
+                csc_indices[dest] = r
+
+        return CSCMatrix[Self.dtype](
+            self.rows, self.cols, csc_data^, csc_indices^, csc_indptr^
+        )
 
     def num_rows(self) -> Int:
         return self.rows

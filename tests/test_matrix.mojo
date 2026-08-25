@@ -117,5 +117,55 @@ def test_sparse_mixed_precision() raises:
     assert_equal(C[1, 1], 4.0)
 
 
+def test_sparse_validation() raises:
+    from std.testing import assert_raises
+    from strata import CSCMatrix
+
+    # Invalid indptr length for 2x2 matrix (needs len=3, given len=2)
+    var data: List[Scalar[DType.float64]] = [1.0, 2.0]
+    var indices: List[Int] = [0, 1]
+    var bad_indptr: List[Int] = [0, 2]
+
+    with assert_raises():
+        _ = CSCMatrix(2, 2, data.copy(), indices.copy(), bad_indptr.copy())
+
+    with assert_raises():
+        _ = CSRMatrix(2, 2, data.copy(), indices.copy(), bad_indptr.copy())
+
+
+def test_csc_matrix_ops_and_conversion() raises:
+    from strata import CSCMatrix
+
+    var dense = Matrix[DType.float64](3, 3, 0)
+    dense[0, 0] = 10.0
+    dense[1, 2] = 20.0
+    dense[2, 1] = 30.0
+
+    var csc = CSCMatrix[DType.float64].from_dense(dense)
+    assert_equal(csc.nnz(), 3)
+    assert_equal(csc.shape()[0], 3)
+    assert_equal(csc.shape()[1], 3)
+
+    # Conversion roundtrip CSC -> CSR -> CSC
+    var csr = csc.to_csr()
+    assert_equal(csr.nnz(), 3)
+    var csc_roundtrip = csr.to_csc()
+    assert_equal(csc_roundtrip.nnz(), 3)
+
+    # Direct CSC matrix-vector dot product
+    var x: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
+    var y = csc.dot_vec(x)
+    assert_equal(y[0], 10.0)
+    assert_equal(y[1], 60.0)
+    assert_equal(y[2], 60.0)
+
+    # CSC dense matrix multiplication
+    var B = Matrix[DType.float64].ones(3, 2)
+    var C = csc.dot_dense(B)
+    assert_equal(C[0, 0], 10.0)
+    assert_equal(C[1, 0], 20.0)
+    assert_equal(C[2, 0], 30.0)
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
