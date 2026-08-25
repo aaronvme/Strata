@@ -22,7 +22,7 @@ def permutation(n: Int, seed: Int = 42) -> List[Int]:
     return indices^
 
 
-def shuffle[T: Copyable](mut list: List[T], seed: Int = 42):
+def shuffle[T: Deinitable & Copyable](mut list: List[T], seed: Int = 42):
     """In-place Fisher-Yates shuffle on a List."""
     var n = len(list)
     if n <= 1:
