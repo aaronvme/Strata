@@ -176,6 +176,9 @@ To ensure compile-time trait enforcement, type safety, and effortless `model.pre
 
   pipe.fit(X_train, y_train)
   var preds = pipe.predict(X_test)  # Fully inferred from X_test!
+
+  # For non-default target types (e.g. Int32), configure via keyword parameter:
+  # var int_pipe = PipelineRegressor[target_dtype=DType.int32](scaler^, int_model^)
   ```
 
 ### 3. Validation & Clear Error Messages

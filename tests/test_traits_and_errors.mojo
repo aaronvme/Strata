@@ -140,10 +140,16 @@ def test_pipeline_and_traits() raises:
     var preds = pipe.predict(ds.records)
     assert_equal(len(preds), 4)
 
-    # User freedom: Int32 regressor allowed if explicitly requested
+    # Int32 regressor configured via keyword parameter
+    var scaler2 = StandardScaler(with_mean=False, with_std=False)
     var int_reg = MockRegressor[DType.int32](2.0)
+    var int_pipe = PipelineRegressor[target_dtype=DType.int32](
+        scaler2^, int_reg^
+    )
     var X_int = Matrix[DType.float64](2, 1, 5.0)
-    var int_preds = int_reg.predict(X_int)
+    var y_int: List[Scalar[DType.int32]] = [10, 10]
+    int_pipe.fit(X_int, y_int)
+    var int_preds = int_pipe.predict(X_int)
     assert_equal(int_preds[0], 10)
 
 
