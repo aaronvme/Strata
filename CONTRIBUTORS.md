@@ -276,4 +276,4 @@ Before submitting a PR:
 2. [ ] **Tests pass**: Run `pixi run test-all` and ensure all tests pass without errors.
 3. [ ] **Package builds**: Run `pixi run build` to confirm package precompilation succeeds.
 4. [ ] **Docstrings**: Ensure new public structs and methods have clear docstrings.
-5. [ ] **Update Roadmap**: If completing an item from [ROADMAP.md](file:///home/ewu/Code/Strata/ROADMAP.md), check off the task!
+5. [ ] **Update Roadmap**: If completing an item from [ROADMAP.md](./ROADMAP.md), check off the task!
