@@ -4,9 +4,15 @@ from ..exceptions.errors import DimensionMismatchError
 
 
 def spmv[
-    dtype: DType
-](A: CSRMatrix[dtype], x: List[Scalar[dtype]],) raises -> List[Scalar[dtype]]:
-    """Sparse matrix-vector multiplication: y = A @ x."""
+    mat_dtype: DType,
+    vec_dtype: DType,
+    out_dtype: DType = vec_dtype,
+](
+    A: CSRMatrix[mat_dtype],
+    x: List[Scalar[vec_dtype]],
+    bias: Scalar[vec_dtype] = 0,
+) raises -> List[Scalar[out_dtype]]:
+    """Sparse matrix-vector multiplication with mixed precision: y = A @ x + bias."""
     if A.cols != len(x):
         raise DimensionMismatchError.error(
             "len(x) == " + String(A.cols),
@@ -14,21 +20,26 @@ def spmv[
             "spmv",
         )
 
-    var y = List[Scalar[dtype]](capacity=A.rows)
+    var y = List[Scalar[out_dtype]](capacity=A.rows)
+    var b_val = Float64(bias)
     for r in range(A.rows):
         var start = A.indptr[r]
         var end = A.indptr[r + 1]
-        var sum_val: Scalar[dtype] = 0
+        var sum_val: Float64 = b_val
         for idx in range(start, end):
             var c = A.indices[idx]
-            sum_val += A.data[idx] * x[c]
-        y.append(sum_val)
+            sum_val += Float64(A.data[idx]) * Float64(x[c])
+        y.append(Scalar[out_dtype](sum_val))
     return y^
 
 
 def spvm[
-    dtype: DType
-](x: List[Scalar[dtype]], A: CSRMatrix[dtype],) raises -> List[Scalar[dtype]]:
+    mat_dtype: DType,
+    vec_dtype: DType,
+    out_dtype: DType = vec_dtype,
+](x: List[Scalar[vec_dtype]], A: CSRMatrix[mat_dtype]) raises -> List[
+    Scalar[out_dtype]
+]:
     """Vector-sparse matrix multiplication: y^T = x^T @ A."""
     if len(x) != A.rows:
         raise DimensionMismatchError.error(
@@ -37,34 +48,34 @@ def spvm[
             "spvm",
         )
 
-    var y = List[Scalar[dtype]](capacity=A.cols)
+    var y = List[Scalar[out_dtype]](capacity=A.cols)
     for _ in range(A.cols):
         y.append(0)
 
     for r in range(A.rows):
-        var x_r = x[r]
+        var x_r = Float64(x[r])
         if x_r == 0:
             continue
+
         var start = A.indptr[r]
         var end = A.indptr[r + 1]
         for idx in range(start, end):
             var c = A.indices[idx]
-            y[c] += x_r * A.data[idx]
+            var prod = x_r * Float64(A.data[idx])
+            y[c] = Scalar[out_dtype](Float64(y[c]) + prod)
 
     return y^
 
 
 def spmm[
-    dtype: DType
-](A: CSRMatrix[dtype], B: Matrix[dtype],) raises -> Matrix[dtype]:
-    """Sparse-dense matrix multiplication: C = A @ B."""
+    mat_dtype: DType,
+    dense_dtype: DType,
+    out_dtype: DType = dense_dtype,
+](A: CSRMatrix[mat_dtype], B: Matrix[dense_dtype]) raises -> Matrix[out_dtype]:
+    """Sparse-Dense matrix multiplication with mixed precision: C = A @ B."""
     if A.cols != B.rows:
         raise DimensionMismatchError.error(
-            "A.cols == B.rows ("
-            + String(A.cols)
-            + " == "
-            + String(B.rows)
-            + ")",
+            "A.cols == B.rows",
             "A("
             + String(A.rows)
             + "x"
@@ -79,20 +90,23 @@ def spmm[
 
     var M = A.rows
     var N = B.cols
-    var C = Matrix[dtype](M, N, 0)
+    var C = Matrix[out_dtype](M, N, 0)
 
-    for r in range(M):
-        var start = A.indptr[r]
-        var end = A.indptr[r + 1]
-        var c_row_offset = r * N
+    for i in range(M):
+        var start = A.indptr[i]
+        var end = A.indptr[i + 1]
+        var c_offset = i * N
 
         for idx in range(start, end):
             var k = A.indices[idx]
-            var a_val = A.data[idx]
-            var b_row_offset = k * N
+            var a_val = Float64(A.data[idx])
+            var b_offset = k * N
 
             for j in range(N):
-                C.data[c_row_offset + j] += a_val * B.data[b_row_offset + j]
+                var prod = a_val * Float64(B.data[b_offset + j])
+                C.data[c_offset + j] = Scalar[out_dtype](
+                    Float64(C.data[c_offset + j]) + prod
+                )
 
     return C^
 

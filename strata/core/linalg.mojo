@@ -3,9 +3,11 @@ from ..exceptions.errors import DimensionMismatchError
 
 
 def gemm[
-    dtype: DType
-](A: Matrix[dtype], B: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Dense matrix multiplication: C = A @ B."""
+    a_dtype: DType,
+    b_dtype: DType,
+    out_dtype: DType = a_dtype,
+](A: Matrix[a_dtype], B: Matrix[b_dtype]) raises -> Matrix[out_dtype]:
+    """Dense matrix multiplication with mixed precision: C = A @ B."""
     if A.cols != B.rows:
         raise DimensionMismatchError.error(
             "A.cols == B.rows",
@@ -25,11 +27,11 @@ def gemm[
     var K = A.cols
     var N = B.cols
 
-    var C = Matrix[dtype](M, N, 0)
+    var C = Matrix[out_dtype](M, N, 0)
 
     for i in range(M):
         for k in range(K):
-            var a_ik = A[i, k]
+            var a_ik = Float64(A[i, k])
             if a_ik == 0:
                 continue
 
@@ -37,15 +39,24 @@ def gemm[
             var c_offset = i * N
 
             for j in range(N):
-                C.data[c_offset + j] += a_ik * B.data[b_offset + j]
+                var prod = a_ik * Float64(B.data[b_offset + j])
+                C.data[c_offset + j] = Scalar[out_dtype](
+                    Float64(C.data[c_offset + j]) + prod
+                )
 
     return C^
 
 
 def dense_dot_vec[
-    dtype: DType
-](A: Matrix[dtype], x: List[Scalar[dtype]]) raises -> List[Scalar[dtype]]:
-    """Dense matrix-vector product: y = A @ x."""
+    mat_dtype: DType,
+    vec_dtype: DType,
+    out_dtype: DType = vec_dtype,
+](
+    A: Matrix[mat_dtype],
+    x: List[Scalar[vec_dtype]],
+    bias: Scalar[vec_dtype] = 0,
+) raises -> List[Scalar[out_dtype]]:
+    """Dense matrix-vector product with mixed precision: y = A @ x + bias."""
     if A.cols != len(x):
         raise DimensionMismatchError.error(
             "len(x) == " + String(A.cols),
@@ -53,13 +64,14 @@ def dense_dot_vec[
             "dense_dot_vec",
         )
 
-    var res = List[Scalar[dtype]](capacity=A.rows)
+    var res = List[Scalar[out_dtype]](capacity=A.rows)
+    var b_val = Float64(bias)
 
     for r in range(A.rows):
         var row_offset = r * A.cols
-        var sum_scalar: Scalar[dtype] = 0
+        var sum_val: Float64 = b_val
         for c in range(A.cols):
-            sum_scalar += A.data[row_offset + c] * x[c]
-        res.append(sum_scalar)
+            sum_val += Float64(A.data[row_offset + c]) * Float64(x[c])
+        res.append(Scalar[out_dtype](sum_val))
 
     return res^

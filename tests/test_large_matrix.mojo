@@ -19,7 +19,7 @@ def test_large_dense_gemm() raises:
     var A = Matrix[DType.float64].ones(size, size)
     var B = Matrix[DType.float64](size, size, 2.0)
 
-    var C = gemm[DType.float64](A, B)
+    var C = gemm(A, B)
     assert_equal(C.rows, size)
     assert_equal(C.cols, size)
     assert_equal(C[0, 0], 512.0)
@@ -36,7 +36,7 @@ def test_large_dense_dot_vec() raises:
     for _ in range(cols):
         x.append(3.5)
 
-    var y = dense_dot_vec[DType.float64](A, x)
+    var y = dense_dot_vec(A, x)
     assert_equal(len(y), rows)
     assert_equal(y[0], 1750.0)
     assert_equal(y[999], 1750.0)

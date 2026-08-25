@@ -21,7 +21,7 @@ def test_dense_matrix_gemm() raises:
     B[1, 0] = 7.0
     B[1, 1] = 8.0
 
-    var C = gemm[DType.float32](A, B)
+    var C = gemm(A, B)
     assert_equal(C[0, 0], 19.0)
     assert_equal(C[0, 1], 22.0)
     assert_equal(C[1, 0], 43.0)
@@ -48,6 +48,73 @@ def test_sparse_csr_spmv_spmm() raises:
     assert_equal(C[0, 0], 10.0)
     assert_equal(C[1, 0], 20.0)
     assert_equal(C[2, 0], 30.0)
+
+
+def test_dense_dot_vec_mixed_precision() raises:
+    from strata import dense_dot_vec
+
+    # Int32 input matrix
+    var A = Matrix[DType.int32](2, 2, 0)
+    A[0, 0] = 2
+    A[0, 1] = 3
+    A[1, 0] = 4
+    A[1, 1] = 5
+
+    # Float64 weights & bias
+    var weights: List[Scalar[DType.float64]] = [0.5, 2.0]
+    var bias: Scalar[DType.float64] = 1.0
+
+    # Mixed precision matrix-vector product: Int32 @ Float64 -> Float64
+    var y = dense_dot_vec(A, weights, bias)
+    assert_equal(y[0], 8.0)  # 2*0.5 + 3*2.0 + 1.0 = 1 + 6 + 1 = 8.0
+    assert_equal(y[1], 13.0)  # 4*0.5 + 5*2.0 + 1.0 = 2 + 10 + 1 = 13.0
+
+
+def test_gemm_mixed_precision() raises:
+    # Int32 matrix @ Float64 matrix -> Float64 matrix
+    var A = Matrix[DType.int32](2, 2, 0)
+    A[0, 0] = 1
+    A[0, 1] = 2
+    A[1, 0] = 3
+    A[1, 1] = 4
+
+    var B = Matrix[DType.float64](2, 2, 0.0)
+    B[0, 0] = 0.5
+    B[0, 1] = 1.5
+    B[1, 0] = 2.0
+    B[1, 1] = 3.0
+
+    var C = gemm[DType.int32, DType.float64, DType.float64](A, B)
+    assert_equal(C[0, 0], 4.5)   # 1*0.5 + 2*2.0 = 0.5 + 4 = 4.5
+    assert_equal(C[0, 1], 7.5)   # 1*1.5 + 2*3.0 = 1.5 + 6 = 7.5
+    assert_equal(C[1, 0], 9.5)   # 3*0.5 + 4*2.0 = 1.5 + 8 = 9.5
+    assert_equal(C[1, 1], 16.5)  # 3*1.5 + 4*3.0 = 4.5 + 12 = 16.5
+
+
+def test_sparse_mixed_precision() raises:
+    # Int32 sparse matrix (e.g. word counts)
+    var dense = Matrix[DType.int32](2, 2, 0)
+    dense[0, 0] = 3
+    dense[1, 1] = 4
+
+    var csr = CSRMatrix[DType.int32].from_dense(dense)
+
+    # Float64 weights
+    var weights: List[Scalar[DType.float64]] = [0.5, 2.5]
+    var bias: Scalar[DType.float64] = 1.0
+
+    # SpMV: Int32 CSR @ Float64 weights + Float64 bias
+    var y = spmv(csr, weights, bias)
+    assert_equal(y[0], 2.5)   # 3*0.5 + 1.0 = 2.5
+    assert_equal(y[1], 11.0)  # 4*2.5 + 1.0 = 11.0
+
+    # SpMM: Int32 CSR @ Float64 Dense Matrix -> Float64 Dense Matrix
+    var B = Matrix[DType.float64].ones(2, 2)
+    var C = spmm[DType.int32, DType.float64, DType.float64](csr, B)
+    assert_equal(C[0, 0], 3.0)
+    assert_equal(C[0, 1], 3.0)
+    assert_equal(C[1, 0], 4.0)
+    assert_equal(C[1, 1], 4.0)
 
 
 def main() raises:
