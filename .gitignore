@@ -3,3 +3,5 @@
 !.pixi/config.toml
 .agents
 skills-lock.json
+*.mojoc
+*bin/
