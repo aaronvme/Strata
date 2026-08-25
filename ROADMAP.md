@@ -1,10 +1,10 @@
 # Strata Roadmap
 
-Strata is a native machine learning library for Mojo. The goal is straightforward: give Mojo the same clean, familiar workflow as `scikit-learn`, but with native performance, zero-copy views, and hardware acceleration out of the box—no Cython or C extensions needed.
+Strata is a native machine learning library for Mojo. The goal is straightforward is to give Mojo the same clean, familiar workflow as `scikit-learn`, but with native performance, zero-copy views, and hardware acceleration out of the box—no Cython or C extensions needed.
 
 ---
 
-## Current State (v0.1.0)
+## Current State
 
 We have the core data structures and linear algebra plumbing in place:
 
@@ -23,9 +23,9 @@ We have the core data structures and linear algebra plumbing in place:
 
 ---
 
-## What We're Working On
+## What needs to be completed:
 
-### 1. Engine & Math Foundation (v0.1.x)
+### 1. Engine & Math Foundation
 Before stacking up dozens of algorithms, we need our core engine to be rock-solid and fast.
 
 - [ ] **Fix base traits**: Update `Estimator`, `Transformer`, `Regressor`, and `Classifier` to have proper `Movable` contracts so pipelines compile cleanly.
@@ -36,7 +36,7 @@ Before stacking up dozens of algorithms, we need our core engine to be rock-soli
 
 ---
 
-### 2. Core Estimators & Metrics (v0.2.0)
+### 2. Core Estimators & Metrics
 The goal here is a working end-to-end ML workflow: load data -> preprocess -> train a linear model -> evaluate.
 
 - [ ] **Metrics (`strata.metrics`)**:
@@ -57,7 +57,7 @@ The goal here is a working end-to-end ML workflow: load data -> preprocess -> tr
 
 ---
 
-### 3. Classical ML Algorithms (v0.3.0 – v0.4.0)
+### 3. Classical ML Algorithms
 
 - [ ] **Clustering (`strata.cluster`)**:
   - `KMeans` (with KMeans++ initialization)
@@ -76,7 +76,7 @@ The goal here is a working end-to-end ML workflow: load data -> preprocess -> tr
 
 ---
 
-### 4. Down the Line (v0.5.0+)
+### 4. Down the Line
 
 - [ ] Full `Pipeline` and `ColumnTransformer` composition.
 - [ ] GPU kernel acceleration (Mojo GPU backend for dense and sparse matmuls).
@@ -87,4 +87,4 @@ The goal here is a working end-to-end ML workflow: load data -> preprocess -> tr
 
 ## Feedback & Ideas
 
-If there's an algorithm or feature you want to see sooner, or if you want to help implement one, open an issue or grab a task from the list above!
+If there's an algorithm or feature you want to see sooner, or if you want to help implement one, open an issue or grab a task from the list above and make a pr!
