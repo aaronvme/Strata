@@ -115,12 +115,12 @@ Here is how the project is organized:
 ```
 Strata/
 ├── strata/
-│   ├── base/             # Core traits (Estimator, Transformer, Regressor, Classifier)
+│   ├── base/             # Core traits (Estimator, Transformer, Regressor, Classifier, Clusterer)
 │   ├── core/             # Matrix, MatrixView, CSRMatrix, CSCMatrix, linalg, interop
 │   ├── exceptions/       # Domain errors (DimensionMismatchError, NotFittedError, etc.)
 │   ├── utils/            # Validation helpers (check_X_y), math (softmax), random (shuffle)
-│   ├── preprocessing/    # Data transformers (StandardScaler, MinMaxScaler)
-│   ├── model_selection/  # Data splitting (train_test_split, KFold)
+│   ├── preprocessing/    # Data transformers (StandardScaler)
+│   ├── model_selection/  # Data splitting (train_test_split)
 │   ├── metrics/          # Evaluation metrics (MSE, R2, Accuracy, F1)
 │   ├── linear_model/     # Linear regression, Ridge, Logistic regression
 │   ├── cluster/          # KMeans, KModes, DBSCAN
@@ -146,7 +146,7 @@ When contributing code to Strata, please keep these conventions in mind:
 To ensure compile-time trait enforcement, type safety, and effortless `model.predict(X)` call syntax matching scikit-learn:
 
 - **Target DType Defaults & Developer Flexibility**:
-  `target_dtype` defaults to `DType.float64` for Regressors and `DType.int32` / `DType.float64` for Classifiers. Because of this default, standard users get full continuous floating-point precision out of the box, while advanced users have complete freedom to specify alternative precisions (e.g. `Float32` or `Int32`) if desired:
+  `target_dtype` defaults to `DType.float64` for Regressors and `DType.int32` for Classifiers. Because of this default, standard users get standard behavior out of the box, while advanced users have complete freedom to specify alternative precisions (e.g. `Float32` or `Int32`) if desired:
   ```mojo
   struct LinearRegression[
       target_dtype: DType = DType.float64,
@@ -164,6 +164,9 @@ To ensure compile-time trait enforcement, type safety, and effortless `model.pre
       ...
   ```
 
+- **Clusterers & Discrete Cluster Assignments**:
+  Clusterers (e.g. `KMeans`, `KModes`) implement generic `fit[dtype]` and `predict[dtype]` methods returning `List[Int]` cluster indices.
+
 - **Clean, Zero-Type-Parameter Pipelines**:
   `PipelineRegressor` and `PipelineClassifier` wrap `[T: Transformer, R: Regressor]` and allow zero-type-parameter training and inference:
   ```mojo
@@ -172,12 +175,12 @@ To ensure compile-time trait enforcement, type safety, and effortless `model.pre
   var pipe = PipelineRegressor(scaler^, model^)
 
   pipe.fit(X_train, y_train)
-  var preds = pipe.predict(X_test)  # Fully inferred!
+  var preds = pipe.predict(X_test)  # Fully inferred from X_test!
   ```
 
 ### 3. Validation & Clear Error Messages
 - Use the shared validation functions in `strata.utils.validation`:
-  - `check_array(X)` — checks for non-empty 2D matrices.
+  - `check_array[dtype](X)` — checks for non-empty 2D matrices.
   - `check_X_y(X, y)` — verifies consistent sample counts between features and targets.
   - `check_is_fitted("EstimatorName", self.is_fitted)` — ensures models are trained before calling `predict` or `transform`.
 - Raise domain-specific errors from `strata.exceptions.errors` (`DimensionMismatchError`, `InvalidParameterError`, `NotFittedError`).
@@ -186,13 +189,12 @@ To ensure compile-time trait enforcement, type safety, and effortless `model.pre
 
 ## How to Add a New Estimator (Step-by-Step)
 
-If you're implementing an estimator (e.g. from [ROADMAP.md](file:///home/ewu/Code/Strata/ROADMAP.md)):
+If you're implementing an estimator (e.g. from ROADMAP.md):
 
 ### Step 1: Define the Struct & Constructor
-Implement the estimator conforming to `Movable` and the appropriate base trait (`Regressor`, `Classifier`, or `Transformer`), storing internal model parameters in `compute_dtype`:
+Implement the estimator conforming to `Movable` and the appropriate base trait (`Regressor`, `Classifier`, `Transformer`, or `Clusterer`), storing internal model parameters in `compute_dtype`:
 
 ```mojo
-from std.builtin import constrained
 from ..base.estimator import Regressor
 from ..core.matrix import Matrix
 from ..core.dataset import Dataset
@@ -213,14 +215,50 @@ struct MyRegressor[
         self.intercept_ = 0
 ```
 
-### Step 2: Implement `fit` and `predict`
-- Implement `def fit[feat_dtype: DType](mut self, X: Matrix[feat_dtype], y: List[Scalar[Self.target_dtype]]) raises`.
-- Implement `def fit[feat_dtype: DType, in_target_dtype: DType](mut self, dataset: Dataset[feat_dtype, in_target_dtype]) raises: self.fit(dataset.records, dataset.targets)`.
-- Implement `def predict[feat_dtype: DType](self, X: Matrix[feat_dtype]) raises -> List[Scalar[Self.target_dtype]]`.
-- Implement `def predict[feat_dtype: DType, in_target_dtype: DType](self, dataset: Dataset[feat_dtype, in_target_dtype]) raises -> List[Scalar[in_target_dtype]]: return self.predict[feat_dtype, in_target_dtype](dataset.records)`.
-- Call `check_X_y(X, y)` at the start of `fit`.
-- Set `self.is_fitted = True` upon successful convergence.
-- Call `check_is_fitted("MyRegressor", self.is_fitted)` at the beginning of `predict`.
+### Step 2: Implement `fit` and `predict` (The 5-Method Pattern)
+Implement the 5 methods to satisfy trait conformance while enabling zero-type-parameter call-site inference:
+
+```mojo
+    # 1. Universal fit accepting arbitrary input feature and target precisions
+    def fit[
+        feat_dtype: DType, in_target_dtype: DType
+    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[in_target_dtype]]) raises:
+        check_X_y(X, y)
+        # Compute coefficients using Self.compute_dtype arithmetic
+        self.is_fitted = True
+
+    # 2. Dataset fit overload forwarding to matrix fit
+    def fit[
+        feat_dtype: DType, in_target_dtype: DType
+    ](mut self, dataset: Dataset[feat_dtype, in_target_dtype]) raises:
+        self.fit(dataset.records, dataset.targets)
+
+    # 3. Ergonomic zero-call-site-parameter predict (infers feat_dtype from X!)
+    def predict[
+        feat_dtype: DType
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[Self.target_dtype]]:
+        return self.predict[feat_dtype, Self.target_dtype](X)
+
+    # 4. Two-parameter predict satisfying trait Regressor
+    def predict[
+        feat_dtype: DType, out_target_dtype: DType
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[out_target_dtype]]:
+        check_is_fitted("MyRegressor", self.is_fitted)
+        var preds = List[Scalar[out_target_dtype]](capacity=X.rows)
+        # Compute predictions
+        return preds^
+
+    # 5. Dataset predict overload
+    def predict[
+        feat_dtype: DType, in_target_dtype: DType
+    ](
+        self,
+        dataset: Dataset[feat_dtype, in_target_dtype],
+    ) raises -> List[
+        Scalar[in_target_dtype]
+    ]:
+        return self.predict[feat_dtype, in_target_dtype](dataset.records)
+```
 
 ### Step 3: Export in Subpackage `__init__.mojo`
 Export your struct in its folder's `__init__.mojo` (e.g., `strata/linear_model/__init__.mojo`) and add it to `strata/__init__.mojo`.

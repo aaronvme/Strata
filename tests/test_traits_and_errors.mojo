@@ -111,8 +111,9 @@ def test_pipeline_and_traits() raises:
     var pipe = PipelineRegressor(scaler^, reg^)
 
     var ds = Dataset(X^, y^)
-    pipe.fit[DType.float64, DType.float64](ds)
-    var preds = pipe.predict[DType.float64, DType.float64](ds.records)
+    # Fully inferred with zero call-site type parameters!
+    pipe.fit(ds)
+    var preds = pipe.predict(ds.records)
     assert_equal(len(preds), 4)
 
     # User freedom: Int32 regressor allowed if explicitly requested

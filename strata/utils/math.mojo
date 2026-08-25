@@ -27,12 +27,14 @@ def softmax[
         if v > max_val:
             max_val = v
 
+    var exp_vals = List[Float64](capacity=n)
     var sum_exp: Float64 = 0.0
     for i in range(n):
         var e = exp(Float64(x[i]) - max_val)
+        exp_vals.append(e)
         sum_exp += e
 
+    var inv_sum_exp = 1.0 / sum_exp
     for i in range(n):
-        var p = exp(Float64(x[i]) - max_val) / sum_exp
-        res.append(Scalar[dtype](p))
+        res.append(Scalar[dtype](exp_vals[i] * inv_sum_exp))
     return res^

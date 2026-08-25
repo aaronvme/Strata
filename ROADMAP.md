@@ -28,11 +28,11 @@ We have the core data structures and linear algebra plumbing in place:
 ### 1. Engine & Math Foundation
 Before stacking up dozens of algorithms, we need our core engine to be rock-solid and fast.
 
-- [ ] **Fix base traits**: Update `Estimator`, `Transformer`, `Regressor`, and `Classifier` to have proper `Movable` contracts so pipelines compile cleanly.
+- [x] **Fix base traits**: Update `Estimator`, `Transformer`, `Regressor`, and `Classifier` to have proper `Movable` contracts so pipelines compile cleanly.
 - [ ] **Vectorize dense linalg**: Rewrite `gemm` and `dense_dot_vec` with SIMD (`sys.info.simdwidthof`) and cache-friendly tiling instead of naive loops.
 - [ ] **Multi-threading**: Add parallel CPU execution (`parallel_for`) for dense matrix multiplications and row-wise operations.
 - [ ] **Fast NumPy interop**: Replace element-by-element Python loops with direct pointer/buffer copies.
-- [ ] **Numerical stability**: Fix potential overflow in `softmax` (subtract max) and add standard math utils (log-sum-exp, better PRNG).
+- [x] **Numerical stability**: Fix potential overflow in `softmax` (subtract max) and add standard math utils (log-sum-exp, better PRNG).
 
 ---
 

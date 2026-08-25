@@ -91,14 +91,16 @@ def spmm[
     var M = A.rows
     var N = B.cols
     var C = Matrix[out_dtype](M, N, 0)
+    var row_acc = List[Float64](capacity=N)
+    for _ in range(N):
+        row_acc.append(0.0)
 
     for i in range(M):
         var start = A.indptr[i]
         var end = A.indptr[i + 1]
         var c_offset = i * N
-        var row_acc = List[Float64](capacity=N)
-        for _ in range(N):
-            row_acc.append(0.0)
+        for j in range(N):
+            row_acc[j] = 0.0
 
         for idx in range(start, end):
             var k = A.indices[idx]

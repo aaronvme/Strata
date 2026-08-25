@@ -6,6 +6,7 @@ from .estimator import Estimator, Transformer, Regressor, Classifier
 struct PipelineRegressor[
     T: Transformer,
     R: Regressor,
+    target_dtype: DType = DType.float64,
 ](Movable, Regressor):
     var transformer: Self.T
     var regressor: Self.R
@@ -15,37 +16,43 @@ struct PipelineRegressor[
         self.regressor = regressor^
 
     def fit[
-        feat_dtype: DType, target_dtype: DType
-    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises:
+        feat_dtype: DType, in_target_dtype: DType
+    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[in_target_dtype]]) raises:
         self.transformer.fit[feat_dtype](X)
         var X_trans = self.transformer.transform[feat_dtype](X)
-        self.regressor.fit[feat_dtype, target_dtype](X_trans, y)
+        self.regressor.fit[feat_dtype, in_target_dtype](X_trans, y)
 
     def fit[
-        feat_dtype: DType, target_dtype: DType
-    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
-        self.fit[feat_dtype, target_dtype](dataset.records, dataset.targets)
+        feat_dtype: DType, in_target_dtype: DType
+    ](mut self, dataset: Dataset[feat_dtype, in_target_dtype]) raises:
+        self.fit[feat_dtype, in_target_dtype](dataset.records, dataset.targets)
 
     def predict[
-        feat_dtype: DType, target_dtype: DType
-    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[target_dtype]]:
+        feat_dtype: DType
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[Self.target_dtype]]:
+        return self.predict[feat_dtype, Self.target_dtype](X)
+
+    def predict[
+        feat_dtype: DType, out_target_dtype: DType
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[out_target_dtype]]:
         var X_trans = self.transformer.transform[feat_dtype](X)
-        return self.regressor.predict[feat_dtype, target_dtype](X_trans)
+        return self.regressor.predict[feat_dtype, out_target_dtype](X_trans)
 
     def predict[
-        feat_dtype: DType, target_dtype: DType
+        feat_dtype: DType, in_target_dtype: DType
     ](
         self,
-        dataset: Dataset[feat_dtype, target_dtype],
+        dataset: Dataset[feat_dtype, in_target_dtype],
     ) raises -> List[
-        Scalar[target_dtype]
+        Scalar[in_target_dtype]
     ]:
-        return self.predict[feat_dtype, target_dtype](dataset.records)
+        return self.predict[feat_dtype, in_target_dtype](dataset.records)
 
 
 struct PipelineClassifier[
     T: Transformer,
     C: Classifier,
+    target_dtype: DType = DType.int32,
 ](Classifier, Movable):
     var transformer: Self.T
     var classifier: Self.C
@@ -55,32 +62,37 @@ struct PipelineClassifier[
         self.classifier = classifier^
 
     def fit[
-        feat_dtype: DType, target_dtype: DType
-    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises:
+        feat_dtype: DType, in_target_dtype: DType
+    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[in_target_dtype]]) raises:
         self.transformer.fit[feat_dtype](X)
         var X_trans = self.transformer.transform[feat_dtype](X)
-        self.classifier.fit[feat_dtype, target_dtype](X_trans, y)
+        self.classifier.fit[feat_dtype, in_target_dtype](X_trans, y)
 
     def fit[
-        feat_dtype: DType, target_dtype: DType
-    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
-        self.fit[feat_dtype, target_dtype](dataset.records, dataset.targets)
+        feat_dtype: DType, in_target_dtype: DType
+    ](mut self, dataset: Dataset[feat_dtype, in_target_dtype]) raises:
+        self.fit[feat_dtype, in_target_dtype](dataset.records, dataset.targets)
 
     def predict[
-        feat_dtype: DType, target_dtype: DType
-    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[target_dtype]]:
+        feat_dtype: DType
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[Self.target_dtype]]:
+        return self.predict[feat_dtype, Self.target_dtype](X)
+
+    def predict[
+        feat_dtype: DType, out_target_dtype: DType
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[out_target_dtype]]:
         var X_trans = self.transformer.transform[feat_dtype](X)
-        return self.classifier.predict[feat_dtype, target_dtype](X_trans)
+        return self.classifier.predict[feat_dtype, out_target_dtype](X_trans)
 
     def predict[
-        feat_dtype: DType, target_dtype: DType
+        feat_dtype: DType, in_target_dtype: DType
     ](
         self,
-        dataset: Dataset[feat_dtype, target_dtype],
+        dataset: Dataset[feat_dtype, in_target_dtype],
     ) raises -> List[
-        Scalar[target_dtype]
+        Scalar[in_target_dtype]
     ]:
-        return self.predict[feat_dtype, target_dtype](dataset.records)
+        return self.predict[feat_dtype, in_target_dtype](dataset.records)
 
     def predict_proba[
         feat_dtype: DType
@@ -89,10 +101,10 @@ struct PipelineClassifier[
         return self.classifier.predict_proba[feat_dtype](X_trans)
 
     def predict_proba[
-        feat_dtype: DType, target_dtype: DType
+        feat_dtype: DType, in_target_dtype: DType
     ](
         self,
-        dataset: Dataset[feat_dtype, target_dtype],
+        dataset: Dataset[feat_dtype, in_target_dtype],
     ) raises -> Matrix[
         DType.float64
     ]:
