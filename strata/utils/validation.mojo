@@ -32,3 +32,14 @@ def check_consistent_length[T1: Copyable, T2: Copyable](a: List[T1], b: List[T2]
             "len(b) == " + String(len(b)),
             "check_consistent_length",
         )
+
+def check_consistent_length[dtype: DType, T: Copyable](
+    X: Matrix[dtype],
+    y: List[T],
+) raises:
+    if X.rows != len(y):
+        raise DimensionMismatchError.error(
+            "len(y) == " + String(X.rows),
+            "len(y) == " + String(len(y)),
+            "check_consistent_length",
+        )

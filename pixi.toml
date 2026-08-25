@@ -18,6 +18,8 @@ test-core = "mojo run -I . tests/test_traits_and_errors.mojo"
 test-interop = "mojo run -I . tests/test_interop.mojo"
 test-view = "mojo run -I . tests/test_view.mojo"
 test-large = "mojo run -I . tests/test_large_matrix.mojo"
-test-all = { depends-on = ["test-matrix", "test-core", "test-view", "test-interop", "test-large"] }
+test-preprocessing = "mojo run -I . tests/test_preprocessing.mojo"
+test-split = "mojo run -I . tests/test_model_selection.mojo"
+test-all = { depends-on = ["test-matrix", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-split"] }
 test = "mojo test -I ."
 

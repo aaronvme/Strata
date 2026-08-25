@@ -29,6 +29,8 @@ from .core import (
     matrix_from_numpy,
     csr_to_scipy,
     csr_from_scipy,
+    Dataset,
+    DatasetSplit,
 )
 from .exceptions import (
     NotFittedError,
@@ -44,4 +46,8 @@ from .utils import (
     check_consistent_length,
     sigmoid,
     softmax,
+    permutation,
+    shuffle,
 )
+from .preprocessing import StandardScaler
+from .model_selection import train_test_split
