@@ -56,7 +56,9 @@ def check_consistent_length[
         )
 
 
-def check_sparse[dtype: DType](
+def check_sparse[
+    dtype: DType
+](
     rows: Int,
     cols: Int,
     data: List[Scalar[dtype]],
