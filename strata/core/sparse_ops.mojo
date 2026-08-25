@@ -1,19 +1,6 @@
-from std.algorithm import vectorize
 from .matrix import Matrix
 from .csr_matrix import CSRMatrix
 from ..exceptions.errors import DimensionMismatchError
-
-def simd_width_of[dtype: DType]() -> Int:
-    comptime if dtype == DType.float32 or dtype == DType.int32 or dtype == DType.uint32:
-        return 8
-    elif dtype == DType.float64 or dtype == DType.int64 or dtype == DType.uint64:
-        return 4
-    elif dtype == DType.float16 or dtype == DType.bfloat16 or dtype == DType.int16 or dtype == DType.uint16:
-        return 16
-    elif dtype == DType.int8 or dtype == DType.uint8 or dtype == DType.bool:
-        return 32
-    else:
-        return 4
 
 def spmv[dtype: DType](
     A: CSRMatrix[dtype],
@@ -81,7 +68,6 @@ def spmm[dtype: DType](
     var M = A.rows
     var N = B.cols
     var C = Matrix[dtype](M, N, 0)
-    comptime simd_w = simd_width_of[dtype]()
 
     for r in range(M):
         var start = A.indptr[r]
@@ -93,19 +79,8 @@ def spmm[dtype: DType](
             var a_val = A.data[idx]
             var b_row_offset = k * N
 
-            def _simd_add[w: Int](col_idx: Int) {imm B, mut C, imm a_val, imm b_row_offset, imm c_row_offset}:
-                var b_vec = SIMD[dtype, w]()
-                var c_vec = SIMD[dtype, w]()
-                for lane in range(w):
-                    b_vec[lane] = B.data[b_row_offset + col_idx + lane]
-                    c_vec[lane] = C.data[c_row_offset + col_idx + lane]
-
-                var a_vec = SIMD[dtype, w](a_val)
-                var updated = c_vec + a_vec * b_vec
-                for lane in range(w):
-                    C.data[c_row_offset + col_idx + lane] = updated[lane]
-
-            vectorize[simd_w](N, _simd_add)
+            for j in range(N):
+                C.data[c_row_offset + j] += a_val * B.data[b_row_offset + j]
 
     return C^
 
@@ -130,7 +105,6 @@ def sddmm[dtype: DType](
 
     var K = A.cols
     var out_data = List[Scalar[dtype]](capacity=len(S.data))
-    comptime simd_w = simd_width_of[dtype]()
 
     for r in range(S.rows):
         var start = S.indptr[r]
@@ -142,16 +116,9 @@ def sddmm[dtype: DType](
             var s_val = S.data[idx]
             var dot_prod: Scalar[dtype] = 0
 
-            def _simd_dot[w: Int](k_idx: Int) {imm A, imm B, imm a_row_offset, imm c, mut dot_prod}:
-                var a_vec = SIMD[dtype, w]()
-                var b_vec = SIMD[dtype, w]()
-                for lane in range(w):
-                    a_vec[lane] = A.data[a_row_offset + k_idx + lane]
-                    b_vec[lane] = B.data[(k_idx + lane) * B.cols + c]
-                var prod = a_vec * b_vec
-                dot_prod += prod.reduce_add()
+            for k in range(K):
+                dot_prod += A.data[a_row_offset + k] * B.data[k * B.cols + c]
 
-            vectorize[simd_w](K, _simd_dot)
             out_data.append(dot_prod * s_val)
 
     var indptr_copy = S.indptr.copy()
