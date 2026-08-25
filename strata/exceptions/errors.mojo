@@ -1,5 +1,5 @@
 @fieldwise_init
-struct NotFittedError(Writable, Copyable, Movable):
+struct NotFittedError(Copyable, Movable, Writable):
     var estimator_name: String
     var message: String
 
@@ -10,38 +10,53 @@ struct NotFittedError(Writable, Copyable, Movable):
         return Error(
             "NotFittedError: This "
             + estimator_name
-            + " instance is not fitted yet. Call 'fit' before using this estimator."
+            + " instance is not fitted yet. Call 'fit' before using this"
+            " estimator."
         )
 
     def write_to(self, mut writer: Some[Writer]):
-        writer.write("NotFittedError(", self.estimator_name, "): ", self.message)
+        writer.write(
+            "NotFittedError(", self.estimator_name, "): ", self.message
+        )
 
 
 @fieldwise_init
-struct DimensionMismatchError(Writable, Copyable, Movable):
+struct DimensionMismatchError(Copyable, Movable, Writable):
     var expected: String
     var actual: String
     var message: String
 
     @staticmethod
     def error(expected: String, actual: String, context: String = "") -> Error:
-        var msg = "DimensionMismatchError: Expected " + expected + ", but got " + actual
+        var msg = (
+            "DimensionMismatchError: Expected "
+            + expected
+            + ", but got "
+            + actual
+        )
         if context != "":
             msg += " (Context: " + context + ")"
         return Error(msg)
 
     def write_to(self, mut writer: Some[Writer]):
-        writer.write("DimensionMismatchError: expected ", self.expected, ", got ", self.actual)
+        writer.write(
+            "DimensionMismatchError: expected ",
+            self.expected,
+            ", got ",
+            self.actual,
+        )
 
 
 @fieldwise_init
-struct ConvergenceError(Writable, Copyable, Movable):
+struct ConvergenceError(Copyable, Movable, Writable):
     var estimator_name: String
     var max_iter: Int
     var final_loss: Float64
 
     @staticmethod
-    def error(estimator_name: String, max_iter: Int, loss: Float64 = 0.0) -> Error:
+    def error(
+        estimator_name: String, max_iter: Int, loss: Float64 = 0.0
+    ) -> Error:
         return Error(
             "ConvergenceError: "
             + estimator_name
@@ -53,24 +68,37 @@ struct ConvergenceError(Writable, Copyable, Movable):
         )
 
     def write_to(self, mut writer: Some[Writer]):
-        writer.write("ConvergenceError(", self.estimator_name, ", max_iter=", self.max_iter, ")")
+        writer.write(
+            "ConvergenceError(",
+            self.estimator_name,
+            ", max_iter=",
+            self.max_iter,
+            ")",
+        )
 
 
 @fieldwise_init
-struct InvalidParameterError(Writable, Copyable, Movable):
+struct InvalidParameterError(Copyable, Movable, Writable):
     var param_name: String
     var reason: String
 
     @staticmethod
     def error(param_name: String, reason: String) -> Error:
-        return Error("InvalidParameterError: Parameter '" + param_name + "' is invalid: " + reason)
+        return Error(
+            "InvalidParameterError: Parameter '"
+            + param_name
+            + "' is invalid: "
+            + reason
+        )
 
     def write_to(self, mut writer: Some[Writer]):
-        writer.write("InvalidParameterError: ", self.param_name, ": ", self.reason)
+        writer.write(
+            "InvalidParameterError: ", self.param_name, ": ", self.reason
+        )
 
 
 @fieldwise_init
-struct DataConversionError(Writable, Copyable, Movable):
+struct DataConversionError(Copyable, Movable, Writable):
     var message: String
 
     @staticmethod

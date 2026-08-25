@@ -7,6 +7,7 @@ from strata import (
     spmm,
 )
 
+
 def test_dense_matrix_gemm() raises:
     var A = Matrix[DType.float32](2, 2, 0)
     A[0, 0] = 1.0
@@ -25,6 +26,7 @@ def test_dense_matrix_gemm() raises:
     assert_equal(C[0, 1], 22.0)
     assert_equal(C[1, 0], 43.0)
     assert_equal(C[1, 1], 50.0)
+
 
 def test_sparse_csr_spmv_spmm() raises:
     var dense = Matrix[DType.float64](3, 3, 0)
@@ -46,6 +48,7 @@ def test_sparse_csr_spmv_spmm() raises:
     assert_equal(C[0, 0], 10.0)
     assert_equal(C[1, 0], 20.0)
     assert_equal(C[2, 0], 30.0)
+
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

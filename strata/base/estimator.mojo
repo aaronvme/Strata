@@ -1,16 +1,21 @@
 from ..core.matrix import Matrix
 
-trait Estimator:
+
+trait Estimator(Movable):
     pass
 
-trait Transformer:
+
+trait Transformer(Estimator):
     pass
 
-trait Regressor:
+
+trait Regressor(Estimator):
     pass
 
-trait Classifier:
+
+trait Classifier(Estimator):
     pass
 
-trait Clusterer:
+
+trait Clusterer(Estimator):
     pass

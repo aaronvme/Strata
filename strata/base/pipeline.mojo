@@ -1,19 +1,22 @@
 from ..core.matrix import Matrix
 from .estimator import Estimator, Transformer, Regressor, Classifier
 
+
 @fieldwise_init
 struct PipelineRegressor[
-    dtype: DType,
+    feat_dtype: DType,
+    target_dtype: DType,
     T: Transformer,
     R: Regressor,
-](Regressor, Movable):
+](Movable, Regressor):
     var transformer: Self.T
     var regressor: Self.R
 
+
 @fieldwise_init
 struct PipelineClassifier[
-    dtype: DType,
-    label_dtype: DType,
+    feat_dtype: DType,
+    target_dtype: DType,
     T: Transformer,
     C: Classifier,
 ](Classifier, Movable):

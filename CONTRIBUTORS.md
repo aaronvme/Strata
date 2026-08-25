@@ -142,25 +142,53 @@ When contributing code to Strata, please keep these conventions in mind:
 - **Explicit transfers**: Use `^` (move operator) when transferring ownership of large arrays or structs into estimators or return values.
 - **Explicit copying**: When an explicit clone is needed, call `.copy()`.
 
-### 2. Generics & DType Consistency
-To ensure consistent behavior and interoperability across the library:
-- **Standard DType parameter**: Every estimator, transformer, matrix, and math kernel must be generic over `dtype: DType = DType.float64`.
-- **Consistent type parameter naming**:
-  - `dtype`: Used for single-type models (e.g. `Matrix[dtype]`, `LinearRegression[dtype]`).
-  - `feat_dtype` & `target_dtype`: Used when features and labels can differ (e.g. `Dataset[feat_dtype, target_dtype]`, `DecisionTreeClassifier[feat_dtype, target_dtype]`).
-- **Use `Scalar[Self.dtype]`**: Always reference internal model parameters and weights via `Scalar[Self.dtype]` (or `Scalar[dtype]`) rather than hardcoding `Float64` or `Float32`.
-- **Compile-time branching**: Use `comptime if` when special-casing float vs integer operations to avoid runtime overhead:
-  ```mojo
-  struct MyModel[dtype: DType = DType.float64](Movable):
-      var weights: List[Scalar[Self.dtype]]
-  ```
+### 2. Generics & Target-DType Convention
+To ensure complete consistency across the library as it scales:
+
+- **Supervised Estimators (`Regressor`, `Classifier`)**:
+  Supervised models map feature matrices to target vectors ($X \to y$). Features and targets may have different precision or types (e.g. `Float32` features with `Float64` continuous targets, or `Float32` features with `Int32` categorical labels).
+  - **Always parameterize both**:
+    ```mojo
+    struct LinearRegression[
+        feat_dtype: DType = DType.float64,
+        target_dtype: DType = DType.float64,
+    ](Regressor, Movable)
+    ```
+    ```mojo
+    struct LogisticRegression[
+        feat_dtype: DType = DType.float64,
+        target_dtype: DType = DType.float64,
+    ](Classifier, Movable)
+    ```
+  - Standard method signatures:
+    - `fit(mut self, X: Matrix[Self.feat_dtype], y: List[Scalar[Self.target_dtype]]) raises`
+    - `fit(mut self, dataset: Dataset[Self.feat_dtype, Self.target_dtype]) raises`
+    - `predict(self, X: Matrix[Self.feat_dtype]) raises -> List[Scalar[Self.target_dtype]]`
+
+- **Unsupervised Estimators & Transformers (`Transformer`, `Clusterer`)**:
+  Transformers and clustering algorithms operate purely on feature representations:
+  - **Struct parameter**: `[dtype: DType = DType.float64]` (operating on `Matrix[Self.dtype]`).
+  - **Dataset passthrough overloads**: When accepting a `Dataset`, do *not* bind the struct to a fixed target type. Instead, genericize the method over `[target_dtype: DType]` so targets pass through untouched:
+    ```mojo
+    struct StandardScaler[dtype: DType = DType.float64](Transformer, Movable):
+        def fit(mut self, X: Matrix[Self.dtype]) raises:
+            ...
+        def fit[target_dtype: DType](mut self, dataset: Dataset[Self.dtype, target_dtype]) raises:
+            self.fit(dataset.records)
+        def transform[target_dtype: DType](self, dataset: Dataset[Self.dtype, target_dtype]) raises -> Dataset[Self.dtype, target_dtype]:
+            ...
+    ```
+
+- **Pipelines**:
+  - `PipelineRegressor[feat_dtype: DType, target_dtype: DType, T: Transformer, R: Regressor]`
+  - `PipelineClassifier[feat_dtype: DType, target_dtype: DType, T: Transformer, C: Classifier]`
 
 ### 3. Trait Conformance & Lifecycles
 All components in Strata must adhere to standardized trait contracts in `strata.base`:
 - **Lifecycles**: Every estimator and transformer struct **must conform to `Movable`** (and `Copyable` when feasible). This is required so estimators can be safely stored, moved into pipelines, or returned from helper functions.
 - **Role traits**:
   - `Transformer`: Must implement `fit(mut self, X: Matrix[dtype]) raises` and `transform(self, X: Matrix[dtype]) raises -> Matrix[dtype]`.
-  - `Regressor`: Must implement `fit(mut self, X: Matrix[dtype], y: List[Scalar[dtype]]) raises` and `predict(self, X: Matrix[dtype]) raises -> List[Scalar[dtype]]`.
+  - `Regressor`: Must implement `fit(mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises` and `predict(self, X: Matrix[feat_dtype]) raises -> List[Scalar[target_dtype]]`.
   - `Classifier`: Must implement `fit(mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises` and `predict(self, X: Matrix[feat_dtype]) raises -> List[Scalar[target_dtype]]`.
   - `Clusterer`: Must implement `fit(mut self, X: Matrix[dtype]) raises` and `predict(self, X: Matrix[dtype]) raises -> List[Int]`.
 - **Never create orphan estimators**: Do not define standalone model structs without conforming to their respective base traits in `strata.base.estimator`.
@@ -179,29 +207,35 @@ All components in Strata must adhere to standardized trait contracts in `strata.
 If you're implementing an estimator (e.g. from [ROADMAP.md](file:///home/ewu/Code/Strata/ROADMAP.md)):
 
 ### Step 1: Define the Struct & Constructor
-Implement the estimator conforming to `Movable` and the appropriate base trait (`Regressor`, `Classifier`, or `Transformer`):
+Implement the estimator conforming to `Movable` and the appropriate base trait (`Regressor`, `Classifier`, or `Transformer`) with explicit `feat_dtype` and `target_dtype`:
 
 ```mojo
 from ..base.estimator import Regressor
 from ..core.matrix import Matrix
+from ..core.dataset import Dataset
 from ..utils.validation import check_is_fitted, check_X_y
 from ..exceptions.errors import NotFittedError
 
-struct MyRegressor[dtype: DType = DType.float64](Regressor, Movable):
+struct MyRegressor[
+    feat_dtype: DType = DType.float64,
+    target_dtype: DType = DType.float64,
+](Regressor, Movable):
     var is_fitted: Bool
-    var coef_: List[Scalar[Self.dtype]]
-    var intercept_: Scalar[Self.dtype]
+    var coef_: List[Scalar[Self.feat_dtype]]
+    var intercept_: Scalar[Self.target_dtype]
 
     def __init__(out self):
         self.is_fitted = False
-        self.coef_ = List[Scalar[Self.dtype]]()
+        self.coef_ = List[Scalar[Self.feat_dtype]]()
         self.intercept_ = 0
 ```
 
-### Step 2: Implement `fit` and `predict` / `transform`
-- Always call `check_X_y(X, y)` at the start of `fit`.
+### Step 2: Implement `fit` and `predict`
+- Implement `fit(mut self, X: Matrix[Self.feat_dtype], y: List[Scalar[Self.target_dtype]]) raises`.
+- Implement `fit(mut self, dataset: Dataset[Self.feat_dtype, Self.target_dtype]) raises`.
+- Call `check_X_y(X, y)` at the start of `fit`.
 - Set `self.is_fitted = True` upon successful convergence.
-- Call `check_is_fitted("MyRegressor", self.is_fitted)` at the beginning of `predict` / `transform`.
+- Call `check_is_fitted("MyRegressor", self.is_fitted)` at the beginning of `predict`.
 
 ### Step 3: Export in Subpackage `__init__.mojo`
 Export your struct in its folder's `__init__.mojo` (e.g., `strata/linear_model/__init__.mojo`) and add it to `strata/__init__.mojo`.

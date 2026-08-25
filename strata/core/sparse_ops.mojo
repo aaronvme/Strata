@@ -2,10 +2,10 @@ from .matrix import Matrix
 from .csr_matrix import CSRMatrix
 from ..exceptions.errors import DimensionMismatchError
 
-def spmv[dtype: DType](
-    A: CSRMatrix[dtype],
-    x: List[Scalar[dtype]],
-) raises -> List[Scalar[dtype]]:
+
+def spmv[
+    dtype: DType
+](A: CSRMatrix[dtype], x: List[Scalar[dtype]],) raises -> List[Scalar[dtype]]:
     """Sparse matrix-vector multiplication: y = A @ x."""
     if A.cols != len(x):
         raise DimensionMismatchError.error(
@@ -25,10 +25,10 @@ def spmv[dtype: DType](
         y.append(sum_val)
     return y^
 
-def spvm[dtype: DType](
-    x: List[Scalar[dtype]],
-    A: CSRMatrix[dtype],
-) raises -> List[Scalar[dtype]]:
+
+def spvm[
+    dtype: DType
+](x: List[Scalar[dtype]], A: CSRMatrix[dtype],) raises -> List[Scalar[dtype]]:
     """Vector-sparse matrix multiplication: y^T = x^T @ A."""
     if len(x) != A.rows:
         raise DimensionMismatchError.error(
@@ -53,15 +53,27 @@ def spvm[dtype: DType](
 
     return y^
 
-def spmm[dtype: DType](
-    A: CSRMatrix[dtype],
-    B: Matrix[dtype],
-) raises -> Matrix[dtype]:
+
+def spmm[
+    dtype: DType
+](A: CSRMatrix[dtype], B: Matrix[dtype],) raises -> Matrix[dtype]:
     """Sparse-dense matrix multiplication: C = A @ B."""
     if A.cols != B.rows:
         raise DimensionMismatchError.error(
-            "A.cols == B.rows (" + String(A.cols) + " == " + String(B.rows) + ")",
-            "A(" + String(A.rows) + "x" + String(A.cols) + ") @ B(" + String(B.rows) + "x" + String(B.cols) + ")",
+            "A.cols == B.rows ("
+            + String(A.cols)
+            + " == "
+            + String(B.rows)
+            + ")",
+            "A("
+            + String(A.rows)
+            + "x"
+            + String(A.cols)
+            + ") @ B("
+            + String(B.rows)
+            + "x"
+            + String(B.cols)
+            + ")",
             "spmm",
         )
 
@@ -84,11 +96,16 @@ def spmm[dtype: DType](
 
     return C^
 
-def sddmm[dtype: DType](
+
+def sddmm[
+    dtype: DType
+](
     A: Matrix[dtype],
     B: Matrix[dtype],
     S: CSRMatrix[dtype],
-) raises -> CSRMatrix[dtype]:
+) raises -> CSRMatrix[
+    dtype
+]:
     """Sampled Dense-Dense Matrix Multiplication: P = (A @ B) ⊙ S."""
     if A.cols != B.rows:
         raise DimensionMismatchError.error(
@@ -99,7 +116,15 @@ def sddmm[dtype: DType](
     if A.rows != S.rows or B.cols != S.cols:
         raise DimensionMismatchError.error(
             "Product shape (A.rows, B.cols) == S shape",
-            "A(" + String(A.rows) + "), B(" + String(B.cols) + "), S(" + String(S.rows) + "x" + String(S.cols) + ")",
+            "A("
+            + String(A.rows)
+            + "), B("
+            + String(B.cols)
+            + "), S("
+            + String(S.rows)
+            + "x"
+            + String(S.cols)
+            + ")",
             "sddmm pattern shape",
         )
 
@@ -132,15 +157,27 @@ def sddmm[dtype: DType](
         indptr_copy^,
     )
 
-def spgemm[dtype: DType](
-    A: CSRMatrix[dtype],
-    B: CSRMatrix[dtype],
-) raises -> CSRMatrix[dtype]:
+
+def spgemm[
+    dtype: DType
+](A: CSRMatrix[dtype], B: CSRMatrix[dtype],) raises -> CSRMatrix[dtype]:
     """Sparse-sparse matrix multiplication: C = A @ B."""
     if A.cols != B.rows:
         raise DimensionMismatchError.error(
-            "A.cols == B.rows (" + String(A.cols) + " == " + String(B.rows) + ")",
-            "A(" + String(A.rows) + "x" + String(A.cols) + ") @ B(" + String(B.rows) + "x" + String(B.cols) + ")",
+            "A.cols == B.rows ("
+            + String(A.cols)
+            + " == "
+            + String(B.rows)
+            + ")",
+            "A("
+            + String(A.rows)
+            + "x"
+            + String(A.cols)
+            + ") @ B("
+            + String(B.rows)
+            + "x"
+            + String(B.cols)
+            + ")",
             "spgemm",
         )
 

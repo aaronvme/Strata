@@ -1,6 +1,7 @@
 from .matrix import Matrix
 from ..exceptions.errors import DimensionMismatchError
 
+
 def gemm[
     dtype: DType
 ](A: Matrix[dtype], B: Matrix[dtype]) raises -> Matrix[dtype]:
@@ -39,6 +40,7 @@ def gemm[
                 C.data[c_offset + j] += a_ik * B.data[b_offset + j]
 
     return C^
+
 
 def dense_dot_vec[
     dtype: DType

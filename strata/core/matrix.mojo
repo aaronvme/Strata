@@ -4,7 +4,10 @@ from .types import ArrayLike
 from .view import MatrixView
 from ..exceptions.errors import DimensionMismatchError
 
-struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writable):
+
+struct Matrix[dtype: DType = DType.float64](
+    ArrayLike, Copyable, Movable, Writable
+):
     var rows: Int
     var cols: Int
     var data: List[Scalar[Self.dtype]]
@@ -18,7 +21,9 @@ struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writab
             d.append(fill)
         self.data = d^
 
-    def __init__(out self, rows: Int, cols: Int, var data: List[Scalar[Self.dtype]]):
+    def __init__(
+        out self, rows: Int, cols: Int, var data: List[Scalar[Self.dtype]]
+    ):
         self.rows = rows
         self.cols = cols
         self.data = data^
@@ -34,10 +39,12 @@ struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writab
     @staticmethod
     def from_numpy(np_arr: PythonObject) raises -> Self:
         from .interop import matrix_from_numpy
+
         return matrix_from_numpy[Self.dtype](np_arr)
 
     def to_numpy(self) raises -> PythonObject:
         from .interop import matrix_to_numpy
+
         return matrix_to_numpy[Self.dtype](self)
 
     def num_rows(self) -> Int:
@@ -104,10 +111,14 @@ struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writab
 
     def dot(self, other: Self) raises -> Self:
         from .linalg import gemm
+
         return gemm[Self.dtype](self, other)
 
-    def dot_vec(self, vec: List[Scalar[Self.dtype]]) raises -> List[Scalar[Self.dtype]]:
+    def dot_vec(
+        self, vec: List[Scalar[Self.dtype]]
+    ) raises -> List[Scalar[Self.dtype]]:
         from .linalg import dense_dot_vec
+
         return dense_dot_vec[Self.dtype](self, vec)
 
     def mean_along_axis_0(self) -> List[Scalar[Self.dtype]]:
@@ -120,7 +131,9 @@ struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writab
             means.append(Scalar[Self.dtype](total / n_rows))
         return means^
 
-    def std_along_axis_0(self, means: List[Scalar[Self.dtype]]) -> List[Scalar[Self.dtype]]:
+    def std_along_axis_0(
+        self, means: List[Scalar[Self.dtype]]
+    ) -> List[Scalar[Self.dtype]]:
         var stds = List[Scalar[Self.dtype]](capacity=self.cols)
         var n_rows = Float64(self.rows)
         for c in range(self.cols):
@@ -136,7 +149,15 @@ struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writab
         return stds^
 
     def write_to(self, mut writer: Some[Writer]):
-        writer.write("Matrix[", String(Self.dtype), "](", self.rows, "x", self.cols, ")\n[")
+        writer.write(
+            "Matrix[",
+            String(Self.dtype),
+            "](",
+            self.rows,
+            "x",
+            self.cols,
+            ")\n[",
+        )
         for r in range(self.rows):
             if r > 0:
                 writer.write(" ")

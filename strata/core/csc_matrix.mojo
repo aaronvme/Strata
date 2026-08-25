@@ -3,7 +3,10 @@ from .sparse import SparseMatrix
 from .matrix import Matrix
 from ..exceptions.errors import DimensionMismatchError
 
-struct CSCMatrix[dtype: DType = DType.float64](ArrayLike, SparseMatrix, Copyable, Movable, Writable):
+
+struct CSCMatrix[dtype: DType = DType.float64](
+    ArrayLike, Copyable, Movable, SparseMatrix, Writable
+):
     var rows: Int
     var cols: Int
     var data: List[Scalar[Self.dtype]]

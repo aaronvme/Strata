@@ -2,6 +2,7 @@ from .types import ArrayLike
 from .matrix import Matrix
 from ..exceptions.errors import DimensionMismatchError
 
+
 struct MatrixView[
     dtype: DType,
     origin: Origin,

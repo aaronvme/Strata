@@ -3,6 +3,7 @@ from .matrix import Matrix
 from .csr_matrix import CSRMatrix
 from ..exceptions.errors import DataConversionError
 
+
 def matrix_to_numpy[dtype: DType](matrix: Matrix[dtype]) raises -> PythonObject:
     """Converts a Strata Matrix[dtype] to a NumPy 2D array."""
     var np = Python.import_module("numpy")
@@ -20,7 +21,10 @@ def matrix_to_numpy[dtype: DType](matrix: Matrix[dtype]) raises -> PythonObject:
             arr[r, c] = Float64(matrix[r, c])
     return arr
 
-def matrix_from_numpy[dtype: DType = DType.float64](np_arr: PythonObject) raises -> Matrix[dtype]:
+
+def matrix_from_numpy[
+    dtype: DType = DType.float64
+](np_arr: PythonObject) raises -> Matrix[dtype]:
     """Converts a 2D NumPy ndarray to a Strata Matrix[dtype]."""
     var shape = np_arr.shape
     var rows = Int(py=shape[0])
@@ -31,6 +35,7 @@ def matrix_from_numpy[dtype: DType = DType.float64](np_arr: PythonObject) raises
         for c in range(cols):
             res[r, c] = Scalar[dtype](Float64(py=np_arr[r, c]))
     return res^
+
 
 def csr_to_scipy[dtype: DType](csr: CSRMatrix[dtype]) raises -> PythonObject:
     """Converts a Strata CSRMatrix[dtype] to a scipy.sparse.csr_matrix."""
@@ -57,7 +62,10 @@ def csr_to_scipy[dtype: DType](csr: CSRMatrix[dtype]) raises -> PythonObject:
     var shape_spec = Python.tuple(csr.rows, csr.cols)
     return sp.csr_matrix(tuple_spec, shape=shape_spec)
 
-def csr_from_scipy[dtype: DType = DType.float64](sp_arr: PythonObject) raises -> CSRMatrix[dtype]:
+
+def csr_from_scipy[
+    dtype: DType = DType.float64
+](sp_arr: PythonObject) raises -> CSRMatrix[dtype]:
     """Converts a scipy.sparse.csr_matrix to a Strata CSRMatrix[dtype]."""
     var data_py = sp_arr.data
     var indices_py = sp_arr.indices

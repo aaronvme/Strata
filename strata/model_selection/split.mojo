@@ -4,6 +4,7 @@ from ..utils.validation import check_consistent_length, check_array
 from ..utils.random import permutation
 from ..exceptions.errors import InvalidParameterError
 
+
 def train_test_split[
     feat_dtype: DType = DType.float64,
     target_dtype: DType = DType.float64,
@@ -15,6 +16,7 @@ def train_test_split[
 ) raises -> DatasetSplit[feat_dtype, target_dtype]:
     """Splits a Dataset into train and test subsets."""
     return dataset.split_with_ratio(test_size, shuffle=shuffle, seed=seed)
+
 
 def train_test_split[
     dtype: DType = DType.float64

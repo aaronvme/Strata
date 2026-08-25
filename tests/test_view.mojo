@@ -1,6 +1,7 @@
 from std.testing import TestSuite, assert_equal, assert_true
 from strata import Matrix, MatrixView
 
+
 def test_matrix_view_basic() raises:
     var m = Matrix[DType.float64](4, 4, 0)
     for r in range(4):
@@ -11,6 +12,7 @@ def test_matrix_view_basic() raises:
     assert_equal(v.rows, 4)
     assert_equal(v.cols, 4)
     assert_equal(v[2, 3], 23.0)
+
 
 def test_matrix_view_slicing() raises:
     var m = Matrix[DType.float64](4, 5, 0)
@@ -42,6 +44,7 @@ def test_matrix_view_slicing() raises:
     assert_equal(owned_m.rows, 2)
     assert_equal(owned_m.cols, 2)
     assert_equal(owned_m[1, 1], 23.0)
+
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

@@ -13,6 +13,7 @@ from strata import (
     sddmm,
 )
 
+
 def test_large_dense_gemm() raises:
     var size = 256
     var A = Matrix[DType.float64].ones(size, size)
@@ -25,11 +26,12 @@ def test_large_dense_gemm() raises:
     assert_equal(C[127, 127], 512.0)
     assert_equal(C[255, 255], 512.0)
 
+
 def test_large_dense_dot_vec() raises:
     var rows = 2000
     var cols = 500
     var A = Matrix[DType.float64].ones(rows, cols)
-    
+
     var x = List[Scalar[DType.float64]](capacity=cols)
     for _ in range(cols):
         x.append(3.5)
@@ -39,6 +41,7 @@ def test_large_dense_dot_vec() raises:
     assert_equal(y[0], 1750.0)
     assert_equal(y[999], 1750.0)
     assert_equal(y[1999], 1750.0)
+
 
 def test_large_sparse_spmv() raises:
     var dim = 10000
@@ -69,6 +72,7 @@ def test_large_sparse_spmv() raises:
     assert_equal(y[5000], 3.0)
     assert_equal(y[dim - 1], 2.0)
 
+
 def test_large_sparse_spmm() raises:
     var dim = 1000
     var embed_dim = 128
@@ -95,11 +99,12 @@ def test_large_sparse_spmm() raises:
     assert_equal(C[500, 64], 10.0)
     assert_equal(C[999, 127], 10.0)
 
+
 def test_large_matrix_view_slicing() raises:
     var rows = 10000
     var cols = 200
     var X = Matrix[DType.float64](rows, cols, 0)
-    
+
     for r in range(rows):
         X[r, r % cols] = Float64(r)
 
@@ -123,6 +128,7 @@ def test_large_matrix_view_slicing() raises:
     var materialized = window.to_matrix()
     assert_equal(materialized.rows, 1000)
     assert_equal(materialized.cols, 50)
+
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

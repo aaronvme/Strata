@@ -2,6 +2,7 @@ from std.testing import TestSuite, assert_equal, assert_true
 from std.python import Python
 from strata import Matrix, CSRMatrix
 
+
 def test_numpy_roundtrip() raises:
     var m = Matrix[DType.float64](3, 3, 0)
     m[0, 0] = 1.5
@@ -19,6 +20,7 @@ def test_numpy_roundtrip() raises:
     assert_equal(m_back[0, 0], 1.5)
     assert_equal(m_back[1, 1], 2.5)
     assert_equal(m_back[2, 2], 3.5)
+
 
 def test_scipy_csr_roundtrip() raises:
     var data = List[Scalar[DType.float64]](capacity=3)
@@ -50,6 +52,7 @@ def test_scipy_csr_roundtrip() raises:
     assert_equal(csr_back.data[0], 10.0)
     assert_equal(csr_back.data[1], 20.0)
     assert_equal(csr_back.data[2], 30.0)
+
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

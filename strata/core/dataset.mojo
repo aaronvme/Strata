@@ -3,6 +3,7 @@ from ..utils.validation import check_consistent_length, check_array
 from ..utils.random import permutation
 from ..exceptions.errors import InvalidParameterError
 
+
 struct DatasetSplit[
     feat_dtype: DType = DType.float64,
     target_dtype: DType = DType.float64,
@@ -17,6 +18,7 @@ struct DatasetSplit[
     ):
         self.train = train^
         self.test = test^
+
 
 struct Dataset[
     feat_dtype: DType = DType.float64,
@@ -79,7 +81,8 @@ struct Dataset[
     ) raises -> DatasetSplit[Self.feat_dtype, Self.target_dtype]:
         if ratio <= 0.0 or ratio >= 1.0:
             raise InvalidParameterError.error(
-                "ratio", "must be between 0.0 and 1.0 (got " + String(ratio) + ")"
+                "ratio",
+                "must be between 0.0 and 1.0 (got " + String(ratio) + ")",
             )
 
         var total = self.n_samples()
@@ -92,7 +95,9 @@ struct Dataset[
         else:
             indices = List[Int](range(total))
 
-        var train_records = Matrix[Self.feat_dtype](n_train, self.n_features(), 0)
+        var train_records = Matrix[Self.feat_dtype](
+            n_train, self.n_features(), 0
+        )
         var train_targets = List[Scalar[Self.target_dtype]](capacity=n_train)
         for i in range(n_train):
             var r = indices[i]

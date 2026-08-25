@@ -12,7 +12,7 @@ numpy = "*"
 scipy = "*"
 
 [tasks]
-build = "mojo precompile strata -o strata.mojopkg"
+build = "mojo precompile strata -o strata.mojoc"
 test-matrix = "mojo run -I . tests/test_matrix.mojo"
 test-core = "mojo run -I . tests/test_traits_and_errors.mojo"
 test-interop = "mojo run -I . tests/test_interop.mojo"

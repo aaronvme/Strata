@@ -5,6 +5,7 @@ from ..core.dataset import Dataset
 from ..utils.validation import check_is_fitted, check_array
 from ..exceptions.errors import NotFittedError
 
+
 struct StandardScaler[dtype: DType = DType.float64](
     Copyable, Movable, Transformer
 ):
@@ -47,9 +48,9 @@ struct StandardScaler[dtype: DType = DType.float64](
 
         self.is_fitted = True
 
-    def fit[target_dtype: DType](
-        mut self, dataset: Dataset[Self.dtype, target_dtype]
-    ) raises:
+    def fit[
+        target_dtype: DType
+    ](mut self, dataset: Dataset[Self.dtype, target_dtype]) raises:
         self.fit(dataset.records)
 
     def transform(self, X: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
@@ -67,9 +68,11 @@ struct StandardScaler[dtype: DType = DType.float64](
                 res[r, c] = val
         return res^
 
-    def transform[target_dtype: DType](
-        self, dataset: Dataset[Self.dtype, target_dtype]
-    ) raises -> Dataset[Self.dtype, target_dtype]:
+    def transform[
+        target_dtype: DType
+    ](self, dataset: Dataset[Self.dtype, target_dtype]) raises -> Dataset[
+        Self.dtype, target_dtype
+    ]:
         var scaled_records = self.transform(dataset.records)
         return Dataset[Self.dtype, target_dtype](
             scaled_records^,
@@ -84,8 +87,10 @@ struct StandardScaler[dtype: DType = DType.float64](
         self.fit(X)
         return self.transform(X)
 
-    def fit_transform[target_dtype: DType](
-        mut self, dataset: Dataset[Self.dtype, target_dtype]
-    ) raises -> Dataset[Self.dtype, target_dtype]:
+    def fit_transform[
+        target_dtype: DType
+    ](mut self, dataset: Dataset[Self.dtype, target_dtype]) raises -> Dataset[
+        Self.dtype, target_dtype
+    ]:
         self.fit(dataset)
         return self.transform(dataset)

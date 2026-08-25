@@ -1,5 +1,11 @@
-from std.testing import TestSuite, assert_equal, assert_true, assert_almost_equal
+from std.testing import (
+    TestSuite,
+    assert_equal,
+    assert_true,
+    assert_almost_equal,
+)
 from strata import Matrix, Dataset, StandardScaler
+
 
 def test_standard_scaler() raises:
     var X = Matrix[DType.float64](4, 2, 0)
@@ -21,6 +27,7 @@ def test_standard_scaler() raises:
     assert_equal(scaler.mean_[1], 1.0)
     assert_equal(X_scaled[0, 1], 0.0)
     assert_equal(X_scaled[3, 1], 0.0)
+
 
 def test_standard_scaler_dataset() raises:
     var X = Matrix[DType.float64](4, 2, 0)
@@ -47,6 +54,7 @@ def test_standard_scaler_dataset() raises:
     assert_equal(ds_scaled.n_samples(), 4)
     assert_equal(ds_scaled.n_features(), 2)
     assert_equal(ds_scaled.targets[1], 1.0)
+
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

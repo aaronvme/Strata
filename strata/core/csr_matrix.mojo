@@ -4,7 +4,10 @@ from .sparse import SparseMatrix
 from .matrix import Matrix
 from ..exceptions.errors import DimensionMismatchError
 
-struct CSRMatrix[dtype: DType = DType.float64](ArrayLike, SparseMatrix, Copyable, Movable, Writable):
+
+struct CSRMatrix[dtype: DType = DType.float64](
+    ArrayLike, Copyable, Movable, SparseMatrix, Writable
+):
     var rows: Int
     var cols: Int
     var data: List[Scalar[Self.dtype]]
@@ -30,15 +33,19 @@ struct CSRMatrix[dtype: DType = DType.float64](ArrayLike, SparseMatrix, Copyable
         var indptr = List[Int](capacity=rows + 1)
         for _ in range(rows + 1):
             indptr.append(0)
-        return Self(rows, cols, List[Scalar[Self.dtype]](), List[Int](), indptr^)
+        return Self(
+            rows, cols, List[Scalar[Self.dtype]](), List[Int](), indptr^
+        )
 
     @staticmethod
     def from_scipy(sp_arr: PythonObject) raises -> Self:
         from .interop import csr_from_scipy
+
         return csr_from_scipy[Self.dtype](sp_arr)
 
     def to_scipy(self) raises -> PythonObject:
         from .interop import csr_to_scipy
+
         return csr_to_scipy[Self.dtype](self)
 
     @staticmethod
@@ -84,16 +91,21 @@ struct CSRMatrix[dtype: DType = DType.float64](ArrayLike, SparseMatrix, Copyable
     def nnz(self) -> Int:
         return len(self.data)
 
-    def dot_vec(self, vec: List[Scalar[Self.dtype]]) raises -> List[Scalar[Self.dtype]]:
+    def dot_vec(
+        self, vec: List[Scalar[Self.dtype]]
+    ) raises -> List[Scalar[Self.dtype]]:
         from .sparse_ops import spmv
+
         return spmv[Self.dtype](self, vec)
 
     def dot_dense(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         from .sparse_ops import spmm
+
         return spmm[Self.dtype](self, other)
 
     def dot_sparse(self, other: Self) raises -> Self:
         from .sparse_ops import spgemm
+
         return spgemm[Self.dtype](self, other)
 
     def write_to(self, mut writer: Some[Writer]):

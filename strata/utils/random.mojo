@@ -1,5 +1,6 @@
 def permutation(n: Int, seed: Int = 42) -> List[Int]:
-    """Generates a pseudo-random permutation of range(0, n) using Fisher-Yates shuffle."""
+    """Generates a pseudo-random permutation of range(0, n) using Fisher-Yates shuffle.
+    """
     var indices = List[Int](capacity=n)
     for i in range(n):
         indices.append(i)
@@ -20,7 +21,8 @@ def permutation(n: Int, seed: Int = 42) -> List[Int]:
 
     return indices^
 
-def shuffle[T: Copyable & Movable](mut list: List[T], seed: Int = 42):
+
+def shuffle[T: Copyable](mut list: List[T], seed: Int = 42):
     """In-place Fisher-Yates shuffle on a List."""
     var n = len(list)
     if n <= 1:
@@ -33,6 +35,6 @@ def shuffle[T: Copyable & Movable](mut list: List[T], seed: Int = 42):
     for i in range(n - 1, 0, -1):
         state = (state * 1103515245 + 12345) & 0x7FFFFFFF
         var j = state % (i + 1)
-        var temp = list[i]
-        list[i] = list[j]
-        list[j] = temp
+        var temp = list[i].copy()
+        list[i] = list[j].copy()
+        list[j] = temp^
