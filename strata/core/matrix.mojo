@@ -1,5 +1,7 @@
 from std.math import sqrt
+from std.python import PythonObject
 from .types import ArrayLike
+from .view import MatrixView
 from ..exceptions.errors import DimensionMismatchError
 
 struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writable):
@@ -29,6 +31,15 @@ struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writab
     def ones(rows: Int, cols: Int) -> Self:
         return Self(rows, cols, 1)
 
+    @staticmethod
+    def from_numpy(np_arr: PythonObject) raises -> Self:
+        from .interop import matrix_from_numpy
+        return matrix_from_numpy[Self.dtype](np_arr)
+
+    def to_numpy(self) raises -> PythonObject:
+        from .interop import matrix_to_numpy
+        return matrix_to_numpy[Self.dtype](self)
+
     def num_rows(self) -> Int:
         return self.rows
 
@@ -38,8 +49,32 @@ struct Matrix[dtype: DType = DType.float64](ArrayLike, Copyable, Movable, Writab
     def num_elements(self) -> Int:
         return self.rows * self.cols
 
-    def shape(self) -> (Int, Int):
+    def shape(self) -> Tuple[Int, Int]:
         return (self.rows, self.cols)
+
+    def view(ref self) -> MatrixView[Self.dtype, origin_of(self.data)]:
+        return MatrixView[Self.dtype, origin_of(self.data)](
+            self.data.unsafe_ptr(), self.rows, self.cols, self.cols, 1
+        )
+
+    def slice_rows(
+        ref self, start_row: Int, end_row: Int
+    ) raises -> MatrixView[Self.dtype, origin_of(self.data)]:
+        return self.view().slice_rows(start_row, end_row)
+
+    def slice_cols(
+        ref self, start_col: Int, end_col: Int
+    ) raises -> MatrixView[Self.dtype, origin_of(self.data)]:
+        return self.view().slice_cols(start_col, end_col)
+
+    def slice_2d(
+        ref self,
+        start_row: Int,
+        end_row: Int,
+        start_col: Int,
+        end_col: Int,
+    ) raises -> MatrixView[Self.dtype, origin_of(self.data)]:
+        return self.view().slice_2d(start_row, end_row, start_col, end_col)
 
     def __getitem__(self, r: Int, c: Int) -> Scalar[Self.dtype]:
         return self.data[r * self.cols + c]

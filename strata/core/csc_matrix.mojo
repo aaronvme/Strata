@@ -61,6 +61,9 @@ struct CSCMatrix[dtype: DType = DType.float64](ArrayLike, SparseMatrix, Copyable
     def num_elements(self) -> Int:
         return self.rows * self.cols
 
+    def shape(self) -> Tuple[Int, Int]:
+        return (self.rows, self.cols)
+
     def nnz(self) -> Int:
         return len(self.data)
 

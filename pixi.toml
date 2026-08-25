@@ -7,9 +7,17 @@ version = "0.1.0"
 
 [dependencies]
 mojo = ">=1.0.0"
+python = ">=3.10"
+numpy = "*"
+scipy = "*"
 
 [tasks]
 build = "mojo precompile strata -o strata.mojopkg"
 test-matrix = "mojo run -I . tests/test_matrix.mojo"
 test-core = "mojo run -I . tests/test_traits_and_errors.mojo"
+test-interop = "mojo run -I . tests/test_interop.mojo"
+test-view = "mojo run -I . tests/test_view.mojo"
+test-large = "mojo run -I . tests/test_large_matrix.mojo"
+test-all = { depends-on = ["test-matrix", "test-core", "test-view", "test-interop", "test-large"] }
+test = "mojo test -I ."
 

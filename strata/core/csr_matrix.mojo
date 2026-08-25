@@ -1,3 +1,4 @@
+from std.python import PythonObject
 from .types import ArrayLike
 from .sparse import SparseMatrix
 from .matrix import Matrix
@@ -30,6 +31,15 @@ struct CSRMatrix[dtype: DType = DType.float64](ArrayLike, SparseMatrix, Copyable
         for _ in range(rows + 1):
             indptr.append(0)
         return Self(rows, cols, List[Scalar[Self.dtype]](), List[Int](), indptr^)
+
+    @staticmethod
+    def from_scipy(sp_arr: PythonObject) raises -> Self:
+        from .interop import csr_from_scipy
+        return csr_from_scipy[Self.dtype](sp_arr)
+
+    def to_scipy(self) raises -> PythonObject:
+        from .interop import csr_to_scipy
+        return csr_to_scipy[Self.dtype](self)
 
     @staticmethod
     def from_dense(dense: Matrix[Self.dtype]) -> Self:
@@ -67,6 +77,9 @@ struct CSRMatrix[dtype: DType = DType.float64](ArrayLike, SparseMatrix, Copyable
 
     def num_elements(self) -> Int:
         return self.rows * self.cols
+
+    def shape(self) -> Tuple[Int, Int]:
+        return (self.rows, self.cols)
 
     def nnz(self) -> Int:
         return len(self.data)

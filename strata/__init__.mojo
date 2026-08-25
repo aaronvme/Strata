@@ -10,6 +10,7 @@ from .base import (
 from .core import (
     ArrayLike,
     Matrix,
+    MatrixView,
     CSRMatrix,
     CSCMatrix,
     SparseMatrix,
@@ -24,6 +25,10 @@ from .core import (
     spmm,
     spgemm,
     sddmm,
+    matrix_to_numpy,
+    matrix_from_numpy,
+    csr_to_scipy,
+    csr_from_scipy,
 )
 from .exceptions import (
     NotFittedError,
