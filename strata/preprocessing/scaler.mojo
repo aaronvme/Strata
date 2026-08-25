@@ -3,13 +3,14 @@ from ..base.estimator import Transformer
 from ..core.matrix import Matrix
 from ..core.dataset import Dataset
 from ..utils.validation import check_is_fitted, check_array
-from ..exceptions.errors import NotFittedError
+from ..exceptions.errors import NotFittedError, DataConversionError
 
 
 struct StandardScaler[compute_dtype: DType = DType.float64](
     Copyable, Movable, Transformer
 ):
     var is_fitted: Bool
+    var fit_dtype: DType
     var with_mean: Bool
     var with_std: Bool
     var mean_: List[Scalar[Self.compute_dtype]]
@@ -17,6 +18,7 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
 
     def __init__(out self, with_mean: Bool = True, with_std: Bool = True):
         self.is_fitted = False
+        self.fit_dtype = DType.float64
         self.with_mean = with_mean
         self.with_std = with_std
         self.mean_ = List[Scalar[Self.compute_dtype]]()
@@ -46,6 +48,7 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
                 std_val = 1
             self.scale_.append(std_val)
 
+        self.fit_dtype = in_dtype
         self.is_fitted = True
 
     def fit[
@@ -58,6 +61,14 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
         in_dtype: DType
     ](self, X: Matrix[in_dtype]) raises -> Matrix[in_dtype]:
         check_is_fitted("StandardScaler", self.is_fitted)
+        if in_dtype != self.fit_dtype:
+            raise DataConversionError.error(
+                "StandardScaler.transform received Matrix["
+                + String(in_dtype)
+                + "] but was fitted on Matrix["
+                + String(self.fit_dtype)
+                + "]"
+            )
         check_array[in_dtype](X)
 
         var res = Matrix[in_dtype](X.rows, X.cols, 0)

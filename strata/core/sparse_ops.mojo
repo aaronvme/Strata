@@ -12,7 +12,8 @@ def spmv[
     x: List[Scalar[vec_dtype]],
     bias: Scalar[vec_dtype] = 0,
 ) raises -> List[Scalar[out_dtype]]:
-    """Sparse matrix-vector multiplication with mixed precision: y = A @ x + bias."""
+    """Sparse matrix-vector multiplication with mixed precision: y = A @ x + bias.
+    """
     if A.cols != len(x):
         raise DimensionMismatchError.error(
             "len(x) == " + String(A.cols),

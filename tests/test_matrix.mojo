@@ -85,9 +85,9 @@ def test_gemm_mixed_precision() raises:
     B[1, 1] = 3.0
 
     var C = gemm[DType.int32, DType.float64, DType.float64](A, B)
-    assert_equal(C[0, 0], 4.5)   # 1*0.5 + 2*2.0 = 0.5 + 4 = 4.5
-    assert_equal(C[0, 1], 7.5)   # 1*1.5 + 2*3.0 = 1.5 + 6 = 7.5
-    assert_equal(C[1, 0], 9.5)   # 3*0.5 + 4*2.0 = 1.5 + 8 = 9.5
+    assert_equal(C[0, 0], 4.5)  # 1*0.5 + 2*2.0 = 0.5 + 4 = 4.5
+    assert_equal(C[0, 1], 7.5)  # 1*1.5 + 2*3.0 = 1.5 + 6 = 7.5
+    assert_equal(C[1, 0], 9.5)  # 3*0.5 + 4*2.0 = 1.5 + 8 = 9.5
     assert_equal(C[1, 1], 16.5)  # 3*1.5 + 4*3.0 = 4.5 + 12 = 16.5
 
 
@@ -105,7 +105,7 @@ def test_sparse_mixed_precision() raises:
 
     # SpMV: Int32 CSR @ Float64 weights + Float64 bias
     var y = spmv(csr, weights, bias)
-    assert_equal(y[0], 2.5)   # 3*0.5 + 1.0 = 2.5
+    assert_equal(y[0], 2.5)  # 3*0.5 + 1.0 = 2.5
     assert_equal(y[1], 11.0)  # 4*2.5 + 1.0 = 11.0
 
     # SpMM: Int32 CSR @ Float64 Dense Matrix -> Float64 Dense Matrix

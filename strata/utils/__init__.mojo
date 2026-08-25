@@ -4,5 +4,5 @@ from .validation import (
     check_array,
     check_consistent_length,
 )
-from .math import sigmoid, softmax
-from .random import permutation, shuffle
+from .math import sigmoid, softmax, log_sum_exp
+from .random import permutation, shuffle, PRNG

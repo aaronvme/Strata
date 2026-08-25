@@ -1,4 +1,10 @@
-from std.testing import assert_equal, assert_true, assert_raises, TestSuite
+from std.testing import (
+    assert_equal,
+    assert_true,
+    assert_raises,
+    assert_almost_equal,
+    TestSuite,
+)
 from strata import (
     Matrix,
     Dataset,
@@ -47,6 +53,19 @@ def test_math_utils() raises:
     var probs_extreme = softmax[DType.float64](logits_extreme)
     assert_equal(probs_extreme[0], 0.5)
     assert_equal(probs_extreme[1], 0.5)
+
+    # Numerically stable log_sum_exp
+    from strata import log_sum_exp, PRNG
+    from std.math import log
+
+    var lse = log_sum_exp[DType.float64](logits_extreme)
+    # LSE([1000, 1000]) = 1000 + ln(2)
+    assert_almost_equal(lse, 1000.0 + log(2.0))
+
+    # Test PRNG
+    var rng = PRNG(123)
+    var r_val = rng.next_int(10)
+    assert_true(r_val >= 0 and r_val < 10)
 
 
 @fieldwise_init

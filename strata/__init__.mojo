@@ -46,8 +46,10 @@ from .utils import (
     check_consistent_length,
     sigmoid,
     softmax,
+    log_sum_exp,
     permutation,
     shuffle,
+    PRNG,
 )
 from .preprocessing import StandardScaler
 from .model_selection import train_test_split

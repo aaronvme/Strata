@@ -56,5 +56,17 @@ def test_standard_scaler_dataset() raises:
     assert_equal(ds_scaled.targets[1], 1.0)
 
 
+def test_standard_scaler_dtype_incoherence_prevention() raises:
+    from std.testing import assert_raises
+
+    var scaler = StandardScaler()
+    var X32 = Matrix[DType.float32](2, 2, 1.0)
+    scaler.fit(X32)
+
+    var X64 = Matrix[DType.float64](2, 2, 1.0)
+    with assert_raises():
+        _ = scaler.transform(X64)
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
