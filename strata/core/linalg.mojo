@@ -30,19 +30,22 @@ def gemm[
     var C = Matrix[out_dtype](M, N, 0)
 
     for i in range(M):
+        var c_offset = i * N
+        var row_acc = List[Float64](capacity=N)
+        for _ in range(N):
+            row_acc.append(0.0)
+
         for k in range(K):
             var a_ik = Float64(A[i, k])
             if a_ik == 0:
                 continue
 
             var b_offset = k * N
-            var c_offset = i * N
-
             for j in range(N):
-                var prod = a_ik * Float64(B.data[b_offset + j])
-                C.data[c_offset + j] = Scalar[out_dtype](
-                    Float64(C.data[c_offset + j]) + prod
-                )
+                row_acc[j] += a_ik * Float64(B.data[b_offset + j])
+
+        for j in range(N):
+            C.data[c_offset + j] = Scalar[out_dtype](row_acc[j])
 
     return C^
 

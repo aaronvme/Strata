@@ -19,7 +19,7 @@ def test_standard_scaler() raises:
     X[2, 1] = 1.0
     X[3, 1] = 1.0
 
-    var scaler = StandardScaler[DType.float64]()
+    var scaler = StandardScaler()
     var X_scaled = scaler.fit_transform(X)
 
     assert_true(scaler.is_fitted)
@@ -47,7 +47,7 @@ def test_standard_scaler_dataset() raises:
     y.append(1.0)
 
     var ds = Dataset(X^, y^)
-    var scaler = StandardScaler[DType.float64]()
+    var scaler = StandardScaler()
     var ds_scaled = scaler.fit_transform(ds)
 
     assert_true(scaler.is_fitted)

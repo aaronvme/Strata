@@ -31,20 +31,20 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
         self.scale_ = List[Scalar[Self.compute_dtype]](capacity=n_cols)
 
         for c in range(n_cols):
-            var col_sum: Float64 = 0
+            var col_sum: Scalar[Self.compute_dtype] = 0
             for r in range(n_rows):
-                col_sum += Float64(X[r, c])
-            var mean_val = col_sum / Float64(n_rows)
-            self.mean_.append(Scalar[Self.compute_dtype](mean_val))
+                col_sum += Scalar[Self.compute_dtype](X[r, c])
+            var mean_val = col_sum / Scalar[Self.compute_dtype](n_rows)
+            self.mean_.append(mean_val)
 
-            var var_sum: Float64 = 0
+            var var_sum: Scalar[Self.compute_dtype] = 0
             for r in range(n_rows):
-                var diff = Float64(X[r, c]) - mean_val
+                var diff = Scalar[Self.compute_dtype](X[r, c]) - mean_val
                 var_sum += diff * diff
-            var std_val = sqrt(var_sum / Float64(n_rows))
+            var std_val = sqrt(var_sum / Scalar[Self.compute_dtype](n_rows))
             if std_val == 0:
                 std_val = 1
-            self.scale_.append(Scalar[Self.compute_dtype](std_val))
+            self.scale_.append(std_val)
 
         self.is_fitted = True
 
@@ -63,11 +63,11 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
         var res = Matrix[in_dtype](X.rows, X.cols, 0)
         for r in range(X.rows):
             for c in range(X.cols):
-                var val = Float64(X[r, c])
+                var val = Scalar[Self.compute_dtype](X[r, c])
                 if self.with_mean:
-                    val -= Float64(self.mean_[c])
+                    val -= self.mean_[c]
                 if self.with_std:
-                    val /= Float64(self.scale_[c])
+                    val /= self.scale_[c]
                 res[r, c] = Scalar[in_dtype](val)
         return res^
 

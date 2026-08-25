@@ -24,7 +24,7 @@ def check_array[
 
 def check_X_y[
     feat_dtype: DType, target_dtype: DType
-](X: Matrix[feat_dtype], y: List[Scalar[target_dtype]],) raises:
+](X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises:
     check_array[feat_dtype](X)
     if X.rows != len(y):
         raise DimensionMismatchError.error(

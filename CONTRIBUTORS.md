@@ -142,105 +142,37 @@ When contributing code to Strata, please keep these conventions in mind:
 - **Explicit transfers**: Use `^` (move operator) when transferring ownership of large arrays or structs into estimators or return values.
 - **Explicit copying**: When an explicit clone is needed, call `.copy()`.
 
-### 2. Trait Contracts & Universal Method Signatures
-To ensure compile-time trait enforcement while allowing frictionless mixed-precision and universal input acceptance, Strata defines **generic method contracts** on its base traits:
+### 2. Trait Contracts & Ergonomic Call-Site Inference
+To ensure compile-time trait enforcement, type safety, and effortless `model.predict(X)` call syntax matching scikit-learn:
 
-- **The Trait Definitions**:
+- **Target DType Defaults & Developer Flexibility**:
+  `target_dtype` defaults to `DType.float64` for Regressors and `DType.int32` / `DType.float64` for Classifiers. Because of this default, standard users get full continuous floating-point precision out of the box, while advanced users have complete freedom to specify alternative precisions (e.g. `Float32` or `Int32`) if desired:
   ```mojo
-  trait Estimator(Deinitable, Movable):
-      pass
-
-  trait Transformer(Estimator):
-      def fit[dtype: DType](mut self, X: Matrix[dtype]) raises:
-          ...
-      def fit[feat_dtype: DType, target_dtype: DType](
-          mut self, dataset: Dataset[feat_dtype, target_dtype]
-      ) raises:
-          ...
-      def transform[dtype: DType](self, X: Matrix[dtype]) raises -> Matrix[dtype]:
-          ...
-      def transform[feat_dtype: DType, target_dtype: DType](
-          self, dataset: Dataset[feat_dtype, target_dtype]
-      ) raises -> Dataset[feat_dtype, target_dtype]:
-          ...
-
-  trait Regressor(Estimator, Movable):
-      def fit[feat_dtype: DType, target_dtype: DType](
-          mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]
-      ) raises:
-          ...
-      def fit[feat_dtype: DType, target_dtype: DType](
-          mut self, dataset: Dataset[feat_dtype, target_dtype]
-      ) raises:
-          ...
-      def predict[feat_dtype: DType, target_dtype: DType](
-          self, X: Matrix[feat_dtype]
-      ) raises -> List[Scalar[target_dtype]]:
-          ...
-      def predict[feat_dtype: DType, target_dtype: DType](
-          self, dataset: Dataset[feat_dtype, target_dtype]
-      ) raises -> List[Scalar[target_dtype]]:
-          ...
-
-  trait Classifier(Estimator, Movable):
-      def fit[feat_dtype: DType, target_dtype: DType](
-          mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]
-      ) raises:
-          ...
-      def fit[feat_dtype: DType, target_dtype: DType](
-          mut self, dataset: Dataset[feat_dtype, target_dtype]
-      ) raises:
-          ...
-      def predict[feat_dtype: DType, target_dtype: DType](
-          self, X: Matrix[feat_dtype]
-      ) raises -> List[Scalar[target_dtype]]:
-          ...
-      def predict[feat_dtype: DType, target_dtype: DType](
-          self, dataset: Dataset[feat_dtype, target_dtype]
-      ) raises -> List[Scalar[target_dtype]]:
-          ...
-      def predict_proba[feat_dtype: DType](
-          self, X: Matrix[feat_dtype]
-      ) raises -> Matrix[DType.float64]:
-          ...
-      def predict_proba[feat_dtype: DType, target_dtype: DType](
-          self, dataset: Dataset[feat_dtype, target_dtype]
-      ) raises -> Matrix[DType.float64]:
-          ...
+  struct LinearRegression[
+      target_dtype: DType = DType.float64,
+      compute_dtype: DType = DType.float64,
+  ](Regressor, Movable):
+      ...
   ```
 
-- **How Model Structs Implement the Traits**:
-  Models lock their internal weights to a configurable `compute_dtype` (defaulting to `Float64` for numerical stability), while accepting any input precision in their generic `fit` and `predict` methods:
+- **Transformers & Universal Method Contracts**:
+  Transformers (e.g. `StandardScaler`) implement generic `fit[in_dtype]` and `transform[in_dtype]` methods while computing in `compute_dtype` (default `DType.float64`), ensuring universal input acceptance with maximum numerical stability:
   ```mojo
-  struct LinearRegression[compute_dtype: DType = DType.float64](Regressor, Movable):
-      var is_fitted: Bool
-      var coef_: List[Scalar[Self.compute_dtype]]      # Stored in compute precision
-      var intercept_: Scalar[Self.compute_dtype]
-
-      def fit[feat_dtype: DType, target_dtype: DType](
-          mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]
-      ) raises:
-          # Compute math using Self.compute_dtype precision
-          ...
-
-      def predict[feat_dtype: DType, target_dtype: DType](
-          self, X: Matrix[feat_dtype]
-      ) raises -> List[Scalar[target_dtype]]:
-          var preds = List[Scalar[target_dtype]](capacity=X.rows)
-          # Accumulate in Self.compute_dtype, cast to target_dtype at output
-          return preds^
+  struct StandardScaler[
+      compute_dtype: DType = DType.float64,
+  ](Transformer, Movable, Copyable):
+      ...
   ```
 
-- **Clean, Universal Pipelines**:
-  Because the methods on `T` and `R` are generic, `PipelineRegressor` and `PipelineClassifier` require **zero redundant type parameters**—they simply wrap `[T: Transformer & Movable, R: Regressor & Movable]`:
+- **Clean, Zero-Type-Parameter Pipelines**:
+  `PipelineRegressor` and `PipelineClassifier` wrap `[T: Transformer, R: Regressor]` and allow zero-type-parameter training and inference:
   ```mojo
   var scaler = StandardScaler()
   var model = LinearRegression()
   var pipe = PipelineRegressor(scaler^, model^)
 
-  # Works universally on any input precision:
   pipe.fit(X_train, y_train)
-  var preds = pipe.predict(X_test)
+  var preds = pipe.predict(X_test)  # Fully inferred!
   ```
 
 ### 3. Validation & Clear Error Messages
@@ -260,6 +192,7 @@ If you're implementing an estimator (e.g. from [ROADMAP.md](file:///home/ewu/Cod
 Implement the estimator conforming to `Movable` and the appropriate base trait (`Regressor`, `Classifier`, or `Transformer`), storing internal model parameters in `compute_dtype`:
 
 ```mojo
+from std.builtin import constrained
 from ..base.estimator import Regressor
 from ..core.matrix import Matrix
 from ..core.dataset import Dataset
@@ -267,6 +200,7 @@ from ..utils.validation import check_is_fitted, check_X_y
 from ..exceptions.errors import NotFittedError
 
 struct MyRegressor[
+    target_dtype: DType = DType.float64,
     compute_dtype: DType = DType.float64,
 ](Regressor, Movable):
     var is_fitted: Bool
@@ -280,10 +214,10 @@ struct MyRegressor[
 ```
 
 ### Step 2: Implement `fit` and `predict`
-- Implement `def fit[feat_dtype: DType, target_dtype: DType](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises`.
-- Implement `def fit[feat_dtype: DType, target_dtype: DType](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises: self.fit[feat_dtype, target_dtype](dataset.records, dataset.targets)`.
-- Implement `def predict[feat_dtype: DType, target_dtype: DType](self, X: Matrix[feat_dtype]) raises -> List[Scalar[target_dtype]]`.
-- Implement `def predict[feat_dtype: DType, target_dtype: DType](self, dataset: Dataset[feat_dtype, target_dtype]) raises -> List[Scalar[target_dtype]]: return self.predict[feat_dtype, target_dtype](dataset.records)`.
+- Implement `def fit[feat_dtype: DType](mut self, X: Matrix[feat_dtype], y: List[Scalar[Self.target_dtype]]) raises`.
+- Implement `def fit[feat_dtype: DType, in_target_dtype: DType](mut self, dataset: Dataset[feat_dtype, in_target_dtype]) raises: self.fit(dataset.records, dataset.targets)`.
+- Implement `def predict[feat_dtype: DType](self, X: Matrix[feat_dtype]) raises -> List[Scalar[Self.target_dtype]]`.
+- Implement `def predict[feat_dtype: DType, in_target_dtype: DType](self, dataset: Dataset[feat_dtype, in_target_dtype]) raises -> List[Scalar[in_target_dtype]]: return self.predict[feat_dtype, in_target_dtype](dataset.records)`.
 - Call `check_X_y(X, y)` at the start of `fit`.
 - Set `self.is_fitted = True` upon successful convergence.
 - Call `check_is_fitted("MyRegressor", self.is_fitted)` at the beginning of `predict`.

@@ -112,14 +112,14 @@ struct Matrix[dtype: DType = DType.float64](
     def dot(self, other: Self) raises -> Self:
         from .linalg import gemm
 
-        return gemm[Self.dtype](self, other)
+        return gemm[Self.dtype, Self.dtype, Self.dtype](self, other)
 
     def dot_vec(
         self, vec: List[Scalar[Self.dtype]]
     ) raises -> List[Scalar[Self.dtype]]:
         from .linalg import dense_dot_vec
 
-        return dense_dot_vec[Self.dtype](self, vec)
+        return dense_dot_vec[Self.dtype, Self.dtype, Self.dtype](self, vec)
 
     def mean_along_axis_0(self) -> List[Scalar[Self.dtype]]:
         var means = List[Scalar[Self.dtype]](capacity=self.cols)

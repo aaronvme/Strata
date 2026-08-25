@@ -96,12 +96,12 @@ struct CSRMatrix[dtype: DType = DType.float64](
     ) raises -> List[Scalar[Self.dtype]]:
         from .sparse_ops import spmv
 
-        return spmv[Self.dtype](self, vec)
+        return spmv[Self.dtype, Self.dtype, Self.dtype](self, vec)
 
     def dot_dense(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         from .sparse_ops import spmm
 
-        return spmm[Self.dtype](self, other)
+        return spmm[Self.dtype, Self.dtype, Self.dtype](self, other)
 
     def dot_sparse(self, other: Self) raises -> Self:
         from .sparse_ops import spgemm

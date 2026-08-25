@@ -16,19 +16,19 @@ struct PipelineRegressor[
 
     def fit[
         feat_dtype: DType, target_dtype: DType
-    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]],) raises:
+    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises:
         self.transformer.fit[feat_dtype](X)
         var X_trans = self.transformer.transform[feat_dtype](X)
         self.regressor.fit[feat_dtype, target_dtype](X_trans, y)
 
     def fit[
         feat_dtype: DType, target_dtype: DType
-    ](mut self, dataset: Dataset[feat_dtype, target_dtype],) raises:
+    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
         self.fit[feat_dtype, target_dtype](dataset.records, dataset.targets)
 
     def predict[
         feat_dtype: DType, target_dtype: DType
-    ](self, X: Matrix[feat_dtype],) raises -> List[Scalar[target_dtype]]:
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[target_dtype]]:
         var X_trans = self.transformer.transform[feat_dtype](X)
         return self.regressor.predict[feat_dtype, target_dtype](X_trans)
 
@@ -56,19 +56,19 @@ struct PipelineClassifier[
 
     def fit[
         feat_dtype: DType, target_dtype: DType
-    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]],) raises:
+    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises:
         self.transformer.fit[feat_dtype](X)
         var X_trans = self.transformer.transform[feat_dtype](X)
         self.classifier.fit[feat_dtype, target_dtype](X_trans, y)
 
     def fit[
         feat_dtype: DType, target_dtype: DType
-    ](mut self, dataset: Dataset[feat_dtype, target_dtype],) raises:
+    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
         self.fit[feat_dtype, target_dtype](dataset.records, dataset.targets)
 
     def predict[
         feat_dtype: DType, target_dtype: DType
-    ](self, X: Matrix[feat_dtype],) raises -> List[Scalar[target_dtype]]:
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[target_dtype]]:
         var X_trans = self.transformer.transform[feat_dtype](X)
         return self.classifier.predict[feat_dtype, target_dtype](X_trans)
 
@@ -84,7 +84,7 @@ struct PipelineClassifier[
 
     def predict_proba[
         feat_dtype: DType
-    ](self, X: Matrix[feat_dtype],) raises -> Matrix[DType.float64]:
+    ](self, X: Matrix[feat_dtype]) raises -> Matrix[DType.float64]:
         var X_trans = self.transformer.transform[feat_dtype](X)
         return self.classifier.predict_proba[feat_dtype](X_trans)
 
