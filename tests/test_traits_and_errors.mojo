@@ -67,6 +67,11 @@ def test_math_utils() raises:
     var r_val = rng.next_int(10)
     assert_true(r_val >= 0 and r_val < 10)
 
+    # Verify negative seeds do not alias positive seeds
+    var rng_pos = PRNG(5)
+    var rng_neg = PRNG(-5)
+    assert_true(rng_pos.next_u64() != rng_neg.next_u64())
+
 
 @fieldwise_init
 struct MockRegressor[

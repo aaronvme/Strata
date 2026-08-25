@@ -155,8 +155,8 @@ To ensure compile-time trait enforcement, type safety, and effortless `model.pre
       ...
   ```
 
-- **Transformers & Universal Method Contracts**:
-  Transformers (e.g. `StandardScaler`) implement generic `fit[in_dtype]` and `transform[in_dtype]` methods while computing in `compute_dtype` (default `DType.float64`), ensuring universal input acceptance with maximum numerical stability:
+- **Transformers & Fitted DType Consistency**:
+  Transformers (e.g. `StandardScaler`) accept arbitrary input precisions at `fit` time, enforce fitted `fit_dtype` consistency at `transform` time, and compute in `compute_dtype` (default `DType.float64`) for maximum numerical stability:
   ```mojo
   struct StandardScaler[
       compute_dtype: DType = DType.float64,

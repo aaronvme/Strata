@@ -5,7 +5,7 @@ struct PRNG(Copyable, Movable):
     var state: UInt64
 
     def __init__(out self, seed: Int = 42):
-        var s = UInt64(seed) if seed >= 0 else UInt64(-seed)
+        var s = UInt64(Int64(seed))
         if s == 0:
             s = 42
         self.state = s

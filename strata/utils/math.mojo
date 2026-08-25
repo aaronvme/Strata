@@ -42,7 +42,7 @@ def softmax[
 
 def log_sum_exp[
     dtype: DType = DType.float64
-](x: List[Scalar[dtype]]) -> Float64:
+](x: List[Scalar[dtype]]) -> Scalar[dtype]:
     """Numerically stable log-sum-exp: LSE(x) = max(x) + ln(sum(exp(x - max(x)))).
     """
     from std.math import log
@@ -61,4 +61,4 @@ def log_sum_exp[
     for i in range(n):
         sum_exp += exp(Float64(x[i]) - max_val)
 
-    return max_val + log(sum_exp)
+    return Scalar[dtype](max_val + log(sum_exp))
