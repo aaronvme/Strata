@@ -83,7 +83,7 @@ To format automatically on save, add this to your `settings.json`:
 We keep our test suites modular. You can run all tests or target specific subsystems:
 
 ```bash
-# Run the full test suite (12 test suites, 70 tests)
+# Run the full test suite (13 test suites, 120 tests)
 pixi run test-all
 
 # Run specific test modules
@@ -96,6 +96,7 @@ pixi run test-pipelines       # Composable N-step transformer, regressor, classi
 pixi run test-view            # Strided MatrixView, 2D zero-copy slicing, bounds checks
 pixi run test-preprocessing   # StandardScaler, fit/transform, configuration options
 pixi run test-split           # Train/test split, shuffling reproducibility
+pixi run test-metrics         # Regression & classification metrics, averaging strategies
 pixi run test-interop         # NumPy / SciPy conversion roundtrips
 pixi run test-large           # Large matrix benchmarks & stress tests
 pixi run test-core            # Error types, validation routines, base traits

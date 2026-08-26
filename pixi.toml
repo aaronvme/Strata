@@ -25,7 +25,8 @@ test-view = "mojo run -I . tests/test_view.mojo"
 test-large = "mojo run -I . tests/test_large_matrix.mojo"
 test-preprocessing = "mojo run -I . tests/test_preprocessing.mojo"
 test-split = "mojo run -I . tests/test_model_selection.mojo"
-test-all = { depends-on = ["test-matrix", "test-linalg", "test-sparse", "test-math", "test-dataset", "test-pipelines", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-split"] }
+test-metrics = "mojo run -I . tests/test_metrics.mojo"
+test-all = { depends-on = ["test-matrix", "test-linalg", "test-sparse", "test-math", "test-dataset", "test-pipelines", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-split", "test-metrics"] }
 test = "find tests -name 'test_*.mojo' -exec mojo -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack {} \\;"
 format = "mojo format strata tests"
 
