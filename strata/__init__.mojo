@@ -69,6 +69,7 @@ from .utils import (
 )
 from .preprocessing import StandardScaler
 from .model_selection import train_test_split
+from .linear_model import LinearRegression, Ridge, LogisticRegression
 from .metrics import (
     mean_squared_error,
     root_mean_squared_error,
