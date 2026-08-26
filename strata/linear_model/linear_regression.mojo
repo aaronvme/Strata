@@ -10,10 +10,11 @@ from ..core.linalg import (
 from ..base.estimator import Regressor
 from ..utils.validation import (
     check_X_y,
+    check_array,
     check_floating_dtype,
     check_is_fitted,
 )
-from ..exceptions.errors import InvalidParameterError
+from ..exceptions.errors import InvalidParameterError, DimensionMismatchError
 
 
 struct LinearRegression[
@@ -151,6 +152,13 @@ struct LinearRegression[
             List of predictions matching the input feature precision.
         """
         check_is_fitted("LinearRegression", self.is_fitted)
+        check_array[feat_dtype](X)
+        if X.cols != len(self.coef_):
+            raise DimensionMismatchError.error(
+                "X.cols == " + String(len(self.coef_)),
+                "X.cols == " + String(X.cols),
+                "LinearRegression.predict",
+            )
 
         comptime if feat_dtype == Self.compute_dtype:
             var coef_copy = List[Scalar[feat_dtype]](capacity=len(self.coef_))

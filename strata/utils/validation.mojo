@@ -1,3 +1,4 @@
+from std.math import isnan, isinf
 from ..core.matrix import Matrix
 from ..exceptions.errors import (
     NotFittedError,
@@ -26,7 +27,11 @@ def check_floating_dtype[
 
 def check_array[
     dtype: DType
-](X: Matrix[dtype], allow_empty: Bool = False) raises:
+](
+    X: Matrix[dtype],
+    allow_empty: Bool = False,
+    force_all_finite: Bool = True,
+) raises:
     if not allow_empty and (X.rows == 0 or X.cols == 0):
         raise DimensionMismatchError.error(
             "non-empty 2D array",
@@ -34,17 +39,41 @@ def check_array[
             "check_array",
         )
 
+    if force_all_finite:
+        comptime if dtype.is_floating_point():
+            var total = X.rows * X.cols
+            for i in range(total):
+                var val = X.data[i]
+                if isnan(val) or isinf(val):
+                    raise InvalidParameterError.error(
+                        "Input contains NaN or infinity",
+                        "check_array",
+                    )
+
 
 def check_X_y[
     feat_dtype: DType, target_dtype: DType
-](X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises:
-    check_array[feat_dtype](X)
+](
+    X: Matrix[feat_dtype],
+    y: List[Scalar[target_dtype]],
+    force_all_finite: Bool = True,
+) raises:
+    check_array[feat_dtype](X, force_all_finite=force_all_finite)
     if X.rows != len(y):
         raise DimensionMismatchError.error(
             "len(y) == " + String(X.rows),
             "len(y) == " + String(len(y)),
             "check_X_y",
         )
+    if force_all_finite:
+        comptime if target_dtype.is_floating_point():
+            for i in range(len(y)):
+                var val = y[i]
+                if isnan(val) or isinf(val):
+                    raise InvalidParameterError.error(
+                        "Target y contains NaN or infinity",
+                        "check_X_y",
+                    )
 
 
 def check_consistent_length[
