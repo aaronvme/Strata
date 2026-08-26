@@ -54,14 +54,32 @@ def main() raises:
     var x = solve(A, b)
 ```
 
+### Linear Regression & Pipelines
+
+```mojo
+from strata import Matrix, LinearRegression, StandardScaler, PipelineRegressor
+
+def main() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = 1.0; X[1, 0] = 2.0; X[2, 0] = 3.0; X[3, 0] = 4.0
+    var y: List[Scalar[DType.float64]] = [3.0, 5.0, 7.0, 9.0]
+
+    # Fit linear regression with intercept
+    var model = LinearRegression(fit_intercept=True, solver="lstsq")
+    model.fit(X, y)
+
+    var preds = model.predict(X)
+    print("Intercept:", model.intercept_, "Slope:", model.coef_[0])
+```
+
 ---
 
 ## Running Tests & Building
 
-Strata maintains a comprehensive test suite covering mathematical invariants, factorizations, sparse algebra, and domain validation:
+Strata maintains a comprehensive test suite covering mathematical invariants, factorizations, sparse algebra, linear estimators, and domain validation:
 
 ```bash
-# Run the complete test suite (13 suites, 129 tests)
+# Run the complete test suite
 pixi run test-all
 
 # Precompile package

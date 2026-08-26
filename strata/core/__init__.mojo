@@ -12,6 +12,7 @@ from .linalg import (
     cholesky,
     lstsq,
     solve,
+    solve_cholesky,
     inv,
     norm,
     eigh,
