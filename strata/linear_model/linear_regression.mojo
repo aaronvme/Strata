@@ -1,5 +1,4 @@
 from ..core.matrix import Matrix
-from ..core.dataset import Dataset
 from ..core.linalg import (
     gemm,
     dense_dot_vec,
@@ -9,7 +8,11 @@ from ..core.linalg import (
     solve_cholesky,
 )
 from ..base.estimator import Regressor
-from ..utils.validation import check_X_y, check_floating_dtype
+from ..utils.validation import (
+    check_X_y,
+    check_floating_dtype,
+    check_is_fitted,
+)
 from ..exceptions.errors import InvalidParameterError
 
 
@@ -64,25 +67,21 @@ struct LinearRegression[
         var D = X.cols
 
         # Promote upfront to compute_dtype once
-        var X_comp: Matrix[Self.compute_dtype]
-        comptime if feat_dtype == Self.compute_dtype:
-            X_comp = X.copy()
-        else:
-            X_comp = X.cast[Self.compute_dtype]()
+        var X_comp = X.cast[Self.compute_dtype]()
 
         var y_comp = List[Scalar[Self.compute_dtype]](capacity=N)
         for i in range(N):
             y_comp.append(Scalar[Self.compute_dtype](y[i]))
 
         if self.fit_intercept:
-            # 1. Compute means along axis 0
+            # compute means along axis 0
             var X_means = X_comp.mean_along_axis_0()
             var y_sum: Scalar[Self.compute_dtype] = 0
             for i in range(N):
                 y_sum += y_comp[i]
             var y_mean = y_sum / Scalar[Self.compute_dtype](N)
 
-            # 2. Center X and y
+            # center X and y
             var X_centered = Matrix[Self.compute_dtype](N, D, 0)
             for r in range(N):
                 for c in range(D):
@@ -92,10 +91,10 @@ struct LinearRegression[
             for i in range(N):
                 y_centered.append(y_comp[i] - y_mean)
 
-            # 3. Solve for beta on centered data
+            # solve for beta on centered data
             var beta = self._solve(X_centered, y_centered)
 
-            # 4. Calculate intercept: y_mean - sum(beta_j * X_means_j)
+            # calculate intercept: y_mean - sum(beta_j * X_means_j)
             var beta_dot_mean: Scalar[Self.compute_dtype] = 0
             for j in range(D):
                 beta_dot_mean += beta[j] * X_means[j]
@@ -108,12 +107,6 @@ struct LinearRegression[
             self.coef_ = beta^
 
         self.is_fitted = True
-
-    def fit[
-        feat_dtype: DType, in_target_dtype: DType
-    ](mut self, dataset: Dataset[feat_dtype, in_target_dtype]) raises:
-        """Fits the linear model from a Dataset container."""
-        self.fit[feat_dtype, in_target_dtype](dataset.records, dataset.targets)
 
     def _solve(
         self,
@@ -145,3 +138,33 @@ struct LinearRegression[
                 + self.solver
                 + "'. Expected 'lstsq', 'qr', 'cholesky', or 'solve'.",
             )
+
+    def predict[
+        feat_dtype: DType
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[feat_dtype]]:
+        """Predicts continuous target values using the fitted linear model.
+
+        Args:
+            X: Feature matrix of shape (N x D) to predict on.
+
+        Returns:
+            List of predictions matching the input feature precision.
+        """
+        check_is_fitted("LinearRegression", self.is_fitted)
+
+        comptime if feat_dtype == Self.compute_dtype:
+            var coef_copy = List[Scalar[feat_dtype]](capacity=len(self.coef_))
+            for i in range(len(self.coef_)):
+                coef_copy.append(Scalar[feat_dtype](self.coef_[i]))
+            return dense_dot_vec[feat_dtype](
+                X, coef_copy, bias=Scalar[feat_dtype](self.intercept_)
+            )
+        else:
+            var X_comp = X.cast[Self.compute_dtype]()
+            var preds_comp = dense_dot_vec[Self.compute_dtype](
+                X_comp, self.coef_, bias=self.intercept_
+            )
+            var preds = List[Scalar[feat_dtype]](capacity=len(preds_comp))
+            for i in range(len(preds_comp)):
+                preds.append(Scalar[feat_dtype](preds_comp[i]))
+            return preds^

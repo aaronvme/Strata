@@ -672,7 +672,9 @@ def solve_cholesky[
     A: Matrix[dtype],
     b: List[Scalar[dtype]],
     lower: Bool = True,
-) raises -> List[Scalar[dtype]]:
+) raises -> List[
+    Scalar[dtype]
+]:
     """Solves a symmetric positive definite linear system A * x = b using Cholesky (dposv/sposv).
     """
     comptime assert (

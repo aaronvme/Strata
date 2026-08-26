@@ -15,11 +15,12 @@ def check_floating_dtype[
     dtype: DType,
     caller: StringLiteral = "Estimator",
 ]():
-    """Asserts at compile time that the specified dtype is a floating-point type."""
-    comptime assert (
-        dtype.is_floating_point(),
+    """Asserts at compile time that the specified dtype is a floating-point type.
+    """
+    comptime assert dtype.is_floating_point(), (
         caller
-        + " compute_dtype must be a floating-point type (e.g. Float64 or Float32)",
+        + " compute_dtype must be a floating-point type (e.g. Float64 or"
+        " Float32)"
     )
 
 
