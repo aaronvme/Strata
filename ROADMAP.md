@@ -40,6 +40,7 @@ We have established a robust, thoroughly tested core engine:
 - [x] **Math & PRNG foundation**: Stable softmax, log-sum-exp, sigmoid, and unbiased PRNG.
 - [ ] **SIMD vectorization**: Vectorize dense kernels (`gemm`, `dense_dot_vec`) with SIMD registers and FMA (`simd_fma`).
 - [ ] **Multi-threading**: Parallelize dense matrix products and row-wise operations using `parallel_for`.
+- [ ] **LAPACK FFI bindings**: Bind OpenBLAS/LAPACK (`dgesdd`, `dgelss`, `dgeqrf`) via `sys.ffi.DLHandle` for exact SVD, QR, and least-squares factorizations.
 - [ ] **Direct memory Python interop**: Fast NumPy buffer transfer via pointer/memcpy instead of element loops.
 
 ---

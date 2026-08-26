@@ -83,11 +83,12 @@ To format automatically on save, add this to your `settings.json`:
 We keep our test suites modular. You can run all tests or target specific subsystems:
 
 ```bash
-# Run the full test suite (11 test suites, 49 tests)
+# Run the full test suite (12 test suites, 59 tests)
 pixi run test-all
 
 # Run specific test modules
-pixi run test-matrix          # Dense GEMM, dot_vec, transpose, cast, axes
+pixi run test-matrix          # Dense GEMM, dot_vec, transpose, cast, eye, axes
+pixi run test-linalg          # LAPACK SVD, QR, Cholesky, Least-Squares, Solve, Inv, Norm, Matrix + - *
 pixi run test-sparse          # CSR/CSC, SpMV, SpVM, SpMM, SpGEMM, SDDMM, check_sparse
 pixi run test-math            # Numerically stable sigmoid, softmax, log_sum_exp, PRNG
 pixi run test-dataset         # Dataset containers, splitting invariants, edge cases
@@ -196,7 +197,13 @@ To ensure compile-time trait enforcement, type safety, and effortless `model.pre
   var preds = pipe.predict(X_test)  # Fully inferred from X_test!
   ```
 
-### 3. Validation & Clear Error Messages
+### 4. FFI for Heavy LAPACK Factorizations
+When implementing algorithms requiring complex matrix factorizations (such as full `PCA`, `TruncatedSVD`, or exact `LinearRegression` via QR/SVD in `strata/decomposition/` and `strata/linear_model/`):
+- **Use `sys.ffi.DLHandle`**: Bind dynamically to system OpenBLAS or LAPACK routines (e.g. `dgesdd`, `dgelss`, `dgeqrf`, `dorgqr`, `sgesdd`, `sgelss`) for robust $O(N^3)$ factorizations.
+- **Direct Pointer Passing**: Pass the internal `self.data.unsafe_ptr()` from the Mojo `Matrix` directly across the C ABI boundary without allocating intermediate copies.
+- **Wrap Outputs into Mojo Matrix**: Wrap the resulting singular values, eigenvectors, or solution vectors directly back into owned `Matrix[compute_dtype]` structs.
+
+### 5. Validation & Clear Error Messages
 - Use the shared validation functions in `strata.utils.validation`:
   - `check_array[dtype](X)` — checks for non-empty 2D matrices.
   - `check_X_y(X, y)` — verifies consistent sample counts between features and targets.

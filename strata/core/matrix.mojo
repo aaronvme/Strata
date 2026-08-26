@@ -39,6 +39,13 @@ struct Matrix[dtype: DType = DType.float64](
         return Self(rows, cols, 1)
 
     @staticmethod
+    def eye(n: Int) -> Self:
+        var res = Self.zeros(n, n)
+        for i in range(n):
+            res[i, i] = 1
+        return res^
+
+    @staticmethod
     def from_numpy(np_arr: PythonObject) raises -> Self:
         from .interop import matrix_from_numpy
 
@@ -122,6 +129,88 @@ struct Matrix[dtype: DType = DType.float64](
             for c in range(self.cols):
                 res[c, r] = self[r, c]
         return res^
+
+    def __add__(self, other: Self) raises -> Self:
+        """Element-wise matrix addition."""
+        if self.rows != other.rows or self.cols != other.cols:
+            raise DimensionMismatchError.error(
+                "Matching shapes for addition ("
+                + String(self.rows)
+                + "x"
+                + String(self.cols)
+                + ")",
+                "(" + String(other.rows) + "x" + String(other.cols) + ")",
+                "Matrix.__add__",
+            )
+        var total = self.rows * self.cols
+        var res = List[Scalar[Self.dtype]](capacity=total)
+        for i in range(total):
+            res.append(self.data[i] + other.data[i])
+        return Matrix[Self.dtype](self.rows, self.cols, res^)
+
+    def __sub__(self, other: Self) raises -> Self:
+        """Element-wise matrix subtraction."""
+        if self.rows != other.rows or self.cols != other.cols:
+            raise DimensionMismatchError.error(
+                "Matching shapes for subtraction ("
+                + String(self.rows)
+                + "x"
+                + String(self.cols)
+                + ")",
+                "(" + String(other.rows) + "x" + String(other.cols) + ")",
+                "Matrix.__sub__",
+            )
+        var total = self.rows * self.cols
+        var res = List[Scalar[Self.dtype]](capacity=total)
+        for i in range(total):
+            res.append(self.data[i] - other.data[i])
+        return Matrix[Self.dtype](self.rows, self.cols, res^)
+
+    def __mul__(self, other: Self) raises -> Self:
+        """Element-wise Hadamard matrix product."""
+        if self.rows != other.rows or self.cols != other.cols:
+            raise DimensionMismatchError.error(
+                "Matching shapes for element-wise multiplication ("
+                + String(self.rows)
+                + "x"
+                + String(self.cols)
+                + ")",
+                "(" + String(other.rows) + "x" + String(other.cols) + ")",
+                "Matrix.__mul__",
+            )
+        var total = self.rows * self.cols
+        var res = List[Scalar[Self.dtype]](capacity=total)
+        for i in range(total):
+            res.append(self.data[i] * other.data[i])
+        return Matrix[Self.dtype](self.rows, self.cols, res^)
+
+    def __mul__(self, scalar: Scalar[Self.dtype]) -> Self:
+        """Scalar multiplication."""
+        var total = self.rows * self.cols
+        var res = List[Scalar[Self.dtype]](capacity=total)
+        for i in range(total):
+            res.append(self.data[i] * scalar)
+        return Matrix[Self.dtype](self.rows, self.cols, res^)
+
+    def __rmul__(self, scalar: Scalar[Self.dtype]) -> Self:
+        """Right scalar multiplication."""
+        return self * scalar
+
+    def __truediv__(self, scalar: Scalar[Self.dtype]) -> Self:
+        """Scalar division."""
+        var total = self.rows * self.cols
+        var res = List[Scalar[Self.dtype]](capacity=total)
+        for i in range(total):
+            res.append(self.data[i] / scalar)
+        return Matrix[Self.dtype](self.rows, self.cols, res^)
+
+    def __neg__(self) -> Self:
+        """Unary negation."""
+        var total = self.rows * self.cols
+        var res = List[Scalar[Self.dtype]](capacity=total)
+        for i in range(total):
+            res.append(-self.data[i])
+        return Matrix[Self.dtype](self.rows, self.cols, res^)
 
     def dot(self, other: Self) raises -> Self:
         from .linalg import gemm

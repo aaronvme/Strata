@@ -4,7 +4,19 @@ from .view import MatrixView
 from .csr_matrix import CSRMatrix
 from .csc_matrix import CSCMatrix
 from .sparse import SparseMatrix
-from .linalg import gemm, dense_dot_vec
+from .linalg import (
+    gemm,
+    dense_dot_vec,
+    svd,
+    qr,
+    cholesky,
+    lstsq,
+    solve,
+    inv,
+    norm,
+    SVDResult,
+    QRResult,
+)
 from .sparse_ops import spmv, spvm, spmm, spgemm, sddmm
 from .interop import (
     matrix_to_numpy,
