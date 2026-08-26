@@ -68,7 +68,15 @@ from .utils import (
     PRNG,
 )
 from .preprocessing import StandardScaler
-from .model_selection import train_test_split
+from .model_selection import (
+    train_test_split,
+    KFold,
+    StratifiedKFold,
+    Split,
+    cross_val_score,
+    GridSearchRegressor,
+    GridSearchClassifier,
+)
 from .linear_model import LinearRegression, Ridge, LogisticRegression
 from .metrics import (
     mean_squared_error,
@@ -81,4 +89,3 @@ from .metrics import (
     f1_score,
     confusion_matrix,
 )
-from .linear_model import LinearRegression

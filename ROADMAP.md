@@ -50,7 +50,7 @@ We have established a robust, thoroughly tested core engine:
   - [x] Regression: `mean_squared_error`, `root_mean_squared_error`, `r2_score`, `mean_absolute_error`
   - [x] Classification: `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `confusion_matrix`
   - [ ] Clustering: `silhouette_score`, `inertia`
-- [ ] **Linear Models (`strata.linear_model`)**:
+- [x] **Linear Models (`strata.linear_model`)**:
   - [x] `LinearRegression` (Ordinary Least Squares with multi-solver support: `lstsq`, `qr`, `cholesky`, `solve`)
   - [x] `Ridge` ($L_2$-regularized closed-form solver: `auto`, `cholesky`, `svd`, `solve`)
   - [x] `LogisticRegression` (Binary and multinomial softmax classification with $L_2$ / unregularized optimization)
@@ -59,9 +59,15 @@ We have established a robust, thoroughly tested core engine:
   - `RobustScaler`
   - `OneHotEncoder`
   - `Binarizer`
-- [ ] **Model Selection (`strata.model_selection`)**:
-  - `KFold` and `StratifiedKFold`
-  - `cross_val_score`
+- [x] **Model Selection (`strata.model_selection`)**:
+  - [x] `KFold` and `StratifiedKFold`
+  - [x] `cross_val_score`
+  - [x] `GridSearchRegressor` and `GridSearchClassifier`
+  - [ ] `cross_val_predict` (Out-of-fold prediction matrices)
+  - [ ] `TimeSeriesSplit` (Rolling / expanding temporal cross-validation)
+  - [ ] `ShuffleSplit` & `StratifiedShuffleSplit` (Monte Carlo random splits)
+  - [ ] `RandomizedSearchRegressor` & `RandomizedSearchClassifier`
+  - [ ] `cross_validate` (Multi-metric evaluation)
 
 ---
 
