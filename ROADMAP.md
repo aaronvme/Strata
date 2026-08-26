@@ -28,7 +28,7 @@ We have established a robust, thoroughly tested core engine:
   - Domain exceptions: `DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, `DataConversionError`
   - Structural validators: `check_array`, `check_X_y`, `check_sparse`, `check_is_fitted`
 - **Test Coverage**:
-  - 12 modular test suites (70 passing tests) verifying mathematical invariants, LAPACK decompositions, strided slicing, and edge cases.
+  - 13 modular test suites (129 passing tests) verifying mathematical invariants, LAPACK decompositions, strided slicing, and edge cases.
 
 ---
 
@@ -47,9 +47,9 @@ We have established a robust, thoroughly tested core engine:
 
 ### 2. Core Estimators & Metrics
 - [ ] **Evaluation Metrics (`strata.metrics`)**:
-  - Regression: `mean_squared_error`, `root_mean_squared_error`, `r2_score`, `mean_absolute_error`
-  - Classification: `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `confusion_matrix`
-  - Clustering: `silhouette_score`, `inertia`
+  - [x] Regression: `mean_squared_error`, `root_mean_squared_error`, `r2_score`, `mean_absolute_error`
+  - [x] Classification: `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `confusion_matrix`
+  - [ ] Clustering: `silhouette_score`, `inertia`
 - [ ] **Linear Models (`strata.linear_model`)**:
   - [x] `LinearRegression` (Ordinary Least Squares with multi-solver support: `lstsq`, `qr`, `cholesky`, `solve`)
   - [x] `Ridge` ($L_2$-regularized closed-form solver: `auto`, `cholesky`, `svd`, `solve`)

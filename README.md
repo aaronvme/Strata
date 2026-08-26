@@ -79,7 +79,7 @@ def main() raises:
 Strata maintains a comprehensive test suite covering mathematical invariants, factorizations, sparse algebra, linear estimators, and domain validation:
 
 ```bash
-# Run the complete test suite (13 suites)
+# Run the complete test suite
 pixi run test-all
 
 # Precompile package
