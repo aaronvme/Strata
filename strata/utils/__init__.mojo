@@ -5,6 +5,7 @@ from .validation import (
     check_array,
     check_consistent_length,
     check_sparse,
+    check_finite,
 )
 from .math import sigmoid, softmax, log_sum_exp
 from .random import permutation, shuffle, PRNG
