@@ -7,7 +7,7 @@ from .estimator import Estimator, Transformer, Regressor, Classifier
 struct PipelineTransformer[
     T1: Transformer,
     T2: Transformer,
-](Movable, Copyable, Transformer):
+](Copyable, Movable, Transformer):
     """Chains two data transformers into a single composite transformer."""
 
     var step1: Self.T1
@@ -36,7 +36,7 @@ struct PipelineRegressor[
     T: Transformer,
     R: Regressor,
     target_dtype: DType = DType.float64,
-](Movable, Copyable, Regressor):
+](Copyable, Movable, Regressor):
     """Sequentially applies a transformer pipeline before fitting a regressor.
     """
 
@@ -61,7 +61,7 @@ struct PipelineClassifier[
     T: Transformer,
     C: Classifier,
     target_dtype: DType = DType.int32,
-](Classifier, Movable, Copyable):
+](Classifier, Copyable, Movable):
     """Sequentially applies a transformer pipeline before fitting a classifier.
     """
 

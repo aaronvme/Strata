@@ -134,6 +134,7 @@ struct StratifiedKFold(Movable):
     ](
         self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]
     ) raises -> List[Split]:
-        """Generates stratified train and test indices from feature matrix X and targets y."""
+        """Generates stratified train and test indices from feature matrix X and targets y.
+        """
         check_X_y(X, y)
         return self.split[target_dtype](y)

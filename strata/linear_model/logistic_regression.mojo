@@ -12,7 +12,7 @@ from ..exceptions.errors import InvalidParameterError, DimensionMismatchError
 
 struct LogisticRegression[
     compute_dtype: DType = DType.float64,
-](Classifier, Movable, Copyable):
+](Classifier, Copyable, Movable):
     """Logistic Regression classifier with L2 regularization.
 
     Supports binary and multiclass (multinomial) classification with

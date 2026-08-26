@@ -19,7 +19,7 @@ from ..exceptions.errors import InvalidParameterError, DimensionMismatchError
 
 struct LinearRegression[
     compute_dtype: DType = DType.float64,
-](Movable, Copyable, Regressor):
+](Copyable, Movable, Regressor):
     """Ordinary Least Squares Linear Regression.
 
     Fits a linear model with coefficients w = (w_1, ..., w_p) to minimize

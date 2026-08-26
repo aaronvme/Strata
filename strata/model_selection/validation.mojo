@@ -134,7 +134,8 @@ def cross_val_score[
     cv: Int = 5,
     scoring: String = "accuracy",
 ) raises -> List[Float64]:
-    """Evaluates classification scores by stratified cross-validation across K folds."""
+    """Evaluates classification scores by stratified cross-validation across K folds.
+    """
     var skf = StratifiedKFold(n_splits=cv)
     var splits = skf.split[feat_dtype, target_dtype](X, y)
     return cross_val_score[ModelType, feat_dtype, target_dtype](
@@ -153,7 +154,8 @@ def cross_val_score[
     splits: List[Split],
     scoring: String = "accuracy",
 ) raises -> List[Float64]:
-    """Evaluates classification scores by cross-validation on pre-defined splits."""
+    """Evaluates classification scores by cross-validation on pre-defined splits.
+    """
     check_X_y(X, y)
     var n_splits = len(splits)
     if n_splits == 0:

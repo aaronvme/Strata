@@ -74,6 +74,8 @@ from .model_selection import (
     StratifiedKFold,
     Split,
     cross_val_score,
+    GridSearchRegressor,
+    GridSearchClassifier,
 )
 from .linear_model import LinearRegression, Ridge, LogisticRegression
 from .metrics import (

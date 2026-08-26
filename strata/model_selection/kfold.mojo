@@ -5,7 +5,8 @@ from ..exceptions.errors import InvalidParameterError
 
 
 struct Split(Movable):
-    """Pair of train and validation sample indices for a cross-validation fold."""
+    """Pair of train and validation sample indices for a cross-validation fold.
+    """
 
     var train_indices: List[Int]
     var val_indices: List[Int]
@@ -117,6 +118,7 @@ struct KFold(Movable):
         return splits^
 
     def split[dtype: DType](self, X: Matrix[dtype]) raises -> List[Split]:
-        """Generates indices to split matrix records into train and test sets."""
+        """Generates indices to split matrix records into train and test sets.
+        """
         check_array(X)
         return self.split(X.rows)

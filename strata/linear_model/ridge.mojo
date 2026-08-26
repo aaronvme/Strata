@@ -18,7 +18,7 @@ from ..exceptions.errors import InvalidParameterError, DimensionMismatchError
 
 struct Ridge[
     compute_dtype: DType = DType.float64,
-](Movable, Copyable, Regressor):
+](Copyable, Movable, Regressor):
     """Ridge regression with L2 regularization.
 
     Minimizes the penalized objective:
