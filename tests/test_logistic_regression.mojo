@@ -342,5 +342,254 @@ def test_logistic_regression_error_handling() raises:
         model.fit(X_nan, y_valid)
 
 
+def test_logistic_regression_copy_semantics_state_isolation() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = -2.0
+    X[1, 0] = -1.0
+    X[2, 0] = 1.0
+    X[3, 0] = 2.0
+    var y: List[Scalar[DType.int32]] = [0, 0, 1, 1]
+
+    var clf1 = LogisticRegression(C=2.0, max_iter=100)
+    clf1.fit(X, y)
+
+    var clf2 = clf1.copy()
+    assert_equal(clf2.C, 2.0)
+    assert_equal(clf2.is_fitted, True)
+    assert_equal(len(clf2.classes_), 2)
+
+    var y_new: List[Scalar[DType.int32]] = [1, 1, 0, 0]
+    clf2.fit(X, y_new)
+
+    var p1 = clf1.predict(X)
+    var p2 = clf2.predict(X)
+    assert_equal(p1[0], 0)
+    assert_equal(p2[0], 1)
+
+
+def test_logistic_regression_probability_calibration_sum_to_one() raises:
+    var X = Matrix[DType.float64](8, 2, 0)
+    for i in range(8):
+        X[i, 0] = Float64(i)
+        X[i, 1] = Float64(i * 2)
+    var y: List[Scalar[DType.int32]] = [0, 0, 1, 1, 2, 2, 3, 3]
+
+    var model = LogisticRegression(max_iter=150)
+    model.fit(X, y)
+
+    var probs = model.predict_proba(X)
+    assert_equal(probs.rows, 8)
+    assert_equal(probs.cols, 4)
+
+    for i in range(8):
+        var row_sum: Float64 = 0.0
+        for c in range(4):
+            assert_true(probs[i, c] >= 0.0)
+            assert_true(probs[i, c] <= 1.0)
+            row_sum += probs[i, c]
+        assert_almost_equal(row_sum, 1.0, rtol=1e-4)
+
+
+def test_logistic_regression_high_dimensional_features() raises:
+    var N = 20
+    var D = 6
+    var X = Matrix[DType.float64](N, D, 0)
+    var y = List[Scalar[DType.int32]](capacity=N)
+    for i in range(N):
+        for j in range(D):
+            X[i, j] = Float64((i + 1) * (j + 1)) * (1.0 if i >= 10 else -1.0)
+        y.append(Int32(0 if i < 10 else 1))
+
+    var model = LogisticRegression(max_iter=200, learning_rate=0.1)
+    model.fit(X, y)
+    var preds = model.predict(X)
+    for i in range(N):
+        assert_equal(preds[i], Int(y[i]))
+
+
+def test_logistic_regression_float32_native_model() raises:
+    var X = Matrix[DType.float32](4, 1, 0)
+    X[0, 0] = -2.0
+    X[1, 0] = -1.0
+    X[2, 0] = 1.0
+    X[3, 0] = 2.0
+    var y: List[Scalar[DType.int32]] = [0, 0, 1, 1]
+
+    var model = LogisticRegression[DType.float32](max_iter=100)
+    model.fit(X, y)
+    var preds = model.predict(X)
+    assert_equal(preds[0], 0)
+    assert_equal(preds[3], 1)
+
+
+def test_logistic_regression_asymmetric_binary_classes() raises:
+    var X = Matrix[DType.float64](10, 1, 0)
+    var y = List[Scalar[DType.int32]](capacity=10)
+    for i in range(8):
+        X[i, 0] = Float64(i - 10)
+        y.append(0)
+    for i in range(8, 10):
+        X[i, 0] = Float64(i + 5)
+        y.append(1)
+
+    var model = LogisticRegression(max_iter=150)
+    model.fit(X, y)
+    var preds = model.predict(X)
+    assert_equal(preds[0], 0)
+    assert_equal(preds[9], 1)
+
+
+def test_logistic_regression_discontinuous_labels() raises:
+    var X = Matrix[DType.float64](6, 1, 0)
+    X[0, 0] = -5.0
+    X[1, 0] = -4.0
+    X[2, 0] = 0.0
+    X[3, 0] = 1.0
+    X[4, 0] = 6.0
+    X[5, 0] = 7.0
+    var y: List[Scalar[DType.int32]] = [10, 10, 50, 50, 100, 100]
+
+    var model = LogisticRegression(max_iter=150)
+    model.fit(X, y)
+    var preds = model.predict(X)
+    assert_equal(preds[0], 10)
+    assert_equal(preds[2], 50)
+    assert_equal(preds[4], 100)
+
+
+def test_logistic_regression_negative_class_labels() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = -2.0
+    X[1, 0] = -1.0
+    X[2, 0] = 1.0
+    X[3, 0] = 2.0
+    var y: List[Scalar[DType.int32]] = [-1, -1, 1, 1]
+
+    var model = LogisticRegression(max_iter=150)
+    model.fit(X, y)
+    var preds = model.predict(X)
+    assert_equal(preds[0], -1)
+    assert_equal(preds[3], 1)
+
+
+def test_logistic_regression_decision_boundary_at_origin() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = -3.0
+    X[1, 0] = -1.0
+    X[2, 0] = 1.0
+    X[3, 0] = 3.0
+    var y: List[Scalar[DType.int32]] = [0, 0, 1, 1]
+
+    var model = LogisticRegression(max_iter=200, fit_intercept=True)
+    model.fit(X, y)
+
+    var X_origin = Matrix[DType.float64](1, 1, 0.0)
+    var prob_origin = model.predict_proba(X_origin)
+    assert_almost_equal(prob_origin[0, 0], 0.5, atol=0.1)
+    assert_almost_equal(prob_origin[0, 1], 0.5, atol=0.1)
+
+
+def test_logistic_regression_no_intercept_boundary() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = -2.0
+    X[1, 0] = -1.0
+    X[2, 0] = 1.0
+    X[3, 0] = 2.0
+    var y: List[Scalar[DType.int32]] = [0, 0, 1, 1]
+
+    var model = LogisticRegression(fit_intercept=False, max_iter=150)
+    model.fit(X, y)
+    for c in range(len(model.intercept_)):
+        assert_equal(model.intercept_[c], 0.0)
+
+
+def test_logistic_regression_predict_proba_unfitted_raises() raises:
+    var model = LogisticRegression()
+    var X = Matrix[DType.float64].ones(3, 2)
+    with assert_raises():
+        _ = model.predict_proba(X)
+
+
+def test_logistic_regression_extreme_C_unregularized() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = -2.0
+    X[1, 0] = -1.0
+    X[2, 0] = 1.0
+    X[3, 0] = 2.0
+    var y: List[Scalar[DType.int32]] = [0, 0, 1, 1]
+
+    var model = LogisticRegression(C=1e6, max_iter=150)
+    model.fit(X, y)
+    var preds = model.predict(X)
+    assert_equal(preds[0], 0)
+    assert_equal(preds[3], 1)
+
+
+def test_logistic_regression_heavy_shrinkage_small_C() raises:
+    var X = Matrix[DType.float64](6, 1, 0)
+    X[0, 0] = -3.0
+    X[1, 0] = -2.0
+    X[2, 0] = -1.0
+    X[3, 0] = 1.0
+    X[4, 0] = 2.0
+    X[5, 0] = 3.0
+    var y: List[Scalar[DType.int32]] = [0, 0, 0, 1, 1, 1]
+
+    var m_reg = LogisticRegression(C=0.01, max_iter=200, learning_rate=0.1)
+    var m_unreg = LogisticRegression(C=100.0, max_iter=200, learning_rate=0.1)
+    m_reg.fit(X, y)
+    m_unreg.fit(X, y)
+
+    var norm_reg = abs(m_reg.coef_[1, 0] - m_reg.coef_[0, 0])
+    var norm_unreg = abs(m_unreg.coef_[1, 0] - m_unreg.coef_[0, 0])
+    assert_true(norm_reg < norm_unreg)
+
+
+def test_logistic_regression_multiclass_four_classes() raises:
+    var X = Matrix[DType.float64](8, 2, 0)
+    X[0, 0] = -3.0
+    X[0, 1] = -3.0
+    X[1, 0] = -3.0
+    X[1, 1] = -2.0
+    X[2, 0] = -3.0
+    X[2, 1] = 3.0
+    X[3, 0] = -2.0
+    X[3, 1] = 3.0
+    X[4, 0] = 3.0
+    X[4, 1] = -3.0
+    X[5, 0] = 2.0
+    X[5, 1] = -3.0
+    X[6, 0] = 3.0
+    X[6, 1] = 3.0
+    X[7, 0] = 3.0
+    X[7, 1] = 2.0
+    var y: List[Scalar[DType.int32]] = [0, 0, 1, 1, 2, 2, 3, 3]
+
+    var model = LogisticRegression(max_iter=200)
+    model.fit(X, y)
+    var preds = model.predict(X)
+    assert_equal(preds[0], 0)
+    assert_equal(preds[2], 1)
+    assert_equal(preds[4], 2)
+    assert_equal(preds[6], 3)
+
+
+def test_logistic_regression_repeated_predict_consistency() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = -2.0
+    X[1, 0] = -1.0
+    X[2, 0] = 1.0
+    X[3, 0] = 2.0
+    var y: List[Scalar[DType.int32]] = [0, 0, 1, 1]
+
+    var model = LogisticRegression(max_iter=100)
+    model.fit(X, y)
+
+    var p1 = model.predict(X)
+    var p2 = model.predict(X)
+    for i in range(4):
+        assert_equal(p1[i], p2[i])
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

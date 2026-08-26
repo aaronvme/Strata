@@ -3,7 +3,11 @@ from ..base.estimator import Transformer
 from ..core.matrix import Matrix
 from ..core.dataset import Dataset
 from ..utils.validation import check_is_fitted, check_array
-from ..exceptions.errors import NotFittedError, DataConversionError
+from ..exceptions.errors import (
+    NotFittedError,
+    DataConversionError,
+    DimensionMismatchError,
+)
 
 
 struct StandardScaler[compute_dtype: DType = DType.float64](
@@ -80,6 +84,12 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
                 + "] but was fitted on Matrix["
                 + String(self.fit_dtype)
                 + "]"
+            )
+        if X.cols != len(self.mean_):
+            raise DimensionMismatchError.error(
+                "X.cols == " + String(len(self.mean_)),
+                "X.cols == " + String(X.cols),
+                "StandardScaler.transform",
             )
         check_array[in_dtype](X)
 

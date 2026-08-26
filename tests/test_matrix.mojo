@@ -306,5 +306,194 @@ def test_matrix_string_representation() raises:
     assert_true(s.byte_length() > 0)
 
 
+def test_matrix_mean_along_axis_0_computation() raises:
+    var A = Matrix[DType.float64](3, 2, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 10.0
+    A[1, 0] = 2.0
+    A[1, 1] = 20.0
+    A[2, 0] = 3.0
+    A[2, 1] = 30.0
+
+    var means = A.mean_along_axis_0()
+    assert_equal(len(means), 2)
+    assert_almost_equal(means[0], 2.0)
+    assert_almost_equal(means[1], 20.0)
+
+
+def test_matrix_scalar_multiplication_and_division() raises:
+    var A = Matrix[DType.float64](2, 2, 6.0)
+    var B_mul = A * 2.0
+    assert_equal(B_mul[0, 0], 12.0)
+    assert_equal(B_mul[1, 1], 12.0)
+
+    var B_div = A / 3.0
+    assert_equal(B_div[0, 0], 2.0)
+    assert_equal(B_div[1, 1], 2.0)
+
+
+def test_matrix_gemm_associativity() raises:
+    var A = Matrix[DType.float64](2, 2, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[1, 0] = 3.0
+    A[1, 1] = 4.0
+
+    var B = Matrix[DType.float64](2, 2, 0)
+    B[0, 0] = 2.0
+    B[0, 1] = 0.0
+    B[1, 0] = 1.0
+    B[1, 1] = 2.0
+
+    var C = Matrix[DType.float64](2, 2, 0)
+    C[0, 0] = 0.0
+    C[0, 1] = 1.0
+    C[1, 0] = 1.0
+    C[1, 1] = 0.0
+
+    # (A @ B) @ C == A @ (B @ C)
+    var AB_C = gemm(gemm(A, B), C)
+    var A_BC = gemm(A, gemm(B, C))
+
+    for r in range(2):
+        for c in range(2):
+            assert_almost_equal(AB_C[r, c], A_BC[r, c], rtol=1e-5)
+
+
+def test_matrix_gemm_distributivity() raises:
+    var A = Matrix[DType.float64](2, 2, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[1, 0] = 3.0
+    A[1, 1] = 4.0
+
+    var B = Matrix[DType.float64](2, 2, 1.0)
+    var C = Matrix[DType.float64](2, 2, 2.0)
+
+    # A @ (B + C) == A @ B + A @ C
+    var lhs = gemm(A, B + C)
+    var rhs = gemm(A, B) + gemm(A, C)
+
+    for r in range(2):
+        for c in range(2):
+            assert_almost_equal(lhs[r, c], rhs[r, c], rtol=1e-5)
+
+
+def test_matrix_transpose_product_identity() raises:
+    var A = Matrix[DType.float64](2, 3, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[0, 2] = 3.0
+    A[1, 0] = 4.0
+    A[1, 1] = 5.0
+    A[1, 2] = 6.0
+
+    var B = Matrix[DType.float64](3, 2, 0)
+    B[0, 0] = 7.0
+    B[0, 1] = 8.0
+    B[1, 0] = 9.0
+    B[1, 1] = 1.0
+    B[2, 0] = 2.0
+    B[2, 1] = 3.0
+
+    # (A @ B)^T == B^T @ A^T
+    var lhs = gemm(A, B).transpose()
+    var rhs = gemm(B.transpose(), A.transpose())
+
+    for r in range(2):
+        for c in range(2):
+            assert_almost_equal(lhs[r, c], rhs[r, c], rtol=1e-5)
+
+
+def test_matrix_cast_precision_conversions() raises:
+    var A_f64 = Matrix[DType.float64](2, 2, 3.14159265)
+    var A_f32 = A_f64.cast[DType.float32]()
+    assert_equal(A_f32.rows, 2)
+    assert_equal(A_f32.cols, 2)
+    assert_almost_equal(Float64(A_f32[0, 0]), 3.14159265, rtol=1e-4)
+
+    var A_i32 = A_f64.cast[DType.int32]()
+    assert_equal(A_i32[0, 0], 3)
+    assert_equal(A_i32[1, 1], 3)
+
+
+def test_matrix_1x1_scalar_multiplication() raises:
+    var A = Matrix[DType.float64](1, 1, 5.0)
+    var B = Matrix[DType.float64](1, 1, 4.0)
+    var C = gemm(A, B)
+    assert_equal(C.rows, 1)
+    assert_equal(C.cols, 1)
+    assert_equal(C[0, 0], 20.0)
+
+
+def test_matrix_tall_and_wide_products() raises:
+    var Col = Matrix[DType.float64].ones(10, 1)
+    var Row = Matrix[DType.float64].ones(1, 10)
+    var Outer = gemm(Col, Row)
+    assert_equal(Outer.rows, 10)
+    assert_equal(Outer.cols, 10)
+    for r in range(10):
+        for c in range(10):
+            assert_equal(Outer[r, c], 1.0)
+
+
+def test_matrix_bfloat16_gemm() raises:
+    var A = Matrix[DType.bfloat16](2, 2, 2.0)
+    var B = Matrix[DType.bfloat16](2, 2, 3.0)
+    var C = gemm(A, B)
+    assert_equal(C.rows, 2)
+    assert_equal(C.cols, 2)
+    assert_almost_equal(Float64(C[0, 0]), 12.0, rtol=1e-2)
+
+
+def test_matrix_dimension_mismatch_errors() raises:
+    var A = Matrix[DType.float64](2, 3, 1.0)
+    var B = Matrix[DType.float64](2, 3, 1.0)
+
+    with assert_raises():
+        _ = gemm(A, B)
+
+    var C = Matrix[DType.float64](3, 2, 1.0)
+    with assert_raises():
+        _ = A + C
+
+
+def test_matrix_fill_zeros_ones_factories() raises:
+    var z = Matrix[DType.float64].zeros(4, 4)
+    for r in range(4):
+        for c in range(4):
+            assert_equal(z[r, c], 0.0)
+
+    var o = Matrix[DType.float64].ones(4, 4)
+    for r in range(4):
+        for c in range(4):
+            assert_equal(o[r, c], 1.0)
+
+
+def test_matrix_subtraction_self_is_zeros() raises:
+    var A = Matrix[DType.float64](3, 3, 42.0)
+    var Diff = A - A
+    for r in range(3):
+        for c in range(3):
+            assert_equal(Diff[r, c], 0.0)
+
+
+def test_matrix_hadamard_with_identity() raises:
+    var A = Matrix[DType.float64](3, 3, 5.0)
+    var Eye = Matrix[DType.float64].eye(3)
+    var H = A * Eye
+    for r in range(3):
+        for c in range(3):
+            assert_equal(H[r, c], 5.0 if r == c else 0.0)
+
+
+def test_matrix_transpose_symmetry_for_identity() raises:
+    var Eye = Matrix[DType.float64].eye(4)
+    var Eye_t = Eye.transpose()
+    for r in range(4):
+        for c in range(4):
+            assert_equal(Eye[r, c], Eye_t[r, c])
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

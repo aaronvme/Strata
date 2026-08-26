@@ -234,5 +234,192 @@ def test_sparse_cast() raises:
     assert_equal(csr_f64.data[1], 10.0)
 
 
+def test_csr_to_csc_and_back_roundtrip() raises:
+    var dense = Matrix[DType.float64](3, 3, 0)
+    dense[0, 1] = 5.0
+    dense[1, 0] = 3.0
+    dense[2, 2] = 8.0
+
+    var csr = CSRMatrix[DType.float64].from_dense(dense)
+    var csc = csr.to_csc()
+    assert_equal(csc.nnz(), 3)
+    assert_equal(csc.rows, 3)
+    assert_equal(csc.cols, 3)
+
+    var csr_back = csc.to_csr()
+    assert_equal(csr_back.nnz(), 3)
+    var dense_back = csr_back.to_dense()
+    for r in range(3):
+        for c in range(3):
+            assert_equal(dense_back[r, c], dense[r, c])
+
+
+def test_sparse_spvm_vector_transpose_product() raises:
+    # y = x^T @ A
+    var dense = Matrix[DType.float64](2, 3, 0)
+    dense[0, 0] = 1.0
+    dense[0, 2] = 2.0
+    dense[1, 1] = 3.0
+    dense[1, 2] = 4.0
+    var csr = CSRMatrix[DType.float64].from_dense(dense)
+
+    var x: List[Scalar[DType.float64]] = [2.0, 3.0]
+    var y = spvm(x, csr)
+    assert_equal(len(y), 3)
+    # y[0] = 2*1 = 2
+    # y[1] = 3*3 = 9
+    # y[2] = 2*2 + 3*4 = 16
+    assert_equal(y[0], 2.0)
+    assert_equal(y[1], 9.0)
+    assert_equal(y[2], 16.0)
+
+
+def test_sparse_spmm_rectangular_matrices() raises:
+    # Sparse 3x2 @ Dense 2x4 -> Dense 3x4
+    var dense_A = Matrix[DType.float64](3, 2, 0)
+    dense_A[0, 0] = 2.0
+    dense_A[1, 1] = 3.0
+    dense_A[2, 0] = 1.0
+    dense_A[2, 1] = 1.0
+    var csr_A = CSRMatrix[DType.float64].from_dense(dense_A)
+
+    var dense_B = Matrix[DType.float64](2, 4, 1.0)
+    var C = spmm(csr_A, dense_B)
+
+    assert_equal(C.rows, 3)
+    assert_equal(C.cols, 4)
+    for c in range(4):
+        assert_equal(C[0, c], 2.0)
+        assert_equal(C[1, c], 3.0)
+        assert_equal(C[2, c], 2.0)
+
+
+def test_sparse_spgemm_chain_multiplication() raises:
+    var dense_A = Matrix[DType.float64](2, 2, 0)
+    dense_A[0, 0] = 1.0
+    dense_A[0, 1] = 2.0
+    dense_A[1, 1] = 3.0
+    var csr_A = CSRMatrix[DType.float64].from_dense(dense_A)
+
+    var dense_B = Matrix[DType.float64](2, 2, 0)
+    dense_B[0, 0] = 4.0
+    dense_B[1, 0] = 5.0
+    dense_B[1, 1] = 6.0
+    var csr_B = CSRMatrix[DType.float64].from_dense(dense_B)
+
+    var csr_C = spgemm(csr_A, csr_B)
+    var C_dense = csr_C.to_dense()
+
+    assert_equal(C_dense[0, 0], 14.0)  # 1*4 + 2*5
+    assert_equal(C_dense[0, 1], 12.0)  # 2*6
+    assert_equal(C_dense[1, 0], 15.0)  # 3*5
+    assert_equal(C_dense[1, 1], 18.0)  # 3*6
+
+
+def test_sparse_diagonal_matrix_scaling() raises:
+    var dense = Matrix[DType.float64](4, 4, 0)
+    dense[0, 0] = 2.0
+    dense[1, 1] = 3.0
+    dense[2, 2] = 4.0
+    dense[3, 3] = 5.0
+    var csr = CSRMatrix[DType.float64].from_dense(dense)
+
+    var x: List[Scalar[DType.float64]] = [1.0, 10.0, 100.0, 1000.0]
+    var y = spmv(csr, x, 0.0)
+
+    assert_equal(y[0], 2.0)
+    assert_equal(y[1], 30.0)
+    assert_equal(y[2], 400.0)
+    assert_equal(y[3], 5000.0)
+
+
+def test_sparse_float32_spmv() raises:
+    var dense = Matrix[DType.float32](2, 2, 0)
+    dense[0, 0] = 3.0
+    dense[1, 1] = 4.0
+    var csr = CSRMatrix[DType.float32].from_dense(dense)
+
+    var x: List[Scalar[DType.float32]] = [2.0, 3.0]
+    var y = spmv(csr, x, 0.0)
+    assert_equal(y[0], 6.0)
+    assert_equal(y[1], 12.0)
+
+
+def test_sparse_bfloat16_spmv() raises:
+    var dense = Matrix[DType.bfloat16](2, 2, 0)
+    dense[0, 0] = 2.0
+    dense[1, 1] = 5.0
+    var csr = CSRMatrix[DType.bfloat16].from_dense(dense)
+
+    var x: List[Scalar[DType.bfloat16]] = [3.0, 2.0]
+    var y = spmv(csr, x, 0.0)
+    assert_almost_equal(Float64(y[0]), 6.0, rtol=1e-2)
+    assert_almost_equal(Float64(y[1]), 10.0, rtol=1e-2)
+
+
+def test_sparse_dimension_mismatch_spmv() raises:
+    var dense = Matrix[DType.float64](3, 3, 1.0)
+    var csr = CSRMatrix[DType.float64].from_dense(dense)
+
+    # Incompatible vector length: expected 3, given 2
+    var bad_x: List[Scalar[DType.float64]] = [1.0, 2.0]
+    with assert_raises():
+        _ = spmv(csr, bad_x)
+
+
+def test_sparse_dimension_mismatch_spmm() raises:
+    var dense_A = Matrix[DType.float64](3, 3, 1.0)
+    var csr_A = CSRMatrix[DType.float64].from_dense(dense_A)
+
+    # Incompatible dense matrix inner dimension: expected 3 rows, given 2 rows
+    var bad_B = Matrix[DType.float64](2, 4, 1.0)
+    with assert_raises():
+        _ = spmm(csr_A, bad_B)
+
+
+def test_sparse_copy_constructor_isolation() raises:
+    var dense = Matrix[DType.float64](2, 2, 0)
+    dense[0, 0] = 10.0
+    dense[1, 1] = 20.0
+    var csr1 = CSRMatrix[DType.float64].from_dense(dense)
+
+    var csr2 = csr1.copy()
+    assert_equal(csr2.nnz(), 2)
+    assert_equal(csr2.data[0], 10.0)
+    assert_equal(csr2.data[1], 20.0)
+
+
+def test_sparse_string_representation() raises:
+    var dense = Matrix[DType.float64](3, 3, 0)
+    dense[0, 0] = 1.0
+    var csr = CSRMatrix[DType.float64].from_dense(dense)
+    var s = String(csr)
+    assert_true(s.byte_length() > 0)
+
+
+def test_sparse_empty_factory() raises:
+    var empty_csr = CSRMatrix[DType.float64].empty(5, 5)
+    assert_equal(empty_csr.rows, 5)
+    assert_equal(empty_csr.cols, 5)
+    assert_equal(empty_csr.nnz(), 0)
+
+    var empty_csc = empty_csr.to_csc()
+    assert_equal(empty_csc.rows, 5)
+    assert_equal(empty_csc.cols, 5)
+    assert_equal(empty_csc.nnz(), 0)
+
+
+def test_sparse_dot_methods_convenience() raises:
+    var dense = Matrix[DType.float64](2, 2, 0)
+    dense[0, 0] = 2.0
+    dense[1, 1] = 3.0
+    var csr = CSRMatrix[DType.float64].from_dense(dense)
+
+    var x: List[Scalar[DType.float64]] = [4.0, 5.0]
+    var y = csr.dot_vec(x)
+    assert_equal(y[0], 8.0)
+    assert_equal(y[1], 15.0)
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

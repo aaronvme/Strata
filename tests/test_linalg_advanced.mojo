@@ -649,5 +649,151 @@ def test_eigh_float32_and_errors() raises:
         _ = eigh(NonSquare)
 
 
+def test_cholesky_positive_definite_reconstruction() raises:
+    # Construct SPD matrix A = M^T * M + 0.1 * I
+    var M = Matrix[DType.float64](3, 3, 0)
+    M[0, 0] = 2.0
+    M[0, 1] = 1.0
+    M[1, 0] = 1.0
+    M[1, 1] = 3.0
+    M[1, 2] = 1.0
+    M[2, 1] = 1.0
+    M[2, 2] = 2.0
+
+    var Mt = M.transpose()
+    var A = gemm(Mt, M)
+    for i in range(3):
+        A[i, i] += 0.5
+
+    var L = cholesky(A)
+    var Lt = L.transpose()
+    var A_rec = gemm(L, Lt)
+
+    for r in range(3):
+        for c in range(3):
+            assert_almost_equal(A_rec[r, c], A[r, c], rtol=1e-4)
+
+
+def test_cholesky_non_spd_error() raises:
+    var NonSPD = Matrix[DType.float64](2, 2, 0)
+    NonSPD[0, 0] = -1.0
+    NonSPD[0, 1] = 0.0
+    NonSPD[1, 0] = 0.0
+    NonSPD[1, 1] = -1.0
+    with assert_raises():
+        _ = cholesky(NonSPD)
+
+
+def test_solve_linear_system_parity() raises:
+    var A = Matrix[DType.float64](3, 3, 0)
+    A[0, 0] = 3.0
+    A[0, 1] = 1.0
+    A[0, 2] = 2.0
+    A[1, 0] = 1.0
+    A[1, 1] = 4.0
+    A[1, 2] = 1.0
+    A[2, 0] = 2.0
+    A[2, 1] = 1.0
+    A[2, 2] = 5.0
+
+    var b: List[Scalar[DType.float64]] = [11.0, 14.0, 23.0]
+    var x = solve(A, b)
+
+    # Verify A * x == b
+    var Ax0 = A[0, 0] * x[0] + A[0, 1] * x[1] + A[0, 2] * x[2]
+    var Ax1 = A[1, 0] * x[0] + A[1, 1] * x[1] + A[1, 2] * x[2]
+    var Ax2 = A[2, 0] * x[0] + A[2, 1] * x[1] + A[2, 2] * x[2]
+
+    assert_almost_equal(Ax0, b[0], rtol=1e-4)
+    assert_almost_equal(Ax1, b[1], rtol=1e-4)
+    assert_almost_equal(Ax2, b[2], rtol=1e-4)
+
+
+def test_matrix_inverse_identity_reconstruction() raises:
+    var A = Matrix[DType.float64](3, 3, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[0, 2] = 3.0
+    A[1, 0] = 0.0
+    A[1, 1] = 1.0
+    A[1, 2] = 4.0
+    A[2, 0] = 5.0
+    A[2, 1] = 6.0
+    A[2, 2] = 0.0
+
+    var A_inv = inv(A)
+    var Eye_rec = gemm(A, A_inv)
+
+    for r in range(3):
+        for c in range(3):
+            var expected: Float64 = 1.0 if r == c else 0.0
+            assert_almost_equal(Eye_rec[r, c], expected, atol=1e-4)
+
+
+def test_qr_orthogonal_and_upper_triangular() raises:
+    var A = Matrix[DType.float64](4, 3, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[0, 2] = 4.0
+    A[1, 0] = 3.0
+    A[1, 1] = 8.0
+    A[1, 2] = 2.0
+    A[2, 0] = 0.0
+    A[2, 1] = 4.0
+    A[2, 2] = 1.0
+    A[3, 0] = 2.0
+    A[3, 1] = 1.0
+    A[3, 2] = 5.0
+
+    var res = qr(A)
+
+    # Q^T * Q == I_3
+    var Qt = res.Q.transpose()
+    var QtQ = gemm(Qt, res.Q)
+    for r in range(3):
+        for c in range(3):
+            var exp_val: Float64 = 1.0 if r == c else 0.0
+            assert_almost_equal(QtQ[r, c], exp_val, atol=1e-4)
+
+    # R is upper triangular
+    assert_almost_equal(res.R[1, 0], 0.0, atol=1e-5)
+    assert_almost_equal(res.R[2, 0], 0.0, atol=1e-5)
+    assert_almost_equal(res.R[2, 1], 0.0, atol=1e-5)
+
+
+def test_svd_rank_deficient_matrix() raises:
+    var A = Matrix[DType.float64](3, 3, 0)
+    # All rows are multiples of [1.0, 2.0, 3.0] -> rank 1
+    for r in range(3):
+        var mult = Float64(r + 1)
+        A[r, 0] = 1.0 * mult
+        A[r, 1] = 2.0 * mult
+        A[r, 2] = 3.0 * mult
+
+    var res = svd(A)
+    assert_true(res.S[0] > 1.0)
+    assert_almost_equal(res.S[1], 0.0, atol=1e-4)
+    assert_almost_equal(res.S[2], 0.0, atol=1e-4)
+
+
+def test_lstsq_underdetermined_fat_matrix() raises:
+    var A = Matrix[DType.float64](2, 3, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[0, 2] = 0.0
+    A[1, 0] = 0.0
+    A[1, 1] = 1.0
+    A[1, 2] = 1.0
+    var b: List[Scalar[DType.float64]] = [5.0, 3.0]
+
+    var x = lstsq(A, b)
+    assert_equal(len(x), 3)
+
+    var Ax0 = A[0, 0] * x[0] + A[0, 1] * x[1] + A[0, 2] * x[2]
+    var Ax1 = A[1, 0] * x[0] + A[1, 1] * x[1] + A[1, 2] * x[2]
+    assert_almost_equal(Ax0, b[0], rtol=1e-4)
+    assert_almost_equal(Ax1, b[1], rtol=1e-4)
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
