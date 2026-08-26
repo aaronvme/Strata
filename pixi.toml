@@ -21,7 +21,7 @@ test-large = "mojo run -I . tests/test_large_matrix.mojo"
 test-preprocessing = "mojo run -I . tests/test_preprocessing.mojo"
 test-split = "mojo run -I . tests/test_model_selection.mojo"
 test-all = { depends-on = ["test-matrix", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-split"] }
-test = "mojo test -I ."
+test = "find tests -name 'test_*.mojo' -exec mojo -I . {} \\;"
 format = "mojo format strata tests"
 format-check = "mojo format --check strata tests"
 

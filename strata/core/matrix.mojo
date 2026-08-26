@@ -127,6 +127,10 @@ struct Matrix[dtype: DType = DType.float64](
 
     def mean_along_axis_0(self) -> List[Scalar[Self.dtype]]:
         var means = List[Scalar[Self.dtype]](capacity=self.cols)
+        if self.rows == 0:
+            for _ in range(self.cols):
+                means.append(0)
+            return means^
         var n_rows = Float64(self.rows)
         for c in range(self.cols):
             var total: Float64 = 0.0
@@ -139,6 +143,10 @@ struct Matrix[dtype: DType = DType.float64](
         self, means: List[Scalar[Self.dtype]]
     ) -> List[Scalar[Self.dtype]]:
         var stds = List[Scalar[Self.dtype]](capacity=self.cols)
+        if self.rows == 0:
+            for _ in range(self.cols):
+                stds.append(1)
+            return stds^
         var n_rows = Float64(self.rows)
         for c in range(self.cols):
             var var_sum: Float64 = 0.0

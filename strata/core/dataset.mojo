@@ -87,6 +87,8 @@ struct Dataset[
 
         var total = self.n_samples()
         var n_test = Int(Float64(total) * ratio)
+        if total >= 2 and n_test == 0:
+            n_test = 1
         var n_train = total - n_test
 
         var indices: List[Int]

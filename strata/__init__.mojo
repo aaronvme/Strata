@@ -4,6 +4,7 @@ from .base import (
     Regressor,
     Classifier,
     Clusterer,
+    PipelineTransformer,
     PipelineRegressor,
     PipelineClassifier,
 )

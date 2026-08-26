@@ -74,9 +74,7 @@ def test_math_utils() raises:
 
 
 @fieldwise_init
-struct MockRegressor[
-    target_dtype: DType = DType.float64,
-](Movable, Regressor):
+struct MockRegressor(Movable, Regressor):
     var slope: Float64
 
     def fit[
@@ -84,42 +82,24 @@ struct MockRegressor[
     ](mut self, X: Matrix[feat_dtype], y: List[Scalar[in_target_dtype]]) raises:
         pass
 
-    def fit[
-        feat_dtype: DType, in_target_dtype: DType
-    ](mut self, dataset: Dataset[feat_dtype, in_target_dtype]) raises:
-        self.fit(dataset.records, dataset.targets)
-
     def predict[
         feat_dtype: DType
-    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[Self.target_dtype]]:
-        var res = List[Scalar[Self.target_dtype]](capacity=X.rows)
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[feat_dtype]]:
+        var res = List[Scalar[feat_dtype]](capacity=X.rows)
         for r in range(X.rows):
             var val = Float64(X[r, 0]) * self.slope
-            res.append(Scalar[Self.target_dtype](val))
+            res.append(Scalar[feat_dtype](val))
         return res^
-
-    def predict[
-        feat_dtype: DType, out_dtype: DType
-    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[out_dtype]]:
-        var res = List[Scalar[out_dtype]](capacity=X.rows)
-        for r in range(X.rows):
-            var val = Float64(X[r, 0]) * self.slope
-            res.append(Scalar[out_dtype](val))
-        return res^
-
-    def predict[
-        feat_dtype: DType, in_target_dtype: DType
-    ](
-        self,
-        dataset: Dataset[feat_dtype, in_target_dtype],
-    ) raises -> List[
-        Scalar[in_target_dtype]
-    ]:
-        return self.predict[feat_dtype, in_target_dtype](dataset.records)
 
 
 def test_pipeline_and_traits() raises:
-    from strata import StandardScaler, PipelineRegressor, Dataset
+    from strata import (
+        StandardScaler,
+        PipelineRegressor,
+        PipelineTransformer,
+        Dataset,
+    )
+    from strata.base.estimator import fit as fit_ds, predict as predict_ds
 
     var X = Matrix[DType.float64](4, 1, 0)
     X[0, 0] = 10.0
@@ -129,29 +109,31 @@ def test_pipeline_and_traits() raises:
 
     var y: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0, 4.0]
 
-    # Standard Float64 usage
+    # Standard Float64 usage with 2-method MockRegressor
     var scaler = StandardScaler()
     var reg = MockRegressor(2.0)
     var pipe = PipelineRegressor(scaler^, reg^)
 
     var ds = Dataset(X^, y^)
-    # Fully inferred with zero call-site type parameters!
-    pipe.fit(ds)
+    # Fits using generic Dataset free function or matrix methods
+    fit_ds(pipe, ds)
     var preds = pipe.predict(ds.records)
     assert_equal(len(preds), 4)
 
-    # Int32 regressor configured via keyword parameter
-    var scaler2 = StandardScaler(with_mean=False, with_std=False)
-    var int_reg = MockRegressor[DType.int32](2.0)
-    var int_pipe = PipelineRegressor[target_dtype=DType.int32](
-        scaler2^, int_reg^
-    )
-    var X_int = Matrix[DType.float64](2, 1, 5.0)
-    var y_int: List[Scalar[DType.int32]] = [10, 10]
-    int_pipe.fit(X_int, y_int)
-    var int_preds = int_pipe.predict(X_int)
-    assert_equal(int_preds[0], 10)
+    # Test N-step composable PipelineTransformer
+    var scaler1 = StandardScaler(with_mean=True, with_std=False)
+    var scaler2 = StandardScaler(with_mean=False, with_std=True)
+    var chained_prep = PipelineTransformer(scaler1^, scaler2^)
+    var reg2 = MockRegressor(3.0)
+    var deep_pipe = PipelineRegressor(chained_prep^, reg2^)
+
+    var X_deep = Matrix[DType.float64](3, 1, 10.0)
+    var y_deep: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
+    deep_pipe.fit(X_deep, y_deep)
+    var deep_preds = deep_pipe.predict(X_deep)
+    assert_equal(len(deep_preds), 3)
 
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
+

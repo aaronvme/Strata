@@ -132,6 +132,12 @@ def test_sparse_validation() raises:
     with assert_raises():
         _ = CSRMatrix(2, 2, data.copy(), indices.copy(), bad_indptr.copy())
 
+    # Empty 0x0 and empty 2x2 matrices are completely valid with allow_empty=True
+    var empty_csr = CSRMatrix[DType.float64].empty(0, 0)
+    assert_equal(empty_csr.nnz(), 0)
+    assert_equal(empty_csr.shape()[0], 0)
+    assert_equal(empty_csr.shape()[1], 0)
+
 
 def test_csc_matrix_ops_and_conversion() raises:
     from strata import CSCMatrix
@@ -165,6 +171,16 @@ def test_csc_matrix_ops_and_conversion() raises:
     assert_equal(C[0, 0], 10.0)
     assert_equal(C[1, 0], 20.0)
     assert_equal(C[2, 0], 30.0)
+
+    # Int64 preservation without Float64 casts
+    var dense_int = Matrix[DType.int64](2, 2, 0)
+    dense_int[0, 0] = 1000000000000
+    dense_int[1, 1] = 2000000000000
+    var csc_int = CSCMatrix[DType.int64].from_dense(dense_int)
+    var x_int: List[Scalar[DType.int64]] = [2, 3]
+    var y_int = csc_int.dot_vec(x_int)
+    assert_equal(y_int[0], 2000000000000)
+    assert_equal(y_int[1], 6000000000000)
 
 
 def main() raises:

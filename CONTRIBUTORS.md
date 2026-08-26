@@ -142,21 +142,20 @@ When contributing code to Strata, please keep these conventions in mind:
 - **Explicit transfers**: Use `^` (move operator) when transferring ownership of large arrays or structs into estimators or return values.
 - **Explicit copying**: When an explicit clone is needed, call `.copy()`.
 
-### 2. Trait Contracts & Ergonomic Call-Site Inference
+### 2. Trait Contracts & Composable Pipelines
 To ensure compile-time trait enforcement, type safety, and effortless `model.predict(X)` call syntax matching scikit-learn:
 
-- **Target DType Defaults & Developer Flexibility**:
-  `target_dtype` defaults to `DType.float64` for Regressors and `DType.int32` for Classifiers. Because of this default, standard users get standard behavior out of the box, while advanced users have complete freedom to specify alternative precisions (e.g. `Float32` or `Int32`) if desired:
+- **Streamlined Trait Design (The 2-Method Pattern)**:
+  Estimators conform to `Movable` and the appropriate base trait (`Regressor`, `Classifier`, `Transformer`, or `Clusterer`). Estimators only need to implement the core array methods (`fit(X, y)` and `predict(X)` / `transform(X)` / `predict_proba(X)`). `Dataset` support is handled automatically via generic functional helpers or optional convenience methods:
   ```mojo
   struct LinearRegression[
-      target_dtype: DType = DType.float64,
       compute_dtype: DType = DType.float64,
   ](Regressor, Movable):
       ...
   ```
 
 - **Transformers & Fitted DType Consistency**:
-  Transformers (e.g. `StandardScaler`) accept arbitrary input precisions at `fit` time, enforce fitted `fit_dtype` consistency at `transform` time, and compute in `compute_dtype` (default `DType.float64`) for maximum numerical stability:
+  Transformers (e.g. `StandardScaler`) implement `fit`, `transform`, and `fit_transform`. They accept arbitrary input precisions at `fit` time, enforce fitted `fit_dtype` consistency at `transform` time, and compute in `compute_dtype` (default `DType.float64`) for maximum numerical stability:
   ```mojo
   struct StandardScaler[
       compute_dtype: DType = DType.float64,
@@ -165,20 +164,19 @@ To ensure compile-time trait enforcement, type safety, and effortless `model.pre
   ```
 
 - **Clusterers & Discrete Cluster Assignments**:
-  Clusterers (e.g. `KMeans`, `KModes`) implement generic `fit[dtype]` and `predict[dtype]` methods returning `List[Int]` cluster indices.
+  Clusterers (e.g. `KMeans`, `KModes`) implement generic `fit[dtype]`, `predict[dtype]`, and `fit_predict[dtype]` methods returning `List[Int]` cluster indices.
 
-- **Clean, Zero-Type-Parameter Pipelines**:
-  `PipelineRegressor` and `PipelineClassifier` wrap `[T: Transformer, R: Regressor]` and allow zero-type-parameter training and inference:
+- **Clean, Composable N-Step Pipelines**:
+  `PipelineTransformer[T1, T2]` chains transformers together, and `PipelineRegressor` / `PipelineClassifier` bind transformers to models with zero call-site type parameters:
   ```mojo
   var scaler = StandardScaler()
+  var pca = PCA(n_components=5)
+  var prep = PipelineTransformer(scaler^, pca^)
   var model = LinearRegression()
-  var pipe = PipelineRegressor(scaler^, model^)
+  var pipe = PipelineRegressor(prep^, model^)
 
   pipe.fit(X_train, y_train)
   var preds = pipe.predict(X_test)  # Fully inferred from X_test!
-
-  # For non-default target types (e.g. Int32), configure via keyword parameter:
-  # var int_pipe = PipelineRegressor[target_dtype=DType.int32](scaler^, int_model^)
   ```
 
 ### 3. Validation & Clear Error Messages
@@ -201,12 +199,10 @@ Implement the estimator conforming to `Movable` and the appropriate base trait (
 ```mojo
 from ..base.estimator import Regressor
 from ..core.matrix import Matrix
-from ..core.dataset import Dataset
 from ..utils.validation import check_is_fitted, check_X_y
 from ..exceptions.errors import NotFittedError
 
 struct MyRegressor[
-    target_dtype: DType = DType.float64,
     compute_dtype: DType = DType.float64,
 ](Regressor, Movable):
     var is_fitted: Bool
@@ -219,11 +215,11 @@ struct MyRegressor[
         self.intercept_ = 0
 ```
 
-### Step 2: Implement `fit` and `predict` (The 5-Method Pattern)
-Implement the 5 methods to satisfy trait conformance while enabling zero-type-parameter call-site inference:
+### Step 2: Implement `fit` and `predict` (The 2-Method Pattern)
+Implement `fit` and `predict` to satisfy trait conformance with zero call-site type parameters:
 
 ```mojo
-    # 1. Universal fit accepting arbitrary input feature and target precisions
+    # 1. Fit accepting arbitrary input feature and target precisions
     def fit[
         feat_dtype: DType, in_target_dtype: DType
     ](mut self, X: Matrix[feat_dtype], y: List[Scalar[in_target_dtype]]) raises:
@@ -231,37 +227,14 @@ Implement the 5 methods to satisfy trait conformance while enabling zero-type-pa
         # Compute coefficients using Self.compute_dtype arithmetic
         self.is_fitted = True
 
-    # 2. Dataset fit overload forwarding to matrix fit
-    def fit[
-        feat_dtype: DType, in_target_dtype: DType
-    ](mut self, dataset: Dataset[feat_dtype, in_target_dtype]) raises:
-        self.fit(dataset.records, dataset.targets)
-
-    # 3. Ergonomic zero-call-site-parameter predict (infers feat_dtype from X!)
+    # 2. Predict returning predictions matching input feature precision
     def predict[
         feat_dtype: DType
-    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[Self.target_dtype]]:
-        return self.predict[feat_dtype, Self.target_dtype](X)
-
-    # 4. Two-parameter predict satisfying trait Regressor
-    def predict[
-        feat_dtype: DType, out_target_dtype: DType
-    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[out_target_dtype]]:
+    ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[feat_dtype]]:
         check_is_fitted("MyRegressor", self.is_fitted)
-        var preds = List[Scalar[out_target_dtype]](capacity=X.rows)
+        var preds = List[Scalar[feat_dtype]](capacity=X.rows)
         # Compute predictions
         return preds^
-
-    # 5. Dataset predict overload
-    def predict[
-        feat_dtype: DType, in_target_dtype: DType
-    ](
-        self,
-        dataset: Dataset[feat_dtype, in_target_dtype],
-    ) raises -> List[
-        Scalar[in_target_dtype]
-    ]:
-        return self.predict[feat_dtype, in_target_dtype](dataset.records)
 ```
 
 ### Step 3: Export in Subpackage `__init__.mojo`

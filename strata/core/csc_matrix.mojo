@@ -25,7 +25,13 @@ struct CSCMatrix[dtype: DType = DType.float64](
         from ..utils.validation import check_sparse
 
         check_sparse(
-            rows, cols, data, indices, indptr, False, "CSCMatrix.__init__"
+            rows,
+            cols,
+            data,
+            indices,
+            indptr,
+            is_csr=False,
+            caller="CSCMatrix.__init__",
         )
         self.rows = rows
         self.cols = cols
@@ -62,8 +68,6 @@ struct CSCMatrix[dtype: DType = DType.float64](
         return res^
 
     def to_csr(self) raises -> CSRMatrix[Self.dtype]:
-        from .csr_matrix import CSRMatrix
-
         var csr_indptr = List[Int](capacity=self.rows + 1)
         for _ in range(self.rows + 1):
             csr_indptr.append(0)
@@ -109,14 +113,14 @@ struct CSCMatrix[dtype: DType = DType.float64](
         for _ in range(self.rows):
             res.append(0)
         for c in range(self.cols):
-            var x_c = Float64(vec[c])
+            var x_c = vec[c]
             if x_c == 0:
                 continue
             var start = self.indptr[c]
             var end = self.indptr[c + 1]
             for idx in range(start, end):
                 var r = self.indices[idx]
-                res[r] += Scalar[Self.dtype](Float64(self.data[idx]) * x_c)
+                res[r] += self.data[idx] * x_c
         return res^
 
     def dot_dense(self, dense: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:

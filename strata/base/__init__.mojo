@@ -1,2 +1,7 @@
 from .estimator import Estimator, Transformer, Regressor, Classifier, Clusterer
-from .pipeline import PipelineRegressor, PipelineClassifier
+from .pipeline import (
+    PipelineTransformer,
+    PipelineRegressor,
+    PipelineClassifier,
+)
+
