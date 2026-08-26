@@ -15,8 +15,10 @@ from strata import (
     solve,
     inv,
     norm,
+    eigh,
     SVDResult,
     QRResult,
+    EigResult,
     DimensionMismatchError,
     InvalidParameterError,
 )
@@ -85,6 +87,69 @@ def test_matrix_elementwise_operators() raises:
         _ = A - Bad
     with assert_raises():
         _ = A * Bad
+
+
+def test_matrix_algebra_axioms() raises:
+    # 3x3 Matrices testing algebraic properties
+    var A = Matrix[DType.float64](3, 3, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[0, 2] = 3.0
+    A[1, 0] = 4.0
+    A[1, 1] = 5.0
+    A[1, 2] = 6.0
+    A[2, 0] = 7.0
+    A[2, 1] = 8.0
+    A[2, 2] = 9.0
+
+    var B = Matrix[DType.float64](3, 3, 0)
+    B[0, 0] = 9.0
+    B[0, 1] = 8.0
+    B[0, 2] = 7.0
+    B[1, 0] = 6.0
+    B[1, 1] = 5.0
+    B[1, 2] = 4.0
+    B[2, 0] = 3.0
+    B[2, 1] = 2.0
+    B[2, 2] = 1.0
+
+    var C = Matrix[DType.float64](3, 3, 0)
+    C[0, 0] = 2.0
+    C[1, 1] = 3.0
+    C[2, 2] = 4.0
+
+    # 1. Commutativity: A + B == B + A
+    var AB = A + B
+    var BA = B + A
+    for r in range(3):
+        for c in range(3):
+            assert_equal(AB[r, c], BA[r, c])
+
+    # 2. Associativity: (A + B) + C == A + (B + C)
+    var Left = (A + B) + C
+    var Right = A + (B + C)
+    for r in range(3):
+        for c in range(3):
+            assert_equal(Left[r, c], Right[r, c])
+
+    # 3. Distributivity: 3.0 * (A + B) == 3.0*A + 3.0*B
+    var DistLeft = (A + B) * 3.0
+    var DistRight = (A * 3.0) + (B * 3.0)
+    for r in range(3):
+        for c in range(3):
+            assert_almost_equal(DistLeft[r, c], DistRight[r, c])
+
+    # 4. Self-subtraction: A - A == 0
+    var Zero = A - A
+    for r in range(3):
+        for c in range(3):
+            assert_equal(Zero[r, c], 0.0)
+
+    # 5. Double negation: -(-A) == A
+    var NegNeg = -(-A)
+    for r in range(3):
+        for c in range(3):
+            assert_equal(NegNeg[r, c], A[r, c])
 
 
 def test_svd_tall_and_reduced_f64() raises:
@@ -178,6 +243,31 @@ def test_svd_wide_and_full_matrices() raises:
             assert_almost_equal(UtU_full[r, c], expected, atol=1e-5)
 
 
+def test_svd_single_element_and_diagonal() raises:
+    # 1. 1x1 Matrix SVD
+    var A_1x1 = Matrix[DType.float64](1, 1, 7.5)
+    var res_1x1 = svd(A_1x1)
+    assert_almost_equal(res_1x1.S[0], 7.5)
+    assert_almost_equal(res_1x1.U[0, 0] * res_1x1.Vt[0, 0], 1.0)
+
+    # 2. 3x3 Diagonal Matrix SVD
+    var Diag = Matrix[DType.float64].zeros(3, 3)
+    Diag[0, 0] = -10.0
+    Diag[1, 1] = 5.0
+    Diag[2, 2] = 2.0
+    var res_diag = svd(Diag)
+    assert_almost_equal(res_diag.S[0], 10.0)
+    assert_almost_equal(res_diag.S[1], 5.0)
+    assert_almost_equal(res_diag.S[2], 2.0)
+
+    # 3. 3x3 Zero Matrix SVD
+    var Zero = Matrix[DType.float64].zeros(3, 3)
+    var res_zero = svd(Zero)
+    assert_almost_equal(res_zero.S[0], 0.0)
+    assert_almost_equal(res_zero.S[1], 0.0)
+    assert_almost_equal(res_zero.S[2], 0.0)
+
+
 def test_svd_float32() raises:
     var A = Matrix[DType.float32](2, 2, 0)
     A[0, 0] = 3.0
@@ -240,6 +330,28 @@ def test_qr_square_and_tall() raises:
             assert_almost_equal(A_sq_rec[r, c], A_sq[r, c], rtol=1e-5)
 
 
+def test_qr_single_element_and_identity() raises:
+    # 1. 1x1 Matrix QR
+    var A_1x1 = Matrix[DType.float64](1, 1, 4.0)
+    var res_1x1 = qr(A_1x1)
+    assert_almost_equal(res_1x1.Q[0, 0] * res_1x1.R[0, 0], 4.0)
+
+    # 2. 3x3 Identity Matrix QR
+    var Eye = Matrix[DType.float64].eye(3)
+    var res_eye = qr(Eye)
+    var Eye_rec = gemm(res_eye.Q, res_eye.R)
+    for r in range(3):
+        for c in range(3):
+            var expected: Float64 = 1.0 if r == c else 0.0
+            assert_almost_equal(Eye_rec[r, c], expected, atol=1e-5)
+
+    var QtQ_eye = gemm(res_eye.Q.transpose(), res_eye.Q)
+    for r in range(3):
+        for c in range(3):
+            var expected: Float64 = 1.0 if r == c else 0.0
+            assert_almost_equal(QtQ_eye[r, c], expected, atol=1e-5)
+
+
 def test_qr_float32() raises:
     var A = Matrix[DType.float32](2, 2, 0)
     A[0, 0] = 1.0
@@ -293,17 +405,40 @@ def test_cholesky_decomposition_and_modes() raises:
         for c in range(3):
             assert_almost_equal(UtU[r, c], A[r, c], rtol=1e-5)
 
-    # 3. Non-positive definite matrix error
+    # 3. Consistency: (L_lower)^T == U_upper
+    for r in range(3):
+        for c in range(3):
+            assert_almost_equal(L[r, c], U[c, r], rtol=1e-5)
+
+    # 4. Non-positive definite matrix error
     var Bad = Matrix[DType.float64](2, 2, 0)
     Bad[0, 0] = -1.0
     Bad[1, 1] = -1.0
     with assert_raises():
         _ = cholesky(Bad)
 
-    # 4. Non-square matrix error
+    # 5. Non-square matrix error
     var NonSquare = Matrix[DType.float64](3, 2, 1.0)
     with assert_raises():
         _ = cholesky(NonSquare)
+
+
+def test_cholesky_scalar_and_float32() raises:
+    # 1. 1x1 Matrix Cholesky
+    var A_1x1 = Matrix[DType.float64](1, 1, 9.0)
+    var L_1x1 = cholesky(A_1x1)
+    assert_almost_equal(L_1x1[0, 0], 3.0)
+
+    # 2. Float32 Cholesky
+    var A_f32 = Matrix[DType.float32](2, 2, 0)
+    A_f32[0, 0] = 4.0
+    A_f32[0, 1] = 2.0
+    A_f32[1, 0] = 2.0
+    A_f32[1, 1] = 5.0
+    var L_f32 = cholesky[DType.float32](A_f32)
+    assert_almost_equal(L_f32[0, 0], 2.0, rtol=1e-4)
+    assert_almost_equal(L_f32[1, 0], 1.0, rtol=1e-4)
+    assert_almost_equal(L_f32[1, 1], 2.0, rtol=1e-4)
 
 
 def test_least_squares_and_multivariate() raises:
@@ -343,6 +478,27 @@ def test_least_squares_and_multivariate() raises:
     var Bad_y: List[Scalar[DType.float64]] = [1.0, 2.0]
     with assert_raises():
         _ = lstsq(A, Bad_y)
+
+
+def test_least_squares_exact_and_underdetermined() raises:
+    # 1. Exact square system (lstsq matches solve)
+    var A_sq = Matrix[DType.float64](2, 2, 0)
+    A_sq[0, 0] = 2.0
+    A_sq[0, 1] = 1.0
+    A_sq[1, 0] = 1.0
+    A_sq[1, 1] = 3.0
+    var b: List[Scalar[DType.float64]] = [5.0, 5.0]
+
+    var x_lstsq = lstsq(A_sq, b)
+    var x_solve = solve(A_sq, b)
+    assert_almost_equal(x_lstsq[0], x_solve[0], rtol=1e-5)
+    assert_almost_equal(x_lstsq[1], x_solve[1], rtol=1e-5)
+
+    # 2. 1x1 Least Squares
+    var A_1x1 = Matrix[DType.float64](1, 1, 4.0)
+    var b_1x1: List[Scalar[DType.float64]] = [12.0]
+    var x_1x1 = lstsq(A_1x1, b_1x1)
+    assert_almost_equal(x_1x1[0], 3.0)
 
 
 def test_solve_and_inv_high_dim() raises:
@@ -398,6 +554,30 @@ def test_solve_and_inv_high_dim() raises:
         _ = solve(Singular, b_sing)
 
 
+def test_solve_and_inv_diagonal_and_float32() raises:
+    # 1. Diagonal matrix inversion: inv(diag([2, 4, 8])) == diag([0.5, 0.25, 0.125])
+    var Diag = Matrix[DType.float64].zeros(3, 3)
+    Diag[0, 0] = 2.0
+    Diag[1, 1] = 4.0
+    Diag[2, 2] = 8.0
+
+    var Diag_inv = inv(Diag)
+    assert_almost_equal(Diag_inv[0, 0], 0.5)
+    assert_almost_equal(Diag_inv[1, 1], 0.25)
+    assert_almost_equal(Diag_inv[2, 2], 0.125)
+
+    # 2. Float32 Solve
+    var A_f32 = Matrix[DType.float32](2, 2, 0)
+    A_f32[0, 0] = 3.0
+    A_f32[0, 1] = 1.0
+    A_f32[1, 0] = 1.0
+    A_f32[1, 1] = 2.0
+    var b_f32: List[Scalar[DType.float32]] = [9.0, 8.0]
+    var x_f32 = solve[DType.float32](A_f32, b_f32)
+    assert_almost_equal(x_f32[0], 2.0, rtol=1e-4)
+    assert_almost_equal(x_f32[1], 3.0, rtol=1e-4)
+
+
 def test_frobenius_norm_properties() raises:
     # 1. Zero matrix norm == 0
     var Zero = Matrix[DType.float64].zeros(3, 3)
@@ -416,6 +596,57 @@ def test_frobenius_norm_properties() raises:
     # 4. Unsupported norm ord error
     with assert_raises():
         _ = norm(Eye, ord="l1")
+
+
+def test_eigh_symmetric_decomposition() raises:
+    # 1. 2x2 Symmetric Matrix: [[2.0, 1.0], [1.0, 2.0]]
+    # Eigenvalues: 1.0, 3.0
+    var A = Matrix[DType.float64](2, 2, 0)
+    A[0, 0] = 2.0
+    A[0, 1] = 1.0
+    A[1, 0] = 1.0
+    A[1, 1] = 2.0
+
+    var res = eigh(A)
+    assert_equal(len(res.eigenvalues), 2)
+    assert_almost_equal(res.eigenvalues[0], 1.0, rtol=1e-5)
+    assert_almost_equal(res.eigenvalues[1], 3.0, rtol=1e-5)
+
+    # Reconstruction: V * diag(eigenvalues) * V^T == A
+    var Lambda_Vt = Matrix[DType.float64](2, 2, 0)
+    var Vt = res.eigenvectors.transpose()
+    for r in range(2):
+        for c in range(2):
+            Lambda_Vt[r, c] = res.eigenvalues[r] * Vt[r, c]
+
+    var A_rec = gemm(res.eigenvectors, Lambda_Vt)
+    for r in range(2):
+        for c in range(2):
+            assert_almost_equal(A_rec[r, c], A[r, c], rtol=1e-5)
+
+    # Orthogonality of eigenvectors: V^T * V == I
+    var VtV = gemm(Vt, res.eigenvectors)
+    assert_almost_equal(VtV[0, 0], 1.0, atol=1e-5)
+    assert_almost_equal(VtV[1, 1], 1.0, atol=1e-5)
+    assert_almost_equal(VtV[0, 1], 0.0, atol=1e-5)
+
+
+def test_eigh_float32_and_errors() raises:
+    # 1. Float32 Symmetric Matrix
+    var A_f32 = Matrix[DType.float32](2, 2, 0)
+    A_f32[0, 0] = 5.0
+    A_f32[0, 1] = 2.0
+    A_f32[1, 0] = 2.0
+    A_f32[1, 1] = 2.0
+
+    var res_f32 = eigh[DType.float32](A_f32)
+    assert_almost_equal(res_f32.eigenvalues[0], 1.0, rtol=1e-4)
+    assert_almost_equal(res_f32.eigenvalues[1], 6.0, rtol=1e-4)
+
+    # 2. Non-square matrix error
+    var NonSquare = Matrix[DType.float64](3, 2, 1.0)
+    with assert_raises():
+        _ = eigh(NonSquare)
 
 
 def main() raises:

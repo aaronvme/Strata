@@ -37,6 +37,17 @@ def test_matrix_construction_and_access() raises:
     assert_equal(filled[1, 2], 42)
 
 
+def test_matrix_eye_properties() raises:
+    for n in range(1, 6):
+        var Eye = Matrix[DType.float64].eye(n)
+        assert_equal(Eye.rows, n)
+        assert_equal(Eye.cols, n)
+        for r in range(n):
+            for c in range(n):
+                var expected: Float64 = 1.0 if r == c else 0.0
+                assert_equal(Eye[r, c], expected)
+
+
 def test_matrix_row_and_col_extraction() raises:
     var m = Matrix[DType.float64](3, 3, 0)
     var counter: Float64 = 1.0
@@ -85,6 +96,15 @@ def test_matrix_transpose() raises:
     for r in range(2):
         for c in range(4):
             assert_equal(Att[r, c], A[r, c])
+
+
+def test_matrix_copy_independence() raises:
+    var A = Matrix[DType.float64](2, 2, 10.0)
+    var B = A.copy()
+    B[0, 0] = 999.0
+
+    assert_equal(A[0, 0], 10.0)  # Original remains unmutated
+    assert_equal(B[0, 0], 999.0)
 
 
 def test_matrix_cast_promotions() raises:
@@ -180,20 +200,68 @@ def test_gemm_properties() raises:
     # C[1,1] = 4*8 + 5*1 + 6*3 = 32 + 5 + 18 = 55
     assert_equal(C[1, 1], 55.0)
 
-    # 2. Identity matrix multiplication: A @ I == A
-    var I = Matrix[DType.float64].zeros(3, 3)
-    I[0, 0] = 1.0
-    I[1, 1] = 1.0
-    I[2, 2] = 1.0
-    var AI = gemm(A, I)
+    # 2. Identity matrix multiplication: A @ I == A and I @ A == A
+    var I3 = Matrix[DType.float64].eye(3)
+    var AI = gemm(A, I3)
     for r in range(2):
         for c in range(3):
             assert_equal(AI[r, c], A[r, c])
+
+    var I2 = Matrix[DType.float64].eye(2)
+    var IA = gemm(I2, A)
+    for r in range(2):
+        for c in range(3):
+            assert_equal(IA[r, c], A[r, c])
 
     # 3. Dimension mismatch error check
     var BadB = Matrix[DType.float64].ones(4, 2)
     with assert_raises():
         _ = gemm(A, BadB)
+
+
+def test_integer_gemm_and_outer_products() raises:
+    # 1. Integer GEMM (Int32) fallback loop verification
+    var A_i32 = Matrix[DType.int32](2, 2, 0)
+    A_i32[0, 0] = 1
+    A_i32[0, 1] = 2
+    A_i32[1, 0] = 3
+    A_i32[1, 1] = 4
+
+    var B_i32 = Matrix[DType.int32](2, 2, 0)
+    B_i32[0, 0] = 5
+    B_i32[0, 1] = 6
+    B_i32[1, 0] = 7
+    B_i32[1, 1] = 8
+
+    var C_i32 = gemm(A_i32, B_i32)
+    assert_equal(C_i32[0, 0], 19)
+    assert_equal(C_i32[0, 1], 22)
+    assert_equal(C_i32[1, 0], 43)
+    assert_equal(C_i32[1, 1], 50)
+
+    # 2. Outer product: (3x1) @ (1x3) -> (3x3)
+    var Col = Matrix[DType.float64](3, 1, 0)
+    Col[0, 0] = 1.0
+    Col[1, 0] = 2.0
+    Col[2, 0] = 3.0
+
+    var Row = Matrix[DType.float64](1, 3, 0)
+    Row[0, 0] = 4.0
+    Row[0, 1] = 5.0
+    Row[0, 2] = 6.0
+
+    var Outer = gemm(Col, Row)
+    assert_equal(Outer.rows, 3)
+    assert_equal(Outer.cols, 3)
+    assert_equal(Outer[0, 0], 4.0)
+    assert_equal(Outer[1, 1], 10.0)
+    assert_equal(Outer[2, 2], 18.0)
+
+    # 3. Inner product: (1x3) @ (3x1) -> (1x1)
+    var Inner = gemm(Row, Col)
+    assert_equal(Inner.rows, 1)
+    assert_equal(Inner.cols, 1)
+    assert_equal(Inner[0, 0], 32.0)  # 4*1 + 5*2 + 6*3 = 4 + 10 + 18 = 32
 
 
 def test_dense_dot_vec_properties() raises:
@@ -213,6 +281,18 @@ def test_dense_dot_vec_properties() raises:
     assert_equal(len(y), 2)
     assert_equal(y[0], 24.0)
     assert_equal(y[1], 42.0)
+
+    # Zero bias test
+    var y_nobias = dense_dot_vec(A, x, 0.0)
+    assert_equal(y_nobias[0], 14.0)
+    assert_equal(y_nobias[1], 32.0)
+
+    # Integer dot vec
+    var A_i32 = Matrix[DType.int32](2, 2, 3)
+    var x_i32: List[Scalar[DType.int32]] = [2, 4]
+    var y_i32 = dense_dot_vec(A_i32, x_i32, 5)
+    assert_equal(y_i32[0], 23)
+    assert_equal(y_i32[1], 23)
 
     # Dimension mismatch check
     var bad_x: List[Scalar[DType.float64]] = [1.0, 2.0]

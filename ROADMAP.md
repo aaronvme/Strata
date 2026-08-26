@@ -28,7 +28,7 @@ We have established a robust, thoroughly tested core engine:
   - Domain exceptions: `DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, `DataConversionError`
   - Structural validators: `check_array`, `check_X_y`, `check_sparse`, `check_is_fitted`
 - **Test Coverage**:
-  - 11 modular test suites (49 passing tests) verifying mathematical invariants, strided slicing, and edge cases.
+  - 12 modular test suites (70 passing tests) verifying mathematical invariants, LAPACK decompositions, strided slicing, and edge cases.
 
 ---
 
@@ -38,9 +38,9 @@ We have established a robust, thoroughly tested core engine:
 - [x] **Base traits & pipeline composition**: Unified 2-method pattern with composable $N$-step pipelines.
 - [x] **Multi-precision homogeneous LinAlg & upfront promotion**: Support Float32, Float64, BFloat16, Float16 with strictly homogeneous execution and zero inner-loop casting.
 - [x] **Math & PRNG foundation**: Stable softmax, log-sum-exp, sigmoid, and unbiased PRNG.
-- [ ] **SIMD vectorization**: Vectorize dense kernels (`gemm`, `dense_dot_vec`) with SIMD registers and FMA (`simd_fma`).
+- [x] **SIMD vectorization**: Vectorized dense kernels (`gemm`, `dense_dot_vec`) with SIMD registers, FMA, and scalar tails.
+- [x] **LAPACK FFI factorizations & solvers**: Production bindings (`dgesdd`, `dsyevd`, `dgeqrf`/`dorgqr`, `dpotrf`, `dgelss`, `dgesv`, `dgetrf`/`dgetri`) for exact SVD, Eigh, QR, Cholesky, Least-Squares, LU Solve, and Inversion.
 - [ ] **Multi-threading**: Parallelize dense matrix products and row-wise operations using `parallel_for`.
-- [ ] **LAPACK FFI bindings**: Bind OpenBLAS/LAPACK (`dgesdd`, `dgelss`, `dgeqrf`) via `sys.ffi.DLHandle` for exact SVD, QR, and least-squares factorizations.
 - [ ] **Direct memory Python interop**: Fast NumPy buffer transfer via pointer/memcpy instead of element loops.
 
 ---

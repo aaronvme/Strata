@@ -83,12 +83,12 @@ To format automatically on save, add this to your `settings.json`:
 We keep our test suites modular. You can run all tests or target specific subsystems:
 
 ```bash
-# Run the full test suite (12 test suites, 59 tests)
+# Run the full test suite (12 test suites, 70 tests)
 pixi run test-all
 
 # Run specific test modules
 pixi run test-matrix          # Dense GEMM, dot_vec, transpose, cast, eye, axes
-pixi run test-linalg          # LAPACK SVD, QR, Cholesky, Least-Squares, Solve, Inv, Norm, Matrix + - *
+pixi run test-linalg          # LAPACK SVD, Eigh, QR, Cholesky, Least-Squares, Solve, Inv, Norm, Matrix + - *
 pixi run test-sparse          # CSR/CSC, SpMV, SpVM, SpMM, SpGEMM, SDDMM, check_sparse
 pixi run test-math            # Numerically stable sigmoid, softmax, log_sum_exp, PRNG
 pixi run test-dataset         # Dataset containers, splitting invariants, edge cases

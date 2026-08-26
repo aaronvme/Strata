@@ -23,6 +23,8 @@ def test_sigmoid_numerical_stability() raises:
     # Positive and negative extremes (prevent overflow / NaN)
     assert_equal(sigmoid[DType.float64](1000.0), 1.0)
     assert_equal(sigmoid[DType.float64](-1000.0), 0.0)
+    assert_equal(sigmoid[DType.float64](100000.0), 1.0)
+    assert_equal(sigmoid[DType.float64](-100000.0), 0.0)
 
     # Symmetry invariant: sigmoid(-z) + sigmoid(z) == 1.0
     var z: Float64 = 2.5
@@ -92,6 +94,14 @@ def test_log_sum_exp_properties() raises:
     var extreme: List[Scalar[DType.float64]] = [5000.0, 5000.0]
     assert_almost_equal(log_sum_exp(extreme), 5000.0 + log(2.0))
 
+    # 5. Shift invariance: LSE(x + c) == LSE(x) + c
+    var vals: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
+    var c: Float64 = 100.0
+    var shifted = List[Scalar[DType.float64]]()
+    for i in range(len(vals)):
+        shifted.append(vals[i] + c)
+    assert_almost_equal(log_sum_exp(shifted), log_sum_exp(vals) + c)
+
 
 def test_prng_determinism_and_rejection_sampling() raises:
     # 1. Determinism: Same seed produces identical sequence
@@ -118,6 +128,25 @@ def test_prng_determinism_and_rejection_sampling() raises:
     # 5. upper_bound <= 1 returns 0
     assert_equal(rng.next_int(1), 0)
     assert_equal(rng.next_int(0), 0)
+
+
+def test_prng_uniformity_distribution() raises:
+    var rng = PRNG(2026)
+    var num_buckets = 10
+    var samples_per_bucket = 1000
+    var total_samples = num_buckets * samples_per_bucket
+
+    var buckets = List[Int](capacity=num_buckets)
+    for _ in range(num_buckets):
+        buckets.append(0)
+
+    for _ in range(total_samples):
+        var bucket = rng.next_int(num_buckets)
+        buckets[bucket] += 1
+
+    # Check that all buckets are populated evenly (within statistical 3-sigma bound: ~[850, 1150])
+    for b in range(num_buckets):
+        assert_true(buckets[b] >= 800 and buckets[b] <= 1200)
 
 
 def test_permutation_and_shuffle() raises:

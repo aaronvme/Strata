@@ -14,8 +14,10 @@ from .linalg import (
     solve,
     inv,
     norm,
+    eigh,
     SVDResult,
     QRResult,
+    EigResult,
 )
 from .sparse_ops import spmv, spvm, spmm, spgemm, sddmm
 from .interop import (

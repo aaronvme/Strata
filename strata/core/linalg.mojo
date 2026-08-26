@@ -35,10 +35,30 @@ struct QRResult[dtype: DType = DType.float64](Copyable, Movable):
         self.R = R^
 
 
+struct EigResult[dtype: DType = DType.float64](Copyable, Movable):
+    """Result of Symmetric Eigenvalue Decomposition: A * V = V * diag(eigenvalues).
+    """
+
+    var eigenvalues: List[Scalar[Self.dtype]]
+    var eigenvectors: Matrix[Self.dtype]
+
+    def __init__(
+        out self,
+        var eigenvalues: List[Scalar[Self.dtype]],
+        var eigenvectors: Matrix[Self.dtype],
+    ):
+        self.eigenvalues = eigenvalues^
+        self.eigenvectors = eigenvectors^
+
+
 def gemm[
     dtype: DType = DType.float64
 ](A: Matrix[dtype], B: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Dense matrix multiplication: C = A @ B."""
+    """Dense matrix multiplication: C = A @ B.
+
+    Hardware-vectorized with SIMD registers and scalar tail handling, supporting
+    arbitrary matrix dimensions and numeric types with zero external C dependencies.
+    """
     if A.cols != B.rows:
         raise DimensionMismatchError.error(
             "A.cols == B.rows",
@@ -58,27 +78,36 @@ def gemm[
     var K = A.cols
     var N = B.cols
 
-    var C = Matrix[dtype](M, N, 0)
-    var row_acc = List[Scalar[dtype]](capacity=N)
-    for _ in range(N):
-        row_acc.append(0)
+    var C = Matrix[dtype].zeros(M, N)
+
+    comptime simd_width = 4 if dtype == DType.float64 else 8
+
+    var b_ptr = B.data.unsafe_ptr()
+    var c_ptr = C.data.unsafe_ptr()
 
     for i in range(M):
         var c_offset = i * N
-        for j in range(N):
-            row_acc[j] = 0
-
         for k in range(K):
             var a_ik = A[i, k]
             if a_ik == 0:
                 continue
-
             var b_offset = k * N
-            for j in range(N):
-                row_acc[j] += a_ik * B.data[b_offset + j]
 
-        for j in range(N):
-            C.data[c_offset + j] = row_acc[j]
+            var j = 0
+            while j + simd_width <= N:
+                var b_simd = b_ptr.unsafe_offset(b_offset + j).unsafe_load[
+                    width=simd_width
+                ]()
+                var c_simd = c_ptr.unsafe_offset(c_offset + j).unsafe_load[
+                    width=simd_width
+                ]()
+                var res_simd = c_simd + a_ik * b_simd
+                c_ptr.unsafe_offset(c_offset + j).unsafe_store(res_simd)
+                j += simd_width
+
+            while j < N:
+                C.data[c_offset + j] += a_ik * B.data[b_offset + j]
+                j += 1
 
     return C^
 
@@ -90,7 +119,10 @@ def dense_dot_vec[
     x: List[Scalar[dtype]],
     bias: Scalar[dtype] = 0,
 ) raises -> List[Scalar[dtype]]:
-    """Dense matrix-vector product: y = A @ x + bias."""
+    """Dense matrix-vector product: y = A @ x + bias.
+
+    Hardware-vectorized with SIMD registers and horizontal reduction.
+    """
     if A.cols != len(x):
         raise DimensionMismatchError.error(
             "len(x) == " + String(A.cols),
@@ -99,13 +131,29 @@ def dense_dot_vec[
         )
 
     var res = List[Scalar[dtype]](capacity=A.rows)
+    comptime simd_width = 4 if dtype == DType.float64 else 8
+
+    var a_ptr = A.data.unsafe_ptr()
+    var x_ptr = x.unsafe_ptr()
 
     for r in range(A.rows):
         var row_offset = r * A.cols
-        var sum_val: Scalar[dtype] = bias
-        for c in range(A.cols):
-            sum_val += A.data[row_offset + c] * x[c]
-        res.append(sum_val)
+        var sum_simd = SIMD[dtype, simd_width](0)
+        var c = 0
+        while c + simd_width <= A.cols:
+            var a_simd = a_ptr.unsafe_offset(row_offset + c).unsafe_load[
+                width=simd_width
+            ]()
+            var x_simd = x_ptr.unsafe_offset(c).unsafe_load[width=simd_width]()
+            sum_simd += a_simd * x_simd
+            c += simd_width
+
+        var row_sum: Scalar[dtype] = sum_simd.reduce_add()
+        while c < A.cols:
+            row_sum += A.data[row_offset + c] * x[c]
+            c += 1
+
+        res.append(row_sum + bias)
 
     return res^
 
@@ -126,7 +174,7 @@ def svd[
     var K = min(M, N)
     var u_cols = M if full_matrices else K
     var vt_rows = N if full_matrices else K
-    var jobz: Int8 = Int8(ord("A")) if full_matrices else Int8(ord("S"))
+    var jobz = c_char(ord("A")) if full_matrices else c_char(ord("S"))
 
     var A_copy = A.copy()
     var S = List[Scalar[dtype]](capacity=K)
@@ -207,7 +255,7 @@ def svd[
 def qr[
     dtype: DType = DType.float64
 ](A: Matrix[dtype]) raises -> QRResult[dtype]:
-    """Computes the QR Decomposition of matrix A = Q * R using Householder reflectors.
+    """Computes the QR Decomposition of matrix A = Q * R using LAPACK Householder reflectors (dgeqrf/dorgqr).
     """
     comptime assert (
         dtype.is_floating_point()
@@ -276,7 +324,7 @@ def qr[
     # Generate orthogonal matrix Q (M x K)
     var Q = Matrix[dtype].zeros(M, K)
     for r in range(M):
-        for c in range(K):
+        for c in range(min(r + 1, K)):
             Q[r, c] = A_qr[r, c]
 
     var info_orgqr: c_int = 0
@@ -351,7 +399,7 @@ def cholesky[
 
     var N = A.rows
     var L = A.copy()
-    var uplo_char = Int8(ord("L")) if lower else Int8(ord("U"))
+    var uplo_char = c_char(ord("L")) if lower else c_char(ord("U"))
 
     var info: c_int = 0
 
@@ -440,6 +488,7 @@ def lstsq[
     var max_mn = max(M, N)
 
     var A_copy = A.copy()
+    # b_buf must have size max(M, N) allocated and zeroed out for underdetermined systems
     var b_buf = List[Scalar[dtype]](capacity=max_mn)
     for i in range(M):
         b_buf.append(b[i])
@@ -478,7 +527,7 @@ def lstsq[
             A_copy.data.unsafe_ptr(),
             c_int(N),
             b_buf.unsafe_ptr(),
-            c_int(1),
+            c_int(1),  # ldb = 1 for 1 column RHS in row-major layout
             s.unsafe_ptr(),
             rcond,
             rank_buf.unsafe_ptr(),
@@ -732,3 +781,84 @@ def norm[
         total += v * v
 
     return sqrt(total)
+
+
+def eigh[
+    dtype: DType = DType.float64
+](A: Matrix[dtype], UPLO: String = "L") raises -> EigResult[dtype]:
+    """Computes the eigenvalues and eigenvectors of a real symmetric matrix.
+
+    Uses LAPACK's divide-and-conquer algorithm (dsyevd / ssyevd).
+    """
+    comptime assert (
+        dtype.is_floating_point()
+    ), "Floating-point type required for eigenvalue decomposition"
+
+    if A.rows != A.cols:
+        raise DimensionMismatchError.error(
+            "Square matrix (A.rows == A.cols)",
+            "A(" + String(A.rows) + "x" + String(A.cols) + ")",
+            "eigh",
+        )
+
+    var N = A.rows
+    var A_copy = A.copy()
+    var eigenvalues = List[Scalar[dtype]](capacity=N)
+    for _ in range(N):
+        eigenvalues.append(0)
+
+    var jobz = c_char(ord("V"))
+    var uplo_char = c_char(ord("U")) if UPLO == "U" else c_char(ord("L"))
+
+    var info: c_int = 0
+
+    comptime if dtype == DType.float64:
+        info = external_call[
+            "LAPACKE_dsyevd",
+            c_int,
+            c_int,
+            c_char,
+            c_char,
+            c_int,
+            Pointer[Scalar[dtype], origin_of(A_copy.data)],
+            c_int,
+            Pointer[Scalar[dtype], origin_of(eigenvalues)],
+        ](
+            c_int(101),
+            jobz,
+            uplo_char,
+            c_int(N),
+            A_copy.data.unsafe_ptr(),
+            c_int(N),
+            eigenvalues.unsafe_ptr(),
+        )
+    elif dtype == DType.float32:
+        info = external_call[
+            "LAPACKE_ssyevd",
+            c_int,
+            c_int,
+            c_char,
+            c_char,
+            c_int,
+            Pointer[Scalar[dtype], origin_of(A_copy.data)],
+            c_int,
+            Pointer[Scalar[dtype], origin_of(eigenvalues)],
+        ](
+            c_int(101),
+            jobz,
+            uplo_char,
+            c_int(N),
+            A_copy.data.unsafe_ptr(),
+            c_int(N),
+            eigenvalues.unsafe_ptr(),
+        )
+
+    if info != 0:
+        raise InvalidParameterError.error(
+            "LAPACK symmetric eigenvalue solver did not converge (info="
+            + String(info)
+            + ")",
+            "eigh",
+        )
+
+    return EigResult[dtype](eigenvalues^, A_copy^)

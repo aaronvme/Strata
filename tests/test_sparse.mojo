@@ -57,6 +57,27 @@ def test_sparse_validation_invariants() raises:
         _ = CSRMatrix(-1, 3, data.copy(), indices.copy(), valid_indptr.copy())
 
 
+def test_sparse_empty_matrix() raises:
+    # 3x3 Empty Sparse Matrix (0 non-zeros)
+    var dense_zero = Matrix[DType.float64].zeros(3, 3)
+    var csr_empty = CSRMatrix[DType.float64].from_dense(dense_zero)
+    assert_equal(csr_empty.nnz(), 0)
+    assert_equal(csr_empty.rows, 3)
+    assert_equal(csr_empty.cols, 3)
+
+    var x: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
+    var y = spmv(csr_empty, x, bias=5.0)
+    assert_equal(len(y), 3)
+    assert_equal(y[0], 5.0)
+    assert_equal(y[1], 5.0)
+    assert_equal(y[2], 5.0)
+
+    var dense_back = csr_empty.to_dense()
+    for r in range(3):
+        for c in range(3):
+            assert_equal(dense_back[r, c], 0.0)
+
+
 def test_sparse_dense_roundtrips() raises:
     # 3x3 sparse matrix
     var dense = Matrix[DType.float64](3, 3, 0)
@@ -164,6 +185,18 @@ def test_spmm_and_spgemm() raises:
     assert_equal(C_sparse_dense[0, 1], 19.0)
     assert_equal(C_sparse_dense[1, 0], 18.0)
     assert_equal(C_sparse_dense[1, 1], 21.0)
+
+
+def test_sparse_identity_multiplication() raises:
+    var Eye = Matrix[DType.float64].eye(3)
+    var Eye_csr = CSRMatrix[DType.float64].from_dense(Eye)
+    assert_equal(Eye_csr.nnz(), 3)
+
+    var x: List[Scalar[DType.float64]] = [10.0, 20.0, 30.0]
+    var y = spmv(Eye_csr, x, 0.0)
+    assert_equal(y[0], 10.0)
+    assert_equal(y[1], 20.0)
+    assert_equal(y[2], 30.0)
 
 
 def test_sddmm() raises:
