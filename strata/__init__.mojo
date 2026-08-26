@@ -26,6 +26,7 @@ from .core import (
     cholesky,
     lstsq,
     solve,
+    solve_cholesky,
     inv,
     norm,
     eigh,
@@ -53,6 +54,7 @@ from .exceptions import (
 )
 from .utils import (
     check_is_fitted,
+    check_floating_dtype,
     check_X_y,
     check_array,
     check_consistent_length,
@@ -66,3 +68,4 @@ from .utils import (
 )
 from .preprocessing import StandardScaler
 from .model_selection import train_test_split
+from .linear_model import LinearRegression

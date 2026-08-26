@@ -666,6 +666,103 @@ def solve[
     return b_copy^
 
 
+def solve_cholesky[
+    dtype: DType = DType.float64
+](
+    A: Matrix[dtype],
+    b: List[Scalar[dtype]],
+    lower: Bool = True,
+) raises -> List[
+    Scalar[dtype]
+]:
+    """Solves a symmetric positive definite linear system A * x = b using Cholesky (dposv/sposv).
+    """
+    comptime assert (
+        dtype.is_floating_point()
+    ), "Floating-point type required for Cholesky solve"
+
+    if A.rows != A.cols:
+        raise DimensionMismatchError.error(
+            "Square matrix A (rows == cols)",
+            "A(" + String(A.rows) + "x" + String(A.cols) + ")",
+            "solve_cholesky",
+        )
+    if A.rows != len(b):
+        raise DimensionMismatchError.error(
+            "A.rows == len(b)",
+            "A.rows=" + String(A.rows) + ", len(b)=" + String(len(b)),
+            "solve_cholesky",
+        )
+
+    var N = A.rows
+    var A_copy = A.copy()
+    var b_copy = b.copy()
+    var uplo_char = c_char(ord("L")) if lower else c_char(ord("U"))
+    var info: c_int = 0
+
+    comptime if dtype == DType.float64:
+        info = external_call[
+            "LAPACKE_dposv",
+            c_int,
+            c_int,
+            c_char,
+            c_int,
+            c_int,
+            Pointer[Scalar[dtype], origin_of(A_copy.data)],
+            c_int,
+            Pointer[Scalar[dtype], origin_of(b_copy)],
+            c_int,
+        ](
+            c_int(101),
+            uplo_char,
+            c_int(N),
+            c_int(1),
+            A_copy.data.unsafe_ptr(),
+            c_int(N),
+            b_copy.unsafe_ptr(),
+            c_int(1),
+        )
+    elif dtype == DType.float32:
+        info = external_call[
+            "LAPACKE_sposv",
+            c_int,
+            c_int,
+            c_char,
+            c_int,
+            c_int,
+            Pointer[Scalar[dtype], origin_of(A_copy.data)],
+            c_int,
+            Pointer[Scalar[dtype], origin_of(b_copy)],
+            c_int,
+        ](
+            c_int(101),
+            uplo_char,
+            c_int(N),
+            c_int(1),
+            A_copy.data.unsafe_ptr(),
+            c_int(N),
+            b_copy.unsafe_ptr(),
+            c_int(1),
+        )
+
+    if info > 0:
+        raise InvalidParameterError.error(
+            "Matrix A is not positive definite (leading minor "
+            + String(info)
+            + " is not positive)",
+            "solve_cholesky",
+        )
+    elif info < 0:
+        raise InvalidParameterError.error(
+            "Illegal argument in LAPACK Cholesky solve (info="
+            + String(info)
+            + ")",
+            "solve_cholesky",
+        )
+
+    return b_copy^
+
+
 def inv[dtype: DType = DType.float64](A: Matrix[dtype]) raises -> Matrix[dtype]:
     """Computes the multiplicative inverse of a square matrix A using LU decomposition (dgetrf/dgetri).
     """
