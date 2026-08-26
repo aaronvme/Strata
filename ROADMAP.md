@@ -52,8 +52,8 @@ We have established a robust, thoroughly tested core engine:
   - Clustering: `silhouette_score`, `inertia`
 - [ ] **Linear Models (`strata.linear_model`)**:
   - [x] `LinearRegression` (Ordinary Least Squares with multi-solver support: `lstsq`, `qr`, `cholesky`, `solve`)
-  - [ ] `Ridge` ($L_2$-regularized closed-form solver)
-  - `LogisticRegression` (Binary and multinomial classification via gradient descent)
+  - [x] `Ridge` ($L_2$-regularized closed-form solver: `auto`, `cholesky`, `svd`, `solve`)
+  - [x] `LogisticRegression` (Binary and multinomial softmax classification with $L_2$ / unregularized optimization)
 - [ ] **Preprocessing (`strata.preprocessing`)**:
   - `MinMaxScaler`
   - `RobustScaler`
