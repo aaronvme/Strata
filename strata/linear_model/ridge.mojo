@@ -122,7 +122,8 @@ struct Ridge[
         X: Matrix[Self.compute_dtype],
         y: List[Scalar[Self.compute_dtype]],
     ) raises -> List[Scalar[Self.compute_dtype]]:
-        """Internal solver dispatch for regularized least-squares optimization."""
+        """Internal solver dispatch for regularized least-squares optimization.
+        """
         var D = X.cols
         var N = X.rows
 
