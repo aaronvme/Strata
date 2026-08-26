@@ -414,5 +414,165 @@ def test_ridge_error_handling() raises:
         model.fit(X_nan, y)
 
 
+def test_ridge_copy_semantics_parameter_and_state_isolation() raises:
+    var X = Matrix[DType.float64](3, 1, 0)
+    X[0, 0] = 1.0
+    X[1, 0] = 2.0
+    X[2, 0] = 3.0
+    var y: List[Scalar[DType.float64]] = [2.0, 4.0, 6.0]
+
+    var r1 = Ridge(alpha=0.5, solver="cholesky")
+    r1.fit(X, y)
+
+    var r2 = r1.copy()
+    assert_equal(r2.alpha, 0.5)
+    assert_equal(r2.solver, "cholesky")
+    assert_equal(r2.is_fitted, True)
+
+    r2.alpha = 500.0
+    r2.fit(X, y)
+
+    assert_equal(r1.alpha, 0.5)
+    assert_equal(r2.alpha, 500.0)
+    assert_true(r1.coef_[0] > r2.coef_[0])
+
+
+def test_ridge_single_sample_analytical_shrinkage() raises:
+    var X = Matrix[DType.float64](1, 1, 2.0)
+    var y: List[Scalar[DType.float64]] = [6.0]
+    var alpha = 1.0
+    # beta = (2 * 6) / (2^2 + 1) = 12 / 5 = 2.4
+    var model = Ridge(alpha=alpha, fit_intercept=False)
+    model.fit(X, y)
+    assert_almost_equal(model.coef_[0], 2.4, rtol=1e-4)
+
+
+def test_ridge_solver_parity_on_matrix() raises:
+    var X = Matrix[DType.float64](5, 2, 0)
+    X[0, 0] = 1.0
+    X[0, 1] = 0.5
+    X[1, 0] = 2.0
+    X[1, 1] = 1.1
+    X[2, 0] = 3.0
+    X[2, 1] = 1.6
+    X[3, 0] = 4.0
+    X[3, 1] = 2.1
+    X[4, 0] = 5.0
+    X[4, 1] = 2.4
+    var y: List[Scalar[DType.float64]] = [2.1, 3.9, 6.2, 8.1, 9.8]
+
+    var m_auto = Ridge(alpha=1.0, solver="auto")
+    var m_chol = Ridge(alpha=1.0, solver="cholesky")
+    var m_svd = Ridge(alpha=1.0, solver="svd")
+    var m_solve = Ridge(alpha=1.0, solver="solve")
+
+    m_auto.fit(X, y)
+    m_chol.fit(X, y)
+    m_svd.fit(X, y)
+    m_solve.fit(X, y)
+
+    assert_almost_equal(m_auto.coef_[0], m_chol.coef_[0], rtol=1e-4)
+    assert_almost_equal(m_auto.coef_[0], m_svd.coef_[0], rtol=1e-4)
+    assert_almost_equal(m_auto.coef_[0], m_solve.coef_[0], rtol=1e-4)
+    assert_almost_equal(m_auto.intercept_, m_chol.intercept_, rtol=1e-4)
+
+
+def test_ridge_float32_native_model() raises:
+    var X = Matrix[DType.float32](4, 1, 0)
+    X[0, 0] = 1.0
+    X[1, 0] = 2.0
+    X[2, 0] = 3.0
+    X[3, 0] = 4.0
+    var y: List[Scalar[DType.float32]] = [2.0, 4.0, 6.0, 8.0]
+
+    var model = Ridge[DType.float32](alpha=0.0, fit_intercept=False)
+    model.fit(X, y)
+    assert_almost_equal(Float64(model.coef_[0]), 2.0, rtol=1e-3)
+
+
+def test_ridge_zero_target_vector() raises:
+    var X = Matrix[DType.float64](4, 2, 1.0)
+    var y: List[Scalar[DType.float64]] = [0.0, 0.0, 0.0, 0.0]
+
+    var model = Ridge(alpha=1.0, fit_intercept=True)
+    model.fit(X, y)
+    assert_almost_equal(model.intercept_, 0.0, atol=1e-5)
+    assert_almost_equal(model.coef_[0], 0.0, atol=1e-5)
+
+
+def test_ridge_pure_intercept_constant_target() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    for i in range(4):
+        X[i, 0] = Float64(i + 1)
+    var y: List[Scalar[DType.float64]] = [15.0, 15.0, 15.0, 15.0]
+
+    var model = Ridge(alpha=2.0, fit_intercept=True)
+    model.fit(X, y)
+    assert_almost_equal(model.intercept_, 15.0, rtol=1e-4)
+    assert_almost_equal(model.coef_[0], 0.0, atol=1e-5)
+
+
+def test_ridge_extreme_alpha_asymptote_shrinkage() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    for i in range(4):
+        X[i, 0] = Float64(i + 1)
+    var y: List[Scalar[DType.float64]] = [2.0, 4.0, 6.0, 8.0]
+
+    var model = Ridge(alpha=1e9, fit_intercept=True)
+    model.fit(X, y)
+    assert_almost_equal(model.coef_[0], 0.0, atol=1e-6)
+    assert_almost_equal(model.intercept_, 5.0, rtol=1e-4)
+
+
+def test_ridge_high_dimensional_recovery() raises:
+    var N = 25
+    var D = 4
+    var X = Matrix[DType.float64](N, D, 0)
+    var y = List[Scalar[DType.float64]](capacity=N)
+    for i in range(N):
+        var fi = Float64(i + 1)
+        X[i, 0] = fi
+        X[i, 1] = Float64((i % 3) + 1)
+        X[i, 2] = Float64((i % 5) + 1)
+        X[i, 3] = Float64((i % 7) + 1)
+        y.append(3.0 * X[i, 0] + 2.0 * X[i, 1] - 1.0 * X[i, 2] + 4.0)
+
+    var model = Ridge(alpha=1e-5, fit_intercept=True, solver="cholesky")
+    model.fit(X, y)
+    assert_almost_equal(model.intercept_, 4.0, rtol=1e-3)
+    assert_almost_equal(model.coef_[0], 3.0, rtol=1e-3)
+    assert_almost_equal(model.coef_[1], 2.0, rtol=1e-3)
+    assert_almost_equal(model.coef_[2], -1.0, rtol=1e-3)
+
+
+def test_ridge_underdetermined_svd_stability() raises:
+    var N = 3
+    var D = 6
+    var X = Matrix[DType.float64](N, D, 0)
+    for i in range(N):
+        for j in range(D):
+            X[i, j] = Float64((i + 1) * (j + 1))
+    var y: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
+
+    var model = Ridge(alpha=1.0, solver="svd", fit_intercept=False)
+    model.fit(X, y)
+    assert_equal(len(model.coef_), D)
+    var preds = model.predict(X)
+    assert_equal(len(preds), N)
+
+
+def test_ridge_repeated_rows_stability() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = 2.0
+    X[1, 0] = 2.0
+    X[2, 0] = 4.0
+    X[3, 0] = 4.0
+    var y: List[Scalar[DType.float64]] = [4.0, 4.0, 8.0, 8.0]
+
+    var model = Ridge(alpha=0.1, fit_intercept=True)
+    model.fit(X, y)
+    assert_almost_equal(model.coef_[0], 2.0, rtol=0.05)
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

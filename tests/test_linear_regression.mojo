@@ -519,5 +519,109 @@ def test_linear_regression_predict_feature_count_mismatch_greater() raises:
         _ = model.predict(X_bad)
 
 
+def test_linear_regression_single_sample_perfect_fit() raises:
+    var X = Matrix[DType.float64](1, 1, 3.0)
+    var y: List[Scalar[DType.float64]] = [9.0]
+    var model = LinearRegression(fit_intercept=False)
+    model.fit(X, y)
+    assert_almost_equal(model.coef_[0], 3.0, rtol=1e-4)
+    var preds = model.predict(X)
+    assert_almost_equal(preds[0], 9.0, rtol=1e-4)
+
+
+def test_linear_regression_copy_constructor_field_isolation() raises:
+    var X = Matrix[DType.float64](3, 1, 0)
+    X[0, 0] = 1.0
+    X[1, 0] = 2.0
+    X[2, 0] = 3.0
+    var y: List[Scalar[DType.float64]] = [2.0, 4.0, 6.0]
+
+    var model1 = LinearRegression(fit_intercept=True, solver="qr")
+    model1.fit(X, y)
+
+    var model2 = model1.copy()
+    assert_equal(model2.fit_intercept, True)
+    assert_equal(model2.solver, "qr")
+    assert_equal(model2.is_fitted, True)
+    assert_almost_equal(model2.coef_[0], 2.0, rtol=1e-4)
+
+    # Mutate model2
+    var X_new = Matrix[DType.float64](3, 1, 0)
+    X_new[0, 0] = 1.0
+    X_new[1, 0] = 2.0
+    X_new[2, 0] = 3.0
+    var y_new: List[Scalar[DType.float64]] = [10.0, 20.0, 30.0]
+    model2.fit(X_new, y_new)
+
+    assert_almost_equal(model1.coef_[0], 2.0, rtol=1e-4)
+    assert_almost_equal(model2.coef_[0], 10.0, rtol=1e-4)
+
+
+def test_linear_regression_high_dimensional_exact_recovery() raises:
+    var N = 20
+    var D = 4
+    var X = Matrix[DType.float64](N, D, 0)
+    var y = List[Scalar[DType.float64]](capacity=N)
+    for i in range(N):
+        var fi = Float64(i + 1)
+        X[i, 0] = fi
+        X[i, 1] = Float64((i % 3) + 1)
+        X[i, 2] = Float64((i % 5) + 1)
+        X[i, 3] = Float64((i % 7) + 1)
+        y.append(
+            2.0 * X[i, 0] - 1.5 * X[i, 1] + 3.0 * X[i, 2] + 0.5 * X[i, 3] + 10.0
+        )
+
+    var model = LinearRegression(fit_intercept=True, solver="lstsq")
+    model.fit(X, y)
+    assert_almost_equal(model.intercept_, 10.0, rtol=1e-3)
+    assert_almost_equal(model.coef_[0], 2.0, rtol=1e-3)
+    assert_almost_equal(model.coef_[1], -1.5, rtol=1e-3)
+    assert_almost_equal(model.coef_[2], 3.0, rtol=1e-3)
+    assert_almost_equal(model.coef_[3], 0.5, rtol=1e-3)
+    var preds = model.predict(X)
+    for i in range(N):
+        assert_almost_equal(preds[i], y[i], rtol=1e-3)
+
+
+def test_linear_regression_bfloat16_native() raises:
+    var X = Matrix[DType.bfloat16](4, 1, 0)
+    X[0, 0] = 1.0
+    X[1, 0] = 2.0
+    X[2, 0] = 3.0
+    X[3, 0] = 4.0
+    var y: List[Scalar[DType.bfloat16]] = [2.0, 4.0, 6.0, 8.0]
+
+    var model = LinearRegression[DType.bfloat16](fit_intercept=False)
+    model.fit(X, y)
+    assert_almost_equal(Float64(model.coef_[0]), 2.0, rtol=1e-2)
+
+
+def test_linear_regression_zero_target_vector() raises:
+    var X = Matrix[DType.float64](4, 2, 1.0)
+    X[0, 0] = 2.0
+    X[1, 0] = 4.0
+    X[2, 0] = 6.0
+    X[3, 0] = 8.0
+    var y: List[Scalar[DType.float64]] = [0.0, 0.0, 0.0, 0.0]
+
+    var model = LinearRegression(fit_intercept=True)
+    model.fit(X, y)
+    assert_almost_equal(model.intercept_, 0.0, atol=1e-5)
+    assert_almost_equal(model.coef_[0], 0.0, atol=1e-5)
+
+
+def test_linear_regression_pure_intercept_constant_target() raises:
+    var X = Matrix[DType.float64](5, 1, 0)
+    for i in range(5):
+        X[i, 0] = Float64(i + 1)
+    var y: List[Scalar[DType.float64]] = [42.0, 42.0, 42.0, 42.0, 42.0]
+
+    var model = LinearRegression(fit_intercept=True)
+    model.fit(X, y)
+    assert_almost_equal(model.intercept_, 42.0, rtol=1e-4)
+    assert_almost_equal(model.coef_[0], 0.0, atol=1e-5)
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
