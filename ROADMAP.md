@@ -28,7 +28,7 @@ We have established a robust, thoroughly tested core engine:
   - Domain exceptions: `DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, `DataConversionError`
   - Structural validators: `check_array`, `check_X_y`, `check_sparse`, `check_is_fitted`
 - **Test Coverage**:
-  - 13 modular test suites (120 passing tests) verifying mathematical invariants, LAPACK decompositions, strided slicing, and edge cases.
+  - 13 modular test suites (129 passing tests) verifying mathematical invariants, LAPACK decompositions, strided slicing, and edge cases.
 
 ---
 

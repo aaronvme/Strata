@@ -57,6 +57,7 @@ from .utils import (
     check_array,
     check_consistent_length,
     check_sparse,
+    check_finite,
     sigmoid,
     softmax,
     log_sum_exp,

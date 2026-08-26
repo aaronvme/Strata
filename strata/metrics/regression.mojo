@@ -1,5 +1,5 @@
 from std.math import sqrt
-from ..utils.validation import check_consistent_length
+from ..utils.validation import check_consistent_length, check_finite
 from ..exceptions.errors import InvalidParameterError
 
 
@@ -15,6 +15,8 @@ def _check_regression_targets[
         raise InvalidParameterError.error(
             "y_true", caller + " requires at least one sample"
         )
+    check_finite(y_true, "y_true", caller)
+    check_finite(y_pred, "y_pred", caller)
 
 
 def mean_squared_error[

@@ -83,7 +83,7 @@ To format automatically on save, add this to your `settings.json`:
 We keep our test suites modular. You can run all tests or target specific subsystems:
 
 ```bash
-# Run the full test suite (13 test suites, 120 tests)
+# Run the full test suite (13 test suites, 129 tests)
 pixi run test-all
 
 # Run specific test modules

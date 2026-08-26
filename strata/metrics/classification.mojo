@@ -1,24 +1,33 @@
+from std.math import isnan
 from ..core.matrix import Matrix
-from ..utils.validation import check_consistent_length
+from ..utils.validation import check_consistent_length, check_finite
 from ..exceptions.errors import InvalidParameterError
 
 
-def _index_of(labels: List[Float64], value: Float64) -> Int:
-    for i in range(len(labels)):
-        if labels[i] == value:
-            return i
+def _insertion_point(labels: List[Float64], value: Float64) -> Int:
+    var lo = 0
+    var hi = len(labels)
+    while lo < hi:
+        var mid = (lo + hi) // 2
+        if labels[mid] < value:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+
+def _search_sorted(labels: List[Float64], value: Float64) -> Int:
+    var i = _insertion_point(labels, value)
+    if i < len(labels) and labels[i] == value:
+        return i
     return -1
 
 
-def _check_finite_labels[
-    dtype: DType
-](values: List[Scalar[dtype]], name: String, caller: String) raises:
-    for i in range(len(values)):
-        var v = Float64(values[i])
-        if v != v:
-            raise InvalidParameterError.error(
-                name, caller + " does not accept NaN labels"
-            )
+def _insert_label(mut labels: List[Float64], value: Float64):
+    var i = _insertion_point(labels, value)
+    if i < len(labels) and labels[i] == value:
+        return
+    labels.insert(i, value)
 
 
 def unique_labels[
@@ -27,26 +36,14 @@ def unique_labels[
     y_true: List[Scalar[true_dtype]], y_pred: List[Scalar[pred_dtype]]
 ) raises -> List[Float64]:
     """Sorted list of the distinct labels appearing in y_true or y_pred."""
-    _check_finite_labels(y_true, "y_true", "unique_labels")
-    _check_finite_labels(y_pred, "y_pred", "unique_labels")
+    check_finite(y_true, "y_true", "unique_labels")
+    check_finite(y_pred, "y_pred", "unique_labels")
 
     var labels = List[Float64]()
     for i in range(len(y_true)):
-        var v = Float64(y_true[i])
-        if _index_of(labels, v) < 0:
-            labels.append(v)
+        _insert_label(labels, Float64(y_true[i]))
     for i in range(len(y_pred)):
-        var v = Float64(y_pred[i])
-        if _index_of(labels, v) < 0:
-            labels.append(v)
-
-    for i in range(1, len(labels)):
-        var key = labels[i]
-        var j = i - 1
-        while j >= 0 and labels[j] > key:
-            labels[j + 1] = labels[j]
-            j -= 1
-        labels[j + 1] = key
+        _insert_label(labels, Float64(y_pred[i]))
     return labels^
 
 
@@ -62,8 +59,8 @@ def _check_classification_targets[
         raise InvalidParameterError.error(
             "y_true", caller + " requires at least one sample"
         )
-    _check_finite_labels(y_true, "y_true", caller)
-    _check_finite_labels(y_pred, "y_pred", caller)
+    check_finite(y_true, "y_true", caller)
+    check_finite(y_pred, "y_pred", caller)
 
 
 def accuracy_score[
@@ -99,26 +96,28 @@ def confusion_matrix[
     _check_classification_targets(y_true, y_pred, "confusion_matrix")
 
     var labels = unique_labels(y_true, y_pred)
-    var cm = Matrix[DType.int64](len(labels), len(labels))
+    var cm = Matrix[DType.int64](len(labels), len(labels), 0)
     for i in range(len(y_true)):
-        var r = _index_of(labels, Float64(y_true[i]))
-        var c = _index_of(labels, Float64(y_pred[i]))
+        var r = _search_sorted(labels, Float64(y_true[i]))
+        var c = _search_sorted(labels, Float64(y_pred[i]))
         cm[r, c] = cm[r, c] + 1
     return cm^
 
 
-def _ratio(numerator: Float64, denominator: Float64) -> Float64:
-    if denominator == 0.0:
-        return 0.0
-    return numerator / denominator
+def _numerator(tp: Float64, which: Int) -> Float64:
+    if which == 2:
+        return 2.0 * tp
+    return tp
 
 
-def _score(tp: Float64, fp: Float64, false_neg: Float64, which: Int) -> Float64:
+def _denominator(
+    tp: Float64, fp: Float64, false_neg: Float64, which: Int
+) -> Float64:
     if which == 0:
-        return _ratio(tp, tp + fp)
+        return tp + fp
     if which == 1:
-        return _ratio(tp, tp + false_neg)
-    return _ratio(2.0 * tp, 2.0 * tp + fp + false_neg)
+        return tp + false_neg
+    return 2.0 * tp + fp + false_neg
 
 
 def _averaged_score[
@@ -128,6 +127,7 @@ def _averaged_score[
     y_pred: List[Scalar[pred_dtype]],
     average: String,
     pos_label: Float64,
+    zero_division: Float64,
     which: Int,
     caller: String,
 ) raises -> Float64:
@@ -143,8 +143,8 @@ def _averaged_score[
     var support = List[Float64](length=k, fill=0.0)
 
     for i in range(n):
-        var t = _index_of(labels, Float64(y_true[i]))
-        var p = _index_of(labels, Float64(y_pred[i]))
+        var t = _search_sorted(labels, Float64(y_true[i]))
+        var p = _search_sorted(labels, Float64(y_pred[i]))
         support[t] += 1.0
         if t == p:
             tp[t] += 1.0
@@ -160,13 +160,18 @@ def _averaged_score[
                 + String(k)
                 + " labels were found. Use 'micro', 'macro' or 'weighted'.",
             )
-        var idx = _index_of(labels, pos_label)
+        var idx = _search_sorted(labels, pos_label)
         if idx < 0:
-            raise InvalidParameterError.error(
-                "pos_label",
-                String(pos_label) + " is not present in y_true or y_pred",
-            )
-        return _score(tp[idx], fp[idx], false_neg[idx], which)
+            if k >= 2:
+                raise InvalidParameterError.error(
+                    "pos_label",
+                    String(pos_label) + " is not present in y_true or y_pred",
+                )
+            return zero_division
+        var den = _denominator(tp[idx], fp[idx], false_neg[idx], which)
+        if den == 0.0:
+            return zero_division
+        return _numerator(tp[idx], which) / den
 
     if average == "micro":
         var tp_sum: Float64 = 0.0
@@ -176,26 +181,38 @@ def _averaged_score[
             tp_sum += tp[i]
             fp_sum += fp[i]
             fn_sum += false_neg[i]
-        return _score(tp_sum, fp_sum, fn_sum, which)
+        var micro_den = _denominator(tp_sum, fp_sum, fn_sum, which)
+        if micro_den == 0.0:
+            return zero_division
+        return _numerator(tp_sum, which) / micro_den
 
-    if average == "macro":
-        var total: Float64 = 0.0
-        for i in range(k):
-            total += _score(tp[i], fp[i], false_neg[i], which)
-        return _ratio(total, Float64(k))
+    if average != "macro" and average != "weighted":
+        raise InvalidParameterError.error(
+            "average",
+            "'"
+            + average
+            + "' is not supported. Use 'binary', 'micro', 'macro' or"
+            " 'weighted'.",
+        )
 
-    if average == "weighted":
-        var total: Float64 = 0.0
-        for i in range(k):
-            total += _score(tp[i], fp[i], false_neg[i], which) * support[i]
-        return _ratio(total, Float64(n))
+    var weighted = average == "weighted"
+    var total: Float64 = 0.0
+    var weight_total: Float64 = 0.0
+    for i in range(k):
+        var weight = support[i] if weighted else 1.0
+        var den = _denominator(tp[i], fp[i], false_neg[i], which)
+        if den == 0.0:
+            # A NaN fallback drops ill-defined labels from the average
+            if isnan(zero_division):
+                continue
+            total += zero_division * weight
+        else:
+            total += (_numerator(tp[i], which) / den) * weight
+        weight_total += weight
 
-    raise InvalidParameterError.error(
-        "average",
-        "'"
-        + average
-        + "' is not supported. Use 'binary', 'micro', 'macro' or 'weighted'.",
-    )
+    if weight_total == 0.0:
+        return zero_division
+    return total / weight_total
 
 
 def precision_score[
@@ -205,10 +222,12 @@ def precision_score[
     y_pred: List[Scalar[pred_dtype]],
     average: String = "binary",
     pos_label: Float64 = 1.0,
+    zero_division: Float64 = 0.0,
 ) raises -> Float64:
-    """Precision: tp / (tp + fp), 0.0 when the denominator is zero."""
+    """Precision: tp / (tp + fp), falling back to zero_division when tp + fp is 0.
+    """
     return _averaged_score(
-        y_true, y_pred, average, pos_label, 0, "precision_score"
+        y_true, y_pred, average, pos_label, zero_division, 0, "precision_score"
     )
 
 
@@ -219,10 +238,12 @@ def recall_score[
     y_pred: List[Scalar[pred_dtype]],
     average: String = "binary",
     pos_label: Float64 = 1.0,
+    zero_division: Float64 = 0.0,
 ) raises -> Float64:
-    """Recall: tp / (tp + fn), 0.0 when the denominator is zero."""
+    """Recall: tp / (tp + fn), falling back to zero_division when tp + fn is 0.
+    """
     return _averaged_score(
-        y_true, y_pred, average, pos_label, 1, "recall_score"
+        y_true, y_pred, average, pos_label, zero_division, 1, "recall_score"
     )
 
 
@@ -233,6 +254,10 @@ def f1_score[
     y_pred: List[Scalar[pred_dtype]],
     average: String = "binary",
     pos_label: Float64 = 1.0,
+    zero_division: Float64 = 0.0,
 ) raises -> Float64:
-    """F1: harmonic mean of precision and recall, 2tp / (2tp + fp + fn)."""
-    return _averaged_score(y_true, y_pred, average, pos_label, 2, "f1_score")
+    """F1: 2tp / (2tp + fp + fn), falling back to zero_division when that is 0.
+    """
+    return _averaged_score(
+        y_true, y_pred, average, pos_label, zero_division, 2, "f1_score"
+    )

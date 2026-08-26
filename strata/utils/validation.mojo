@@ -1,3 +1,4 @@
+from std.math import isnan, isinf
 from ..core.matrix import Matrix
 from ..exceptions.errors import (
     NotFittedError,
@@ -32,6 +33,22 @@ def check_X_y[
             "len(y) == " + String(len(y)),
             "check_X_y",
         )
+
+
+def check_finite[
+    dtype: DType
+](values: List[Scalar[dtype]], name: String, caller: String) raises:
+    """Rejects NaN and infinite entries in a target or prediction list."""
+    for i in range(len(values)):
+        var v = Float64(values[i])
+        if isnan(v):
+            raise InvalidParameterError.error(
+                name, caller + " does not accept NaN values"
+            )
+        if isinf(v):
+            raise InvalidParameterError.error(
+                name, caller + " does not accept infinite values"
+            )
 
 
 def check_consistent_length[

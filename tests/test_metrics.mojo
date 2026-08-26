@@ -1,3 +1,4 @@
+from std.math import isnan
 from std.testing import (
     TestSuite,
     assert_equal,
@@ -708,6 +709,274 @@ def test_nan_labels_are_rejected() raises:
         _ = precision_score(y_pred, y_true, average="macro")
     with assert_raises():
         _ = recall_score(y_true, y_pred, average="micro")
+
+
+def test_binary_single_class_absent_pos_label() raises:
+    # Only one label is present, so pos_label=1 is simply never matched:
+    # the score is ill-defined and falls back to zero_division
+    var y: List[Scalar[DType.int32]] = [0, 0, 0]
+    assert_equal(precision_score(y, y), 0.0)
+    assert_equal(recall_score(y, y), 0.0)
+    assert_equal(f1_score(y, y), 0.0)
+
+    assert_equal(precision_score(y, y, zero_division=1.0), 1.0)
+    assert_equal(recall_score(y, y, zero_division=1.0), 1.0)
+    assert_equal(f1_score(y, y, zero_division=1.0), 1.0)
+
+    var nan = Float64(0.0) / Float64(0.0)
+    assert_equal(isnan(precision_score(y, y, zero_division=nan)), True)
+    assert_equal(isnan(f1_score(y, y, zero_division=nan)), True)
+
+    # The label that is present still scores normally
+    assert_equal(precision_score(y, y, pos_label=0.0), 1.0)
+    assert_equal(recall_score(y, y, pos_label=0.0), 1.0)
+
+
+def test_binary_absent_pos_label_raises_when_two_labels() raises:
+    # With two labels present, an absent pos_label is a caller error
+    var y_true: List[Scalar[DType.int32]] = [10, 3, 10, 3]
+    var y_pred: List[Scalar[DType.int32]] = [3, 3, 10, 10]
+    with assert_raises():
+        _ = precision_score(y_true, y_pred)
+    with assert_raises():
+        _ = recall_score(y_true, y_pred)
+    with assert_raises():
+        _ = f1_score(y_true, y_pred)
+
+    assert_equal(precision_score(y_true, y_pred, pos_label=3.0), 0.5)
+
+
+def test_zero_division_binary() raises:
+    # Nothing is predicted positive: precision is ill-defined, recall is not
+    var y_true: List[Scalar[DType.int32]] = [0, 1, 1]
+    var y_pred: List[Scalar[DType.int32]] = [0, 0, 0]
+
+    assert_equal(precision_score(y_true, y_pred), 0.0)
+    assert_equal(precision_score(y_true, y_pred, zero_division=1.0), 1.0)
+
+    # Recall has a non-zero denominator, so zero_division does not apply
+    assert_equal(recall_score(y_true, y_pred), 0.0)
+    assert_equal(recall_score(y_true, y_pred, zero_division=1.0), 0.0)
+    assert_equal(f1_score(y_true, y_pred, zero_division=1.0), 0.0)
+
+    var nan = Float64(0.0) / Float64(0.0)
+    assert_equal(
+        isnan(precision_score(y_true, y_pred, zero_division=nan)), True
+    )
+    assert_equal(recall_score(y_true, y_pred, zero_division=nan), 0.0)
+
+
+def test_zero_division_macro_and_weighted() raises:
+    var y_true: List[Scalar[DType.int32]] = [0, 1, 1]
+    var y_pred: List[Scalar[DType.int32]] = [0, 0, 0]
+
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="macro"), 0.16666666666666666
+    )
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="macro", zero_division=1.0),
+        0.6666666666666666,
+    )
+
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="weighted"),
+        0.1111111111111111,
+    )
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="weighted", zero_division=1.0),
+        0.7777777777777778,
+    )
+
+    # Well-defined labels are unaffected by the fallback
+    assert_almost_equal(
+        recall_score(y_true, y_pred, average="macro", zero_division=1.0), 0.5
+    )
+    assert_almost_equal(
+        f1_score(y_true, y_pred, average="macro", zero_division=1.0), 0.25
+    )
+
+
+def test_zero_division_nan_drops_ill_defined_labels() raises:
+    # A NaN fallback removes the ill-defined label from the average entirely
+    var nan = Float64(0.0) / Float64(0.0)
+    var y_true: List[Scalar[DType.int32]] = [0, 1, 1]
+    var y_pred: List[Scalar[DType.int32]] = [0, 0, 0]
+
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="macro", zero_division=nan),
+        0.3333333333333333,
+    )
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="weighted", zero_division=nan),
+        0.3333333333333333,
+    )
+
+    # Micro pools the counts, so its denominator is still non-zero here
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="micro", zero_division=nan),
+        0.3333333333333333,
+    )
+
+
+def test_many_classes_label_lookup() raises:
+    var y_true: List[Scalar[DType.int32]] = [0, 1, 2, 3, 4, 5, 6, 7, 0, 3, 5, 7]
+    var y_pred: List[Scalar[DType.int32]] = [0, 2, 2, 3, 4, 6, 6, 7, 1, 3, 5, 0]
+
+    assert_almost_equal(accuracy_score(y_true, y_pred), 0.6666666666666666)
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="macro"), 0.6875
+    )
+    assert_almost_equal(recall_score(y_true, y_pred, average="macro"), 0.6875)
+    assert_almost_equal(
+        f1_score(y_true, y_pred, average="macro"), 0.6458333333333333
+    )
+    assert_almost_equal(
+        precision_score(y_true, y_pred, average="weighted"), 0.75
+    )
+    assert_almost_equal(
+        f1_score(y_true, y_pred, average="weighted"), 0.6666666666666666
+    )
+
+    var cm = confusion_matrix(y_true, y_pred)
+    assert_equal(cm.rows, 8)
+    var expected: List[Int64] = [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+    ]
+    for i in range(8):
+        for j in range(8):
+            assert_equal(cm[i, j], expected[i * 8 + j])
+
+
+def test_labels_sorted_regardless_of_input_order() raises:
+    # Labels first appear as 7, 3, 5, 1 but must be indexed as [1, 3, 5, 7]
+    var y_true: List[Scalar[DType.int32]] = [7, 7, 3, 3, 5, 5, 1, 1]
+    var y_pred: List[Scalar[DType.int32]] = [3, 7, 3, 5, 5, 1, 1, 7]
+
+    var cm = confusion_matrix(y_true, y_pred)
+    assert_equal(cm.rows, 4)
+    var expected: List[Int64] = [
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+    ]
+    for i in range(4):
+        for j in range(4):
+            assert_equal(cm[i, j], expected[i * 4 + j])
+
+    assert_almost_equal(f1_score(y_true, y_pred, average="macro"), 0.5)
+
+
+def test_infinite_values_are_rejected() raises:
+    var inf = Float64(1.0) / Float64(0.0)
+
+    var cls_t: List[Scalar[DType.float64]] = [0.0, 1.0, inf]
+    var cls_p: List[Scalar[DType.float64]] = [0.0, 1.0, 1.0]
+    with assert_raises():
+        _ = accuracy_score(cls_t, cls_p)
+    with assert_raises():
+        _ = confusion_matrix(cls_t, cls_p)
+    with assert_raises():
+        _ = f1_score(cls_t, cls_p, average="macro")
+
+    var reg_t: List[Scalar[DType.float64]] = [1.0, 2.0, inf]
+    var reg_p: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
+    with assert_raises():
+        _ = mean_squared_error(reg_t, reg_p)
+    with assert_raises():
+        _ = r2_score(reg_t, reg_p)
+
+
+def test_regression_rejects_nan() raises:
+    var nan = Float64(0.0) / Float64(0.0)
+    var y_true: List[Scalar[DType.float64]] = [1.0, 2.0, nan]
+    var y_pred: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
+
+    with assert_raises():
+        _ = mean_squared_error(y_true, y_pred)
+    with assert_raises():
+        _ = root_mean_squared_error(y_true, y_pred)
+    with assert_raises():
+        _ = mean_absolute_error(y_true, y_pred)
+    with assert_raises():
+        _ = r2_score(y_true, y_pred)
+    with assert_raises():
+        _ = mean_absolute_error(y_pred, y_true)
 
 
 def main() raises:
