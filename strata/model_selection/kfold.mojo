@@ -1,5 +1,6 @@
 from ..core.matrix import Matrix
 from ..utils.random import permutation
+from ..utils.validation import check_array
 from ..exceptions.errors import InvalidParameterError
 
 
@@ -66,6 +67,11 @@ struct KFold(Movable):
         Returns:
             List of Split objects containing train and validation indices.
         """
+        if n_samples <= 0:
+            raise InvalidParameterError.error(
+                "n_samples",
+                "n_samples must be strictly positive, got " + String(n_samples),
+            )
         if self.n_splits > n_samples:
             raise InvalidParameterError.error(
                 "n_splits",
@@ -112,4 +118,5 @@ struct KFold(Movable):
 
     def split[dtype: DType](self, X: Matrix[dtype]) raises -> List[Split]:
         """Generates indices to split matrix records into train and test sets."""
+        check_array(X)
         return self.split(X.rows)

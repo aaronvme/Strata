@@ -2,7 +2,7 @@ from ..core.matrix import Matrix
 from ..core.dataset import Dataset
 
 
-trait Estimator(Deinitable, Movable):
+trait Estimator(Deinitable, Movable, Copyable):
     """Base marker trait for all Strata estimators."""
 
     pass

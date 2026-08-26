@@ -3,18 +3,15 @@ from ..core.dataset import Dataset
 from .estimator import Estimator, Transformer, Regressor, Classifier
 
 
+@fieldwise_init
 struct PipelineTransformer[
     T1: Transformer,
     T2: Transformer,
-](Movable, Transformer):
+](Movable, Copyable, Transformer):
     """Chains two data transformers into a single composite transformer."""
 
     var step1: Self.T1
     var step2: Self.T2
-
-    def __init__(out self, var step1: Self.T1, var step2: Self.T2):
-        self.step1 = step1^
-        self.step2 = step2^
 
     def fit[in_dtype: DType](mut self, X: Matrix[in_dtype]) raises:
         self.step1.fit[in_dtype](X)
@@ -34,20 +31,17 @@ struct PipelineTransformer[
         return self.step2.fit_transform[in_dtype](X_1)
 
 
+@fieldwise_init
 struct PipelineRegressor[
     T: Transformer,
     R: Regressor,
     target_dtype: DType = DType.float64,
-](Movable, Regressor):
+](Movable, Copyable, Regressor):
     """Sequentially applies a transformer pipeline before fitting a regressor.
     """
 
     var transformer: Self.T
     var regressor: Self.R
-
-    def __init__(out self, var transformer: Self.T, var regressor: Self.R):
-        self.transformer = transformer^
-        self.regressor = regressor^
 
     def fit[
         feat_dtype: DType, in_target_dtype: DType
@@ -62,20 +56,17 @@ struct PipelineRegressor[
         return self.regressor.predict[feat_dtype](X_trans)
 
 
+@fieldwise_init
 struct PipelineClassifier[
     T: Transformer,
     C: Classifier,
     target_dtype: DType = DType.int32,
-](Classifier, Movable):
+](Classifier, Movable, Copyable):
     """Sequentially applies a transformer pipeline before fitting a classifier.
     """
 
     var transformer: Self.T
     var classifier: Self.C
-
-    def __init__(out self, var transformer: Self.T, var classifier: Self.C):
-        self.transformer = transformer^
-        self.classifier = classifier^
 
     def fit[
         feat_dtype: DType, in_target_dtype: DType

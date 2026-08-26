@@ -12,7 +12,7 @@ from ..exceptions.errors import InvalidParameterError, DimensionMismatchError
 
 struct LogisticRegression[
     compute_dtype: DType = DType.float64,
-](Classifier, Movable):
+](Classifier, Movable, Copyable):
     """Logistic Regression classifier with L2 regularization.
 
     Supports binary and multiclass (multinomial) classification with
@@ -85,6 +85,19 @@ struct LogisticRegression[
         self.classes_ = List[Int]()
         self.coef_ = Matrix[Self.compute_dtype](0, 0, 0)
         self.intercept_ = List[Scalar[Self.compute_dtype]]()
+
+    def __init__(out self, *, copy: Self):
+        """Copies an existing LogisticRegression instance."""
+        self.is_fitted = copy.is_fitted
+        self.penalty = copy.penalty
+        self.C = copy.C
+        self.fit_intercept = copy.fit_intercept
+        self.max_iter = copy.max_iter
+        self.tol = copy.tol
+        self.learning_rate = copy.learning_rate
+        self.classes_ = copy.classes_.copy()
+        self.coef_ = copy.coef_.copy()
+        self.intercept_ = copy.intercept_.copy()
 
     def fit[
         feat_dtype: DType, target_dtype: DType

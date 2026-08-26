@@ -1,5 +1,6 @@
 from ..core.matrix import Matrix
 from ..utils.random import shuffle
+from ..utils.validation import check_X_y
 from ..exceptions.errors import InvalidParameterError
 from .kfold import Split
 
@@ -53,6 +54,11 @@ struct StratifiedKFold(Movable):
             List of Split instances containing train and validation indices.
         """
         var n_samples = len(y)
+        if n_samples == 0:
+            raise InvalidParameterError.error(
+                "y",
+                "Target list y cannot be empty",
+            )
         if self.n_splits > n_samples:
             raise InvalidParameterError.error(
                 "n_splits",
@@ -129,13 +135,5 @@ struct StratifiedKFold(Movable):
         self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]
     ) raises -> List[Split]:
         """Generates stratified train and test indices from feature matrix X and targets y."""
-        if X.rows != len(y):
-            raise InvalidParameterError.error(
-                "X.rows",
-                "X.rows ("
-                + String(X.rows)
-                + ") must match len(y) ("
-                + String(len(y))
-                + ")",
-            )
+        check_X_y(X, y)
         return self.split[target_dtype](y)

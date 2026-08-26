@@ -18,7 +18,7 @@ from ..exceptions.errors import InvalidParameterError, DimensionMismatchError
 
 struct Ridge[
     compute_dtype: DType = DType.float64,
-](Movable, Regressor):
+](Movable, Copyable, Regressor):
     """Ridge regression with L2 regularization.
 
     Minimizes the penalized objective:
@@ -60,6 +60,15 @@ struct Ridge[
         self.solver = solver
         self.coef_ = List[Scalar[Self.compute_dtype]]()
         self.intercept_ = 0
+
+    def __init__(out self, *, copy: Self):
+        """Copies an existing Ridge instance."""
+        self.is_fitted = copy.is_fitted
+        self.alpha = copy.alpha
+        self.fit_intercept = copy.fit_intercept
+        self.solver = copy.solver
+        self.coef_ = copy.coef_.copy()
+        self.intercept_ = copy.intercept_
 
     def fit[
         feat_dtype: DType, in_target_dtype: DType

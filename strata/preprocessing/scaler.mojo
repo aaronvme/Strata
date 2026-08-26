@@ -27,6 +27,15 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
         self.mean_ = List[Scalar[Self.compute_dtype]]()
         self.scale_ = List[Scalar[Self.compute_dtype]]()
 
+    def __init__(out self, *, copy: Self):
+        """Copies an existing StandardScaler instance."""
+        self.is_fitted = copy.is_fitted
+        self.fit_dtype = copy.fit_dtype
+        self.with_mean = copy.with_mean
+        self.with_std = copy.with_std
+        self.mean_ = copy.mean_.copy()
+        self.scale_ = copy.scale_.copy()
+
     def fit[in_dtype: DType](mut self, X: Matrix[in_dtype]) raises:
         check_array[in_dtype](X)
         var n_rows = X.rows
