@@ -3,11 +3,9 @@ from ..exceptions.errors import DimensionMismatchError
 
 
 def gemm[
-    a_dtype: DType,
-    b_dtype: DType,
-    out_dtype: DType = a_dtype,
-](A: Matrix[a_dtype], B: Matrix[b_dtype]) raises -> Matrix[out_dtype]:
-    """Dense matrix multiplication with mixed precision: C = A @ B."""
+    dtype: DType = DType.float64
+](A: Matrix[dtype], B: Matrix[dtype]) raises -> Matrix[dtype]:
+    """Dense matrix multiplication: C = A @ B."""
     if A.cols != B.rows:
         raise DimensionMismatchError.error(
             "A.cols == B.rows",
@@ -27,41 +25,39 @@ def gemm[
     var K = A.cols
     var N = B.cols
 
-    var C = Matrix[out_dtype](M, N, 0)
-    var row_acc = List[Float64](capacity=N)
+    var C = Matrix[dtype](M, N, 0)
+    var row_acc = List[Scalar[dtype]](capacity=N)
     for _ in range(N):
-        row_acc.append(0.0)
+        row_acc.append(0)
 
     for i in range(M):
         var c_offset = i * N
         for j in range(N):
-            row_acc[j] = 0.0
+            row_acc[j] = 0
 
         for k in range(K):
-            var a_ik = Float64(A[i, k])
+            var a_ik = A[i, k]
             if a_ik == 0:
                 continue
 
             var b_offset = k * N
             for j in range(N):
-                row_acc[j] += a_ik * Float64(B.data[b_offset + j])
+                row_acc[j] += a_ik * B.data[b_offset + j]
 
         for j in range(N):
-            C.data[c_offset + j] = Scalar[out_dtype](row_acc[j])
+            C.data[c_offset + j] = row_acc[j]
 
     return C^
 
 
 def dense_dot_vec[
-    mat_dtype: DType,
-    vec_dtype: DType,
-    out_dtype: DType = vec_dtype,
+    dtype: DType = DType.float64
 ](
-    A: Matrix[mat_dtype],
-    x: List[Scalar[vec_dtype]],
-    bias: Scalar[vec_dtype] = 0,
-) raises -> List[Scalar[out_dtype]]:
-    """Dense matrix-vector product with mixed precision: y = A @ x + bias."""
+    A: Matrix[dtype],
+    x: List[Scalar[dtype]],
+    bias: Scalar[dtype] = 0,
+) raises -> List[Scalar[dtype]]:
+    """Dense matrix-vector product: y = A @ x + bias."""
     if A.cols != len(x):
         raise DimensionMismatchError.error(
             "len(x) == " + String(A.cols),
@@ -69,14 +65,13 @@ def dense_dot_vec[
             "dense_dot_vec",
         )
 
-    var res = List[Scalar[out_dtype]](capacity=A.rows)
-    var b_val = Float64(bias)
+    var res = List[Scalar[dtype]](capacity=A.rows)
 
     for r in range(A.rows):
         var row_offset = r * A.cols
-        var sum_val: Float64 = b_val
+        var sum_val: Scalar[dtype] = bias
         for c in range(A.cols):
-            sum_val += Float64(A.data[row_offset + c]) * Float64(x[c])
-        res.append(Scalar[out_dtype](sum_val))
+            sum_val += A.data[row_offset + c] * x[c]
+        res.append(sum_val)
 
     return res^

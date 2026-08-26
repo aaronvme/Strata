@@ -136,4 +136,3 @@ def test_pipeline_and_traits() raises:
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
-

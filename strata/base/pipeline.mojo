@@ -7,6 +7,8 @@ struct PipelineTransformer[
     T1: Transformer,
     T2: Transformer,
 ](Movable, Transformer):
+    """Chains two data transformers into a single composite transformer."""
+
     var step1: Self.T1
     var step2: Self.T2
 
@@ -37,6 +39,9 @@ struct PipelineRegressor[
     R: Regressor,
     target_dtype: DType = DType.float64,
 ](Movable, Regressor):
+    """Sequentially applies a transformer pipeline before fitting a regressor.
+    """
+
     var transformer: Self.T
     var regressor: Self.R
 
@@ -62,6 +67,9 @@ struct PipelineClassifier[
     C: Classifier,
     target_dtype: DType = DType.int32,
 ](Classifier, Movable):
+    """Sequentially applies a transformer pipeline before fitting a classifier.
+    """
+
     var transformer: Self.T
     var classifier: Self.C
 

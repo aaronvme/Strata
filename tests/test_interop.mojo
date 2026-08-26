@@ -3,23 +3,38 @@ from std.python import Python
 from strata import Matrix, CSRMatrix
 
 
-def test_numpy_roundtrip() raises:
-    var m = Matrix[DType.float64](3, 3, 0)
+def test_numpy_roundtrip_f64() raises:
+    var m = Matrix[DType.float64](2, 4, 0)
     m[0, 0] = 1.5
+    m[0, 3] = 4.5
     m[1, 1] = 2.5
-    m[2, 2] = 3.5
+    m[1, 2] = 3.5
 
     var np_arr = m.to_numpy()
     assert_equal(Float64(py=np_arr[0, 0]), 1.5)
+    assert_equal(Float64(py=np_arr[0, 3]), 4.5)
     assert_equal(Float64(py=np_arr[1, 1]), 2.5)
-    assert_equal(Float64(py=np_arr[2, 2]), 3.5)
 
     var m_back = Matrix[DType.float64].from_numpy(np_arr)
-    assert_equal(m_back.rows, 3)
-    assert_equal(m_back.cols, 3)
+    assert_equal(m_back.rows, 2)
+    assert_equal(m_back.cols, 4)
     assert_equal(m_back[0, 0], 1.5)
+    assert_equal(m_back[0, 3], 4.5)
     assert_equal(m_back[1, 1], 2.5)
-    assert_equal(m_back[2, 2], 3.5)
+    assert_equal(m_back[1, 2], 3.5)
+
+
+def test_numpy_roundtrip_f32() raises:
+    var m = Matrix[DType.float32](2, 2, 0)
+    m[0, 0] = 10.0
+    m[1, 1] = 20.0
+
+    var np_arr = m.to_numpy()
+    var m_back = Matrix[DType.float32].from_numpy(np_arr)
+    assert_equal(m_back.rows, 2)
+    assert_equal(m_back.cols, 2)
+    assert_equal(m_back[0, 0], 10.0)
+    assert_equal(m_back[1, 1], 20.0)
 
 
 def test_scipy_csr_roundtrip() raises:

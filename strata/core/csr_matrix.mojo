@@ -9,6 +9,8 @@ from ..exceptions.errors import DimensionMismatchError
 struct CSRMatrix[dtype: DType = DType.float64](
     ArrayLike, Copyable, Movable, SparseMatrix, Writable
 ):
+    """Compressed Sparse Row (CSR) 2D matrix format."""
+
     var rows: Int
     var cols: Int
     var data: List[Scalar[Self.dtype]]
@@ -133,6 +135,17 @@ struct CSRMatrix[dtype: DType = DType.float64](
     def shape(self) -> Tuple[Int, Int]:
         return (self.rows, self.cols)
 
+    def cast[target_dtype: DType](self) raises -> CSRMatrix[target_dtype]:
+        """Promotes or converts the CSRMatrix data elements to target_dtype."""
+        var new_data = List[Scalar[target_dtype]](capacity=len(self.data))
+        for i in range(len(self.data)):
+            new_data.append(Scalar[target_dtype](self.data[i]))
+        var indptr_copy = self.indptr.copy()
+        var indices_copy = self.indices.copy()
+        return CSRMatrix[target_dtype](
+            self.rows, self.cols, new_data^, indices_copy^, indptr_copy^
+        )
+
     def nnz(self) -> Int:
         return len(self.data)
 
@@ -141,12 +154,12 @@ struct CSRMatrix[dtype: DType = DType.float64](
     ) raises -> List[Scalar[Self.dtype]]:
         from .sparse_ops import spmv
 
-        return spmv[Self.dtype, Self.dtype, Self.dtype](self, vec)
+        return spmv[Self.dtype](self, vec)
 
     def dot_dense(self, other: Matrix[Self.dtype]) raises -> Matrix[Self.dtype]:
         from .sparse_ops import spmm
 
-        return spmm[Self.dtype, Self.dtype, Self.dtype](self, other)
+        return spmm[Self.dtype](self, other)
 
     def dot_sparse(self, other: Self) raises -> Self:
         from .sparse_ops import spgemm

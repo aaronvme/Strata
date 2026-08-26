@@ -3,10 +3,14 @@ from ..core.dataset import Dataset
 
 
 trait Estimator(Deinitable, Movable):
+    """Base marker trait for all Strata estimators."""
+
     pass
 
 
 trait Transformer(Estimator):
+    """Interface for data preprocessing transformers."""
+
     def fit[in_dtype: DType](mut self, X: Matrix[in_dtype]) raises:
         ...
 
@@ -22,6 +26,8 @@ trait Transformer(Estimator):
 
 
 trait Regressor(Estimator):
+    """Interface for supervised regression models."""
+
     def fit[
         feat_dtype: DType, target_dtype: DType
     ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises:
@@ -34,6 +40,8 @@ trait Regressor(Estimator):
 
 
 trait Classifier(Estimator):
+    """Interface for supervised classification models."""
+
     def fit[
         feat_dtype: DType, target_dtype: DType
     ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]) raises:
@@ -51,6 +59,8 @@ trait Classifier(Estimator):
 
 
 trait Clusterer(Estimator):
+    """Interface for unsupervised clustering algorithms."""
+
     def fit[in_dtype: DType](mut self, X: Matrix[in_dtype]) raises:
         ...
 

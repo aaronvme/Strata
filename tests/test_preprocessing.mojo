@@ -3,8 +3,15 @@ from std.testing import (
     assert_equal,
     assert_true,
     assert_almost_equal,
+    assert_raises,
 )
-from strata import Matrix, Dataset, StandardScaler
+from strata import (
+    Matrix,
+    Dataset,
+    StandardScaler,
+    NotFittedError,
+    DataConversionError,
+)
 
 
 def test_standard_scaler() raises:
@@ -57,8 +64,6 @@ def test_standard_scaler_dataset() raises:
 
 
 def test_standard_scaler_dtype_incoherence_prevention() raises:
-    from std.testing import assert_raises
-
     var scaler = StandardScaler()
     var X32 = Matrix[DType.float32](2, 2, 1.0)
     scaler.fit(X32)
@@ -66,6 +71,25 @@ def test_standard_scaler_dtype_incoherence_prevention() raises:
     var X64 = Matrix[DType.float64](2, 2, 1.0)
     with assert_raises():
         _ = scaler.transform(X64)
+
+
+def test_standard_scaler_not_fitted() raises:
+    var scaler = StandardScaler()
+    var X = Matrix[DType.float64](2, 2, 1.0)
+    with assert_raises():
+        _ = scaler.transform(X)
+
+
+def test_standard_scaler_options() raises:
+    var X = Matrix[DType.float64](2, 1, 0)
+    X[0, 0] = 10.0
+    X[1, 0] = 20.0
+
+    # with_mean=False, with_std=False -> Identity
+    var scaler_noop = StandardScaler(with_mean=False, with_std=False)
+    var X_noop = scaler_noop.fit_transform(X)
+    assert_equal(X_noop[0, 0], 10.0)
+    assert_equal(X_noop[1, 0], 20.0)
 
 
 def main() raises:

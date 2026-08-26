@@ -83,17 +83,21 @@ To format automatically on save, add this to your `settings.json`:
 We keep our test suites modular. You can run all tests or target specific subsystems:
 
 ```bash
-# Run the full test suite
+# Run the full test suite (11 test suites, 49 tests)
 pixi run test-all
 
 # Run specific test modules
-pixi run test-matrix          # Dense GEMM, sparse SpMV/SpMM
-pixi run test-view            # 2D zero-copy slicing
-pixi run test-preprocessing   # Standard scaler, dataset transformations
-pixi run test-split           # Train/test split, shuffling
+pixi run test-matrix          # Dense GEMM, dot_vec, transpose, cast, axes
+pixi run test-sparse          # CSR/CSC, SpMV, SpVM, SpMM, SpGEMM, SDDMM, check_sparse
+pixi run test-math            # Numerically stable sigmoid, softmax, log_sum_exp, PRNG
+pixi run test-dataset         # Dataset containers, splitting invariants, edge cases
+pixi run test-pipelines       # Composable N-step transformer, regressor, classifier pipelines
+pixi run test-view            # Strided MatrixView, 2D zero-copy slicing, bounds checks
+pixi run test-preprocessing   # StandardScaler, fit/transform, configuration options
+pixi run test-split           # Train/test split, shuffling reproducibility
 pixi run test-interop         # NumPy / SciPy conversion roundtrips
 pixi run test-large           # Large matrix benchmarks & stress tests
-pixi run test-core            # Error types, validation routines, math utils
+pixi run test-core            # Error types, validation routines, base traits
 ```
 
 ---
@@ -115,10 +119,10 @@ Here is how the project is organized:
 ```
 Strata/
 ├── strata/
-│   ├── base/             # Core traits (Estimator, Transformer, Regressor, Classifier, Clusterer)
-│   ├── core/             # Matrix, MatrixView, CSRMatrix, CSCMatrix, linalg, interop
-│   ├── exceptions/       # Domain errors (DimensionMismatchError, NotFittedError, etc.)
-│   ├── utils/            # Validation helpers (check_X_y), math (softmax), random (shuffle)
+│   ├── base/             # Core traits (Estimator, Transformer, Regressor, Classifier, Clusterer, Pipelines)
+│   ├── core/             # Matrix, MatrixView, CSRMatrix, CSCMatrix, linalg, sparse_ops, dataset, interop
+│   ├── exceptions/       # Domain errors (DimensionMismatchError, NotFittedError, InvalidParameterError, etc.)
+│   ├── utils/            # Validation helpers (check_X_y, check_sparse), math (softmax), random (PRNG, shuffle)
 │   ├── preprocessing/    # Data transformers (StandardScaler)
 │   ├── model_selection/  # Data splitting (train_test_split)
 │   ├── metrics/          # Evaluation metrics (MSE, R2, Accuracy, F1)
@@ -142,7 +146,20 @@ When contributing code to Strata, please keep these conventions in mind:
 - **Explicit transfers**: Use `^` (move operator) when transferring ownership of large arrays or structs into estimators or return values.
 - **Explicit copying**: When an explicit clone is needed, call `.copy()`.
 
-### 2. Trait Contracts & Composable Pipelines
+### 2. Multi-Precision & 3-Tiered Type Policy
+
+Strata follows a clear, 3-tiered type policy across the stack:
+
+| Layer | Type Policy | Examples & Constraints |
+| :--- | :--- | :--- |
+| **Low-Level LinAlg** | Generic numeric types (including `int32`, `int64`, `float32`, `float64`, `bfloat16`, `float16`) via compile-time parameters for general-purpose utility. Operations are strictly homogeneous ($A \times B \rightarrow C$). | `gemm`, `dense_dot_vec`, `transpose`, `spmv`, `spmm`, `sddmm`, `spgemm` |
+| **Advanced LinAlg** | Constrained to floating-point types (`constrained[dtype.is_floating_point(), "Floating-point type required"]()`). | `solve`, `inv`, `svd`, `qr`, `norm`, `cholesky` |
+| **ML Estimators** | Automatically cast incoming integer arrays to `float32` or `float64` immediately upon entry via `X.cast[compute_dtype]()`. | `LinearRegression`, `Ridge`, `LogisticRegression`, `PCA`, `KMeans` |
+
+- **Strictly Homogeneous Execution**: Low-level kernels never mix precision inside inner loops (e.g. `f32 × f32 → f32`, `f64 × f64 → f64`, `i32 × i32 → i32`).
+- **Promote Immediately Once**: Estimators accept flexible inputs at `fit` time and promote to `compute_dtype` upfront once, ensuring all downstream iterative optimizations run on pure floating-point tensors at hardware peak.
+
+### 3. Trait Contracts & Composable Pipelines
 To ensure compile-time trait enforcement, type safety, and effortless `model.predict(X)` call syntax matching scikit-learn:
 
 - **Streamlined Trait Design (The 2-Method Pattern)**:

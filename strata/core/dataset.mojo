@@ -8,6 +8,8 @@ struct DatasetSplit[
     feat_dtype: DType = DType.float64,
     target_dtype: DType = DType.float64,
 ](Movable):
+    """Container holding train and test partitions of a Dataset."""
+
     var train: Dataset[Self.feat_dtype, Self.target_dtype]
     var test: Dataset[Self.feat_dtype, Self.target_dtype]
 
@@ -24,6 +26,9 @@ struct Dataset[
     feat_dtype: DType = DType.float64,
     target_dtype: DType = DType.float64,
 ](Copyable, Movable):
+    """Machine learning dataset container pairing a feature matrix with targets.
+    """
+
     var records: Matrix[Self.feat_dtype]
     var targets: List[Scalar[Self.target_dtype]]
     var feature_names: List[String]

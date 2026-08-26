@@ -8,6 +8,8 @@ from ..exceptions.errors import DimensionMismatchError
 struct CSCMatrix[dtype: DType = DType.float64](
     ArrayLike, Copyable, Movable, SparseMatrix, Writable
 ):
+    """Compressed Sparse Column (CSC) 2D matrix format."""
+
     var rows: Int
     var cols: Int
     var data: List[Scalar[Self.dtype]]
@@ -137,6 +139,17 @@ struct CSCMatrix[dtype: DType = DType.float64](
 
     def shape(self) -> Tuple[Int, Int]:
         return (self.rows, self.cols)
+
+    def cast[target_dtype: DType](self) raises -> CSCMatrix[target_dtype]:
+        """Promotes or converts the CSCMatrix data elements to target_dtype."""
+        var new_data = List[Scalar[target_dtype]](capacity=len(self.data))
+        for i in range(len(self.data)):
+            new_data.append(Scalar[target_dtype](self.data[i]))
+        var indptr_copy = self.indptr.copy()
+        var indices_copy = self.indices.copy()
+        return CSCMatrix[target_dtype](
+            self.rows, self.cols, new_data^, indices_copy^, indptr_copy^
+        )
 
     def nnz(self) -> Int:
         return len(self.data)

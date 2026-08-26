@@ -8,6 +8,8 @@ from ..exceptions.errors import DimensionMismatchError
 struct Matrix[dtype: DType = DType.float64](
     ArrayLike, Copyable, Movable, Writable
 ):
+    """Dense 2D row-major matrix container with striding and view support."""
+
     var rows: Int
     var cols: Int
     var data: List[Scalar[Self.dtype]]
@@ -106,6 +108,14 @@ struct Matrix[dtype: DType = DType.float64](
             res.append(self.data[r * self.cols + c])
         return res^
 
+    def cast[target_dtype: DType](self) -> Matrix[target_dtype]:
+        """Promotes or converts the Matrix elements to target_dtype."""
+        var total = self.rows * self.cols
+        var new_data = List[Scalar[target_dtype]](capacity=total)
+        for i in range(total):
+            new_data.append(Scalar[target_dtype](self.data[i]))
+        return Matrix[target_dtype](self.rows, self.cols, new_data^)
+
     def transpose(self) -> Self:
         var res = Self(self.cols, self.rows)
         for r in range(self.rows):
@@ -116,14 +126,14 @@ struct Matrix[dtype: DType = DType.float64](
     def dot(self, other: Self) raises -> Self:
         from .linalg import gemm
 
-        return gemm[Self.dtype, Self.dtype, Self.dtype](self, other)
+        return gemm[Self.dtype](self, other)
 
     def dot_vec(
         self, vec: List[Scalar[Self.dtype]]
     ) raises -> List[Scalar[Self.dtype]]:
         from .linalg import dense_dot_vec
 
-        return dense_dot_vec[Self.dtype, Self.dtype, Self.dtype](self, vec)
+        return dense_dot_vec[Self.dtype](self, vec)
 
     def mean_along_axis_0(self) -> List[Scalar[Self.dtype]]:
         var means = List[Scalar[Self.dtype]](capacity=self.cols)

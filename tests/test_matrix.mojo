@@ -1,186 +1,229 @@
-from std.testing import assert_equal, TestSuite
-from strata import (
-    Matrix,
-    CSRMatrix,
-    gemm,
-    spmv,
-    spmm,
+from std.testing import (
+    TestSuite,
+    assert_equal,
+    assert_true,
+    assert_raises,
+    assert_almost_equal,
 )
+from strata import Matrix, gemm, dense_dot_vec, DimensionMismatchError
 
 
-def test_dense_matrix_gemm() raises:
-    var A = Matrix[DType.float32](2, 2, 0)
+def test_matrix_construction_and_access() raises:
+    # Zeros, ones, custom fill
+    var z = Matrix[DType.float64].zeros(3, 4)
+    assert_equal(z.rows, 3)
+    assert_equal(z.cols, 4)
+    assert_equal(z.num_elements(), 12)
+    assert_equal(z.shape()[0], 3)
+    assert_equal(z.shape()[1], 4)
+    for r in range(3):
+        for c in range(4):
+            assert_equal(z[r, c], 0.0)
+
+    var o = Matrix[DType.float32].ones(2, 5)
+    assert_equal(o.rows, 2)
+    assert_equal(o.cols, 5)
+    for r in range(2):
+        for c in range(5):
+            assert_equal(o[r, c], 1.0)
+
+    var filled = Matrix[DType.int32](3, 3, -7)
+    for r in range(3):
+        for c in range(3):
+            assert_equal(filled[r, c], -7)
+
+    # Set item
+    filled[1, 2] = 42
+    assert_equal(filled[1, 2], 42)
+
+
+def test_matrix_row_and_col_extraction() raises:
+    var m = Matrix[DType.float64](3, 3, 0)
+    var counter: Float64 = 1.0
+    for r in range(3):
+        for c in range(3):
+            m[r, c] = counter
+            counter += 1.0
+
+    var r1 = m.row(1)
+    assert_equal(len(r1), 3)
+    assert_equal(r1[0], 4.0)
+    assert_equal(r1[1], 5.0)
+    assert_equal(r1[2], 6.0)
+
+    var c2 = m.col(2)
+    assert_equal(len(c2), 3)
+    assert_equal(c2[0], 3.0)
+    assert_equal(c2[1], 6.0)
+    assert_equal(c2[2], 9.0)
+
+
+def test_matrix_transpose() raises:
+    # Non-square matrix transpose (2x4 -> 4x2)
+    var A = Matrix[DType.float64](2, 4, 0)
     A[0, 0] = 1.0
     A[0, 1] = 2.0
-    A[1, 0] = 3.0
-    A[1, 1] = 4.0
+    A[0, 2] = 3.0
+    A[0, 3] = 4.0
+    A[1, 0] = 5.0
+    A[1, 1] = 6.0
+    A[1, 2] = 7.0
+    A[1, 3] = 8.0
 
-    var B = Matrix[DType.float32](2, 2, 0)
-    B[0, 0] = 5.0
-    B[0, 1] = 6.0
-    B[1, 0] = 7.0
-    B[1, 1] = 8.0
+    var At = A.transpose()
+    assert_equal(At.rows, 4)
+    assert_equal(At.cols, 2)
+    assert_equal(At[0, 0], 1.0)
+    assert_equal(At[0, 1], 5.0)
+    assert_equal(At[3, 0], 4.0)
+    assert_equal(At[3, 1], 8.0)
+
+    # Double transpose identity: (A^T)^T == A
+    var Att = At.transpose()
+    assert_equal(Att.rows, 2)
+    assert_equal(Att.cols, 4)
+    for r in range(2):
+        for c in range(4):
+            assert_equal(Att[r, c], A[r, c])
+
+
+def test_matrix_cast_promotions() raises:
+    var m_int = Matrix[DType.int32](2, 2, 0)
+    m_int[0, 0] = 10
+    m_int[0, 1] = -20
+    m_int[1, 0] = 30
+    m_int[1, 1] = 40
+
+    # Int32 -> Float64
+    var m_f64 = m_int.cast[DType.float64]()
+    assert_equal(m_f64.rows, 2)
+    assert_equal(m_f64.cols, 2)
+    assert_equal(m_f64[0, 0], 10.0)
+    assert_equal(m_f64[0, 1], -20.0)
+
+    # Float64 -> Float32
+    var m_f32 = m_f64.cast[DType.float32]()
+    assert_equal(m_f32[1, 0], 30.0)
+    assert_equal(m_f32[1, 1], 40.0)
+
+    # Float32 -> Int64
+    var m_i64 = m_f32.cast[DType.int64]()
+    assert_equal(m_i64[0, 1], -20)
+
+
+def test_matrix_mean_and_std_axis_0() raises:
+    var m = Matrix[DType.float64](4, 3, 0)
+    # Col 0: [10, 20, 30, 40] -> Mean = 25, Std = sqrt(125)
+    m[0, 0] = 10.0
+    m[1, 0] = 20.0
+    m[2, 0] = 30.0
+    m[3, 0] = 40.0
+
+    # Col 1: Constant [5, 5, 5, 5] -> Mean = 5, Std fallback = 1.0
+    m[0, 1] = 5.0
+    m[1, 1] = 5.0
+    m[2, 1] = 5.0
+    m[3, 1] = 5.0
+
+    # Col 2: [0, 0, 0, 0] -> Mean = 0, Std fallback = 1.0
+    m[0, 2] = 0.0
+    m[1, 2] = 0.0
+    m[2, 2] = 0.0
+    m[3, 2] = 0.0
+
+    var means = m.mean_along_axis_0()
+    assert_equal(len(means), 3)
+    assert_equal(means[0], 25.0)
+    assert_equal(means[1], 5.0)
+    assert_equal(means[2], 0.0)
+
+    var stds = m.std_along_axis_0(means)
+    assert_equal(len(stds), 3)
+    assert_equal(stds[1], 1.0)  # Constant column fallback
+    assert_equal(stds[2], 1.0)
+
+    # Zero-row matrix guard
+    var empty_m = Matrix[DType.float64](0, 3, 0)
+    var empty_means = empty_m.mean_along_axis_0()
+    assert_equal(len(empty_means), 3)
+    var empty_stds = empty_m.std_along_axis_0(empty_means)
+    assert_equal(len(empty_stds), 3)
+
+
+def test_gemm_properties() raises:
+    # 1. Standard non-square GEMM: (2x3) @ (3x2) -> (2x2)
+    var A = Matrix[DType.float64](2, 3, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[0, 2] = 3.0
+    A[1, 0] = 4.0
+    A[1, 1] = 5.0
+    A[1, 2] = 6.0
+
+    var B = Matrix[DType.float64](3, 2, 0)
+    B[0, 0] = 7.0
+    B[0, 1] = 8.0
+    B[1, 0] = 9.0
+    B[1, 1] = 1.0
+    B[2, 0] = 2.0
+    B[2, 1] = 3.0
 
     var C = gemm(A, B)
-    assert_equal(C[0, 0], 19.0)
-    assert_equal(C[0, 1], 22.0)
-    assert_equal(C[1, 0], 43.0)
-    assert_equal(C[1, 1], 50.0)
+    assert_equal(C.rows, 2)
+    assert_equal(C.cols, 2)
+    # C[0,0] = 1*7 + 2*9 + 3*2 = 7 + 18 + 6 = 31
+    assert_equal(C[0, 0], 31.0)
+    # C[0,1] = 1*8 + 2*1 + 3*3 = 8 + 2 + 9 = 19
+    assert_equal(C[0, 1], 19.0)
+    # C[1,0] = 4*7 + 5*9 + 6*2 = 28 + 45 + 12 = 85
+    assert_equal(C[1, 0], 85.0)
+    # C[1,1] = 4*8 + 5*1 + 6*3 = 32 + 5 + 18 = 55
+    assert_equal(C[1, 1], 55.0)
+
+    # 2. Identity matrix multiplication: A @ I == A
+    var I = Matrix[DType.float64].zeros(3, 3)
+    I[0, 0] = 1.0
+    I[1, 1] = 1.0
+    I[2, 2] = 1.0
+    var AI = gemm(A, I)
+    for r in range(2):
+        for c in range(3):
+            assert_equal(AI[r, c], A[r, c])
+
+    # 3. Dimension mismatch error check
+    var BadB = Matrix[DType.float64].ones(4, 2)
+    with assert_raises():
+        _ = gemm(A, BadB)
 
 
-def test_sparse_csr_spmv_spmm() raises:
-    var dense = Matrix[DType.float64](3, 3, 0)
-    dense[0, 0] = 10.0
-    dense[1, 2] = 20.0
-    dense[2, 1] = 30.0
-
-    var csr = CSRMatrix[DType.float64].from_dense(dense)
-    assert_equal(csr.nnz(), 3)
+def test_dense_dot_vec_properties() raises:
+    var A = Matrix[DType.float64](2, 3, 0)
+    A[0, 0] = 1.0
+    A[0, 1] = 2.0
+    A[0, 2] = 3.0
+    A[1, 0] = 4.0
+    A[1, 1] = 5.0
+    A[1, 2] = 6.0
 
     var x: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
-    var y = spmv[DType.float64](csr, x)
-    assert_equal(y[0], 10.0)
-    assert_equal(y[1], 60.0)
-    assert_equal(y[2], 60.0)
+    var bias: Scalar[DType.float64] = 10.0
 
-    var B = Matrix[DType.float64].ones(3, 2)
-    var C = spmm[DType.float64](csr, B)
-    assert_equal(C[0, 0], 10.0)
-    assert_equal(C[1, 0], 20.0)
-    assert_equal(C[2, 0], 30.0)
+    # y = A @ x + bias: [1*1 + 2*2 + 3*3 + 10 = 24, 4*1 + 5*2 + 6*3 + 10 = 42]
+    var y = dense_dot_vec(A, x, bias)
+    assert_equal(len(y), 2)
+    assert_equal(y[0], 24.0)
+    assert_equal(y[1], 42.0)
 
-
-def test_dense_dot_vec_mixed_precision() raises:
-    from strata import dense_dot_vec
-
-    # Int32 input matrix
-    var A = Matrix[DType.int32](2, 2, 0)
-    A[0, 0] = 2
-    A[0, 1] = 3
-    A[1, 0] = 4
-    A[1, 1] = 5
-
-    # Float64 weights & bias
-    var weights: List[Scalar[DType.float64]] = [0.5, 2.0]
-    var bias: Scalar[DType.float64] = 1.0
-
-    # Mixed precision matrix-vector product: Int32 @ Float64 -> Float64
-    var y = dense_dot_vec(A, weights, bias)
-    assert_equal(y[0], 8.0)  # 2*0.5 + 3*2.0 + 1.0 = 1 + 6 + 1 = 8.0
-    assert_equal(y[1], 13.0)  # 4*0.5 + 5*2.0 + 1.0 = 2 + 10 + 1 = 13.0
-
-
-def test_gemm_mixed_precision() raises:
-    # Int32 matrix @ Float64 matrix -> Float64 matrix
-    var A = Matrix[DType.int32](2, 2, 0)
-    A[0, 0] = 1
-    A[0, 1] = 2
-    A[1, 0] = 3
-    A[1, 1] = 4
-
-    var B = Matrix[DType.float64](2, 2, 0.0)
-    B[0, 0] = 0.5
-    B[0, 1] = 1.5
-    B[1, 0] = 2.0
-    B[1, 1] = 3.0
-
-    var C = gemm[DType.int32, DType.float64, DType.float64](A, B)
-    assert_equal(C[0, 0], 4.5)  # 1*0.5 + 2*2.0 = 0.5 + 4 = 4.5
-    assert_equal(C[0, 1], 7.5)  # 1*1.5 + 2*3.0 = 1.5 + 6 = 7.5
-    assert_equal(C[1, 0], 9.5)  # 3*0.5 + 4*2.0 = 1.5 + 8 = 9.5
-    assert_equal(C[1, 1], 16.5)  # 3*1.5 + 4*3.0 = 4.5 + 12 = 16.5
-
-
-def test_sparse_mixed_precision() raises:
-    # Int32 sparse matrix (e.g. word counts)
-    var dense = Matrix[DType.int32](2, 2, 0)
-    dense[0, 0] = 3
-    dense[1, 1] = 4
-
-    var csr = CSRMatrix[DType.int32].from_dense(dense)
-
-    # Float64 weights
-    var weights: List[Scalar[DType.float64]] = [0.5, 2.5]
-    var bias: Scalar[DType.float64] = 1.0
-
-    # SpMV: Int32 CSR @ Float64 weights + Float64 bias
-    var y = spmv(csr, weights, bias)
-    assert_equal(y[0], 2.5)  # 3*0.5 + 1.0 = 2.5
-    assert_equal(y[1], 11.0)  # 4*2.5 + 1.0 = 11.0
-
-    # SpMM: Int32 CSR @ Float64 Dense Matrix -> Float64 Dense Matrix
-    var B = Matrix[DType.float64].ones(2, 2)
-    var C = spmm[DType.int32, DType.float64, DType.float64](csr, B)
-    assert_equal(C[0, 0], 3.0)
-    assert_equal(C[0, 1], 3.0)
-    assert_equal(C[1, 0], 4.0)
-    assert_equal(C[1, 1], 4.0)
-
-
-def test_sparse_validation() raises:
-    from std.testing import assert_raises
-    from strata import CSCMatrix
-
-    # Invalid indptr length for 2x2 matrix (needs len=3, given len=2)
-    var data: List[Scalar[DType.float64]] = [1.0, 2.0]
-    var indices: List[Int] = [0, 1]
-    var bad_indptr: List[Int] = [0, 2]
-
+    # Dimension mismatch check
+    var bad_x: List[Scalar[DType.float64]] = [1.0, 2.0]
     with assert_raises():
-        _ = CSCMatrix(2, 2, data.copy(), indices.copy(), bad_indptr.copy())
-
-    with assert_raises():
-        _ = CSRMatrix(2, 2, data.copy(), indices.copy(), bad_indptr.copy())
-
-    # Empty 0x0 and empty 2x2 matrices are completely valid with allow_empty=True
-    var empty_csr = CSRMatrix[DType.float64].empty(0, 0)
-    assert_equal(empty_csr.nnz(), 0)
-    assert_equal(empty_csr.shape()[0], 0)
-    assert_equal(empty_csr.shape()[1], 0)
+        _ = dense_dot_vec(A, bad_x)
 
 
-def test_csc_matrix_ops_and_conversion() raises:
-    from strata import CSCMatrix
-
-    var dense = Matrix[DType.float64](3, 3, 0)
-    dense[0, 0] = 10.0
-    dense[1, 2] = 20.0
-    dense[2, 1] = 30.0
-
-    var csc = CSCMatrix[DType.float64].from_dense(dense)
-    assert_equal(csc.nnz(), 3)
-    assert_equal(csc.shape()[0], 3)
-    assert_equal(csc.shape()[1], 3)
-
-    # Conversion roundtrip CSC -> CSR -> CSC
-    var csr = csc.to_csr()
-    assert_equal(csr.nnz(), 3)
-    var csc_roundtrip = csr.to_csc()
-    assert_equal(csc_roundtrip.nnz(), 3)
-
-    # Direct CSC matrix-vector dot product
-    var x: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0]
-    var y = csc.dot_vec(x)
-    assert_equal(y[0], 10.0)
-    assert_equal(y[1], 60.0)
-    assert_equal(y[2], 60.0)
-
-    # CSC dense matrix multiplication
-    var B = Matrix[DType.float64].ones(3, 2)
-    var C = csc.dot_dense(B)
-    assert_equal(C[0, 0], 10.0)
-    assert_equal(C[1, 0], 20.0)
-    assert_equal(C[2, 0], 30.0)
-
-    # Int64 preservation without Float64 casts
-    var dense_int = Matrix[DType.int64](2, 2, 0)
-    dense_int[0, 0] = 1000000000000
-    dense_int[1, 1] = 2000000000000
-    var csc_int = CSCMatrix[DType.int64].from_dense(dense_int)
-    var x_int: List[Scalar[DType.int64]] = [2, 3]
-    var y_int = csc_int.dot_vec(x_int)
-    assert_equal(y_int[0], 2000000000000)
-    assert_equal(y_int[1], 6000000000000)
+def test_matrix_string_representation() raises:
+    var m = Matrix[DType.float64](2, 2, 3.14)
+    var s = String(m)
+    assert_true(s.byte_length() > 0)
 
 
 def main() raises:

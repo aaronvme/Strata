@@ -9,6 +9,9 @@ from ..exceptions.errors import NotFittedError, DataConversionError
 struct StandardScaler[compute_dtype: DType = DType.float64](
     Copyable, Movable, Transformer
 ):
+    """Standardizes features by removing the mean and scaling to unit variance.
+    """
+
     var is_fitted: Bool
     var fit_dtype: DType
     var with_mean: Bool

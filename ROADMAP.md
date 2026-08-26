@@ -1,90 +1,94 @@
 # Strata Roadmap
 
-Strata is a native machine learning library for Mojo. The goal is straightforward is to give Mojo the same clean, familiar workflow as `scikit-learn`, but with native performance, zero-copy views, and hardware acceleration out of the box—no Cython or C extensions needed.
+Strata is a native machine learning library for Mojo. The goal is to provide the familiar, expressive workflow of `scikit-learn` combined with native performance, zero-copy views, compile-time trait safety, and hardware acceleration out of the box—with zero C/C++ extensions or foreign runtimes.
 
 ---
 
 ## Current State
 
-We have the core data structures and linear algebra plumbing in place:
+We have established a robust, thoroughly tested core engine:
 
-- **Data structures**:
-  - `Matrix[dtype]` (dense 2D matrix)
-  - `MatrixView` (zero-copy strided row/col/2D slicing)
-  - `CSRMatrix` and `CSCMatrix` (sparse formats)
-- **Sparse operations**:
-  - SpMV, SpVM, SpMM, Gustavson SpGEMM, and SDDMM
-- **Dataset & Preprocessing**:
-  - Basic `Dataset` container with feature/target metadata
-  - `train_test_split`
-  - `StandardScaler`
-- **Error handling**:
-  - Custom error types (`DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, etc.)
+- **Data structures & Zero-Copy Views**:
+  - `Matrix[dtype]` (Dense 2D row-major matrix with strided views)
+  - `MatrixView[dtype, origin]` (Non-owning strided 2D view with compile-time origin tracking)
+  - `CSRMatrix[dtype]` & `CSCMatrix[dtype]` (Compressed sparse formats with $O(\text{nnz})$ conversions)
+  - Upfront promotion via `.cast[target_dtype]()` across dense and sparse containers
+- **Multi-Precision Homogeneous Linear Algebra**:
+  - Generic support for `float32`, `float64`, `bfloat16`, and `float16` with strictly homogeneous kernels.
+  - Dense: `gemm`, `dense_dot_vec`
+  - Sparse: `spmv`, `spvm`, `spmm`, Gustavson `spgemm`, and `sddmm`
+- **Composable Pipelines & Base Traits**:
+  - Unified traits: `Transformer`, `Regressor`, `Classifier`, `Clusterer`
+  - Composable pipelines: `PipelineTransformer`, `PipelineRegressor`, `PipelineClassifier`
+  - Generic functional helpers for `Dataset` containers
+- **Math Utilities & Numerical Stability**:
+  - Overflow-protected `softmax`, `log_sum_exp`, and `sigmoid`
+  - 64-bit SplitMix64 `PRNG` with unbiased Lemire rejection sampling, Fisher-Yates `permutation` & `shuffle`
+- **Validation & Domain Errors**:
+  - Domain exceptions: `DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, `DataConversionError`
+  - Structural validators: `check_array`, `check_X_y`, `check_sparse`, `check_is_fitted`
+- **Test Coverage**:
+  - 11 modular test suites (49 passing tests) verifying mathematical invariants, strided slicing, and edge cases.
 
 ---
 
-## What needs to be completed:
+## Roadmap
 
-### 1. Engine & Math Foundation
-Before stacking up dozens of algorithms, we need our core engine to be rock-solid and fast.
-
-- [x] **Fix base traits**: Update `Estimator`, `Transformer`, `Regressor`, and `Classifier` to have proper `Movable` contracts so pipelines compile cleanly.
-- [ ] **Vectorize dense linalg**: Rewrite `gemm` and `dense_dot_vec` with SIMD (`sys.info.simdwidthof`) and cache-friendly tiling instead of naive loops.
-- [ ] **Multi-threading**: Add parallel CPU execution (`parallel_for`) for dense matrix multiplications and row-wise operations.
-- [ ] **Fast NumPy interop**: Replace element-by-element Python loops with direct pointer/buffer copies.
-- [x] **Numerical stability**: Fix potential overflow in `softmax` (subtract max) and add standard math utils (log-sum-exp, better PRNG).
+### 1. Engine & Kernel Optimization
+- [x] **Base traits & pipeline composition**: Unified 2-method pattern with composable $N$-step pipelines.
+- [x] **Multi-precision homogeneous LinAlg & upfront promotion**: Support Float32, Float64, BFloat16, Float16 with strictly homogeneous execution and zero inner-loop casting.
+- [x] **Math & PRNG foundation**: Stable softmax, log-sum-exp, sigmoid, and unbiased PRNG.
+- [ ] **SIMD vectorization**: Vectorize dense kernels (`gemm`, `dense_dot_vec`) with SIMD registers and FMA (`simd_fma`).
+- [ ] **Multi-threading**: Parallelize dense matrix products and row-wise operations using `parallel_for`.
+- [ ] **Direct memory Python interop**: Fast NumPy buffer transfer via pointer/memcpy instead of element loops.
 
 ---
 
 ### 2. Core Estimators & Metrics
-The goal here is a working end-to-end ML workflow: load data -> preprocess -> train a linear model -> evaluate.
-
-- [ ] **Metrics (`strata.metrics`)**:
-  - Regression: MSE, RMSE, MAE, R²
-  - Classification: Accuracy, Precision, Recall, F1, Log Loss, ROC-AUC
-  - Clustering: Silhouette score, Inertia
+- [ ] **Evaluation Metrics (`strata.metrics`)**:
+  - Regression: `mean_squared_error`, `root_mean_squared_error`, `r2_score`, `mean_absolute_error`
+  - Classification: `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `confusion_matrix`
+  - Clustering: `silhouette_score`, `inertia`
 - [ ] **Linear Models (`strata.linear_model`)**:
-  - `LinearRegression` (OLS via Normal Equations & SGD)
-  - `Ridge` (L2 regularization)
-  - `LogisticRegression` (Binary and multinomial classification)
-- [ ] **More Preprocessing (`strata.preprocessing`)**:
+  - `LinearRegression` (Normal equations solver & mini-batch SGD)
+  - `Ridge` ($L_2$-regularized closed-form solver)
+  - `LogisticRegression` (Binary and multinomial classification via gradient descent)
+- [ ] **Preprocessing (`strata.preprocessing`)**:
   - `MinMaxScaler`
   - `RobustScaler`
   - `OneHotEncoder`
+  - `Binarizer`
 - [ ] **Model Selection (`strata.model_selection`)**:
   - `KFold` and `StratifiedKFold`
   - `cross_val_score`
 
 ---
 
-### 3. Classical ML Algorithms
-
+### 3. Classical Machine Learning Algorithms
 - [ ] **Clustering (`strata.cluster`)**:
   - `KMeans` (with KMeans++ initialization)
-  - `KModes` (for categorical datasets)
+  - `KModes` (for categorical features)
   - `DBSCAN`
 - [ ] **Trees & Ensembles (`strata.tree`, `strata.ensemble`)**:
-  - `DecisionTreeClassifier` / `DecisionTreeRegressor`
-  - `RandomForestClassifier` / `RandomForestRegressor`
+  - `DecisionTreeClassifier` & `DecisionTreeRegressor`
+  - `RandomForestClassifier` & `RandomForestRegressor`
   - `GradientBoosting`
 - [ ] **Dimensionality Reduction (`strata.decomposition`)**:
-  - `PCA` (via randomized SVD / power iteration)
+  - `PCA` (Randomized SVD and power iteration)
   - `TruncatedSVD`
 - [ ] **Nearest Neighbors (`strata.neighbors`)**:
-  - `KNeighborsClassifier` / `KNeighborsRegressor`
-  - KD-Tree / Ball-Tree spatial indices
+  - `KNeighborsClassifier` & `KNeighborsRegressor`
+  - KD-Tree spatial index
 
 ---
 
-### 4. Down the Line
-
-- [ ] Full `Pipeline` and `ColumnTransformer` composition.
-- [ ] GPU kernel acceleration (Mojo GPU backend for dense and sparse matmuls).
-- [ ] Out-of-core chunked streaming for datasets that don't fit in RAM.
-- [ ] Native Apache Arrow / Parquet data loading.
+### 4. Advanced Capabilities & Hardware Acceleration
+- [ ] GPU acceleration (Mojo GPU backend for dense and sparse tensor operations).
+- [ ] Out-of-core chunked streaming for large-scale datasets.
+- [ ] Apache Arrow and Parquet zero-copy ingestion.
 
 ---
 
-## Feedback & Ideas
+## Contributing
 
-If there's an algorithm or feature you want to see sooner, or if you want to help implement one, open an issue or grab a task from the list above and make a pr!
+To contribute an algorithm or feature, check the tasks above, review [CONTRIBUTORS.md](./CONTRIBUTORS.md), and submit a pull request.

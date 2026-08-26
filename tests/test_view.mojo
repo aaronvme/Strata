@@ -1,5 +1,5 @@
-from std.testing import TestSuite, assert_equal, assert_true
-from strata import Matrix, MatrixView
+from std.testing import TestSuite, assert_equal, assert_true, assert_raises
+from strata import Matrix, MatrixView, DimensionMismatchError
 
 
 def test_matrix_view_basic() raises:
@@ -44,6 +44,34 @@ def test_matrix_view_slicing() raises:
     assert_equal(owned_m.rows, 2)
     assert_equal(owned_m.cols, 2)
     assert_equal(owned_m[1, 1], 23.0)
+
+
+def test_matrix_view_bounds_validation() raises:
+    var m = Matrix[DType.float64](4, 4, 0)
+
+    # 1. Negative row index
+    with assert_raises():
+        _ = m.slice_rows(-1, 2)
+
+    # 2. Exceeding row index
+    with assert_raises():
+        _ = m.slice_rows(0, 5)
+
+    # 3. start_row > end_row
+    with assert_raises():
+        _ = m.slice_rows(3, 2)
+
+    # 4. Negative col index
+    with assert_raises():
+        _ = m.slice_cols(-1, 2)
+
+    # 5. Exceeding col index
+    with assert_raises():
+        _ = m.slice_cols(0, 5)
+
+    # 6. start_col > end_col
+    with assert_raises():
+        _ = m.slice_cols(3, 2)
 
 
 def main() raises:

@@ -5,6 +5,8 @@ comptime Int64Type = DType.int64
 
 
 trait ArrayLike:
+    """Interface for 2D dimensional containers providing shape queries."""
+
     def num_rows(self) -> Int:
         ...
 
