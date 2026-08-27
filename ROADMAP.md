@@ -31,7 +31,7 @@ We have established a robust, thoroughly tested core engine:
   - `PCA` (Exact SVD, mean centering, whitening, deterministic sign flips, inverse reconstruction)
   - `TruncatedSVD` (Linear projection for dense and sparse `CSRMatrix` via hardware-vectorized `spmm`)
 - **Test Coverage**:
-  - 17 modular test suites (432 passing tests)
+  - 17 modular test suites (575 passing tests)
 
 ---
 
@@ -67,8 +67,8 @@ We have established a robust, thoroughly tested core engine:
   - [x] `KFold` and `StratifiedKFold`
   - [x] `cross_val_score`
   - [x] `GridSearchRegressor` and `GridSearchClassifier`
+  - [x] `TimeSeriesSplit` (Rolling / expanding temporal cross-validation)
   - [ ] `cross_val_predict` (Out-of-fold prediction matrices)
-  - [ ] `TimeSeriesSplit` (Rolling / expanding temporal cross-validation)
   - [ ] `ShuffleSplit` & `StratifiedShuffleSplit` (Monte Carlo random splits)
   - [ ] `RandomizedSearchRegressor` & `RandomizedSearchClassifier`
   - [ ] `cross_validate` (Multi-metric evaluation)
