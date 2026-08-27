@@ -69,13 +69,13 @@ struct Binarizer[compute_dtype: DType = DType.float64](
                 + String(self.fit_dtype)
                 + "]"
             )
+        check_array[in_dtype](X)
         if X.cols != self.n_features_in_:
             raise DimensionMismatchError.error(
                 "X.cols == " + String(self.n_features_in_),
                 "X.cols == " + String(X.cols),
                 "Binarizer.transform",
             )
-        check_array[in_dtype](X)
 
         var res = Matrix[in_dtype](X.rows, X.cols, 0)
         for r in range(X.rows):

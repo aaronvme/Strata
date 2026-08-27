@@ -1107,7 +1107,7 @@ def test_one_hot_encoder_unknown_category_raises() raises:
     encoder.fit(X)
 
     var X_new = Matrix[DType.float64](1, 1, 9.0)
-    with assert_raises():
+    with assert_raises(contains="found unknown category"):
         _ = encoder.transform(X_new)
 
 
@@ -1238,7 +1238,7 @@ def test_one_hot_encoder_inverse_transform_all_zero_block_raises() raises:
     encoder.fit(X)
 
     var Xe = Matrix[DType.float64](1, 2, 0)
-    with assert_raises():
+    with assert_raises(contains="all-zero block"):
         _ = encoder.inverse_transform(Xe)
 
 
@@ -1463,6 +1463,153 @@ def test_one_hot_encoder_multiple_zero_width_blocks() raises:
     for r in range(2):
         for c in range(3):
             assert_equal(Xr[r, c], X[r, c])
+
+
+def test_transformers_reject_empty_input_on_fit() raises:
+    var X = Matrix[DType.float64](0, 2, 0)
+    var mm = MinMaxScaler()
+    with assert_raises():
+        mm.fit(X)
+    var rs = RobustScaler()
+    with assert_raises():
+        rs.fit(X)
+    var bz = Binarizer()
+    with assert_raises():
+        bz.fit(X)
+    var enc = OneHotEncoder("first")
+    with assert_raises():
+        enc.fit(X)
+
+
+def test_transformers_validate_array_before_shape() raises:
+    var X = Matrix[DType.float64](3, 2, 1.0)
+    var mm = MinMaxScaler()
+    mm.fit(X)
+    var rs = RobustScaler()
+    rs.fit(X)
+    var bz = Binarizer()
+    bz.fit(X)
+
+    var empty = Matrix[DType.float64](0, 5, 0)
+    with assert_raises(contains="non-empty 2D array"):
+        _ = mm.transform(empty)
+    with assert_raises(contains="non-empty 2D array"):
+        _ = rs.transform(empty)
+    with assert_raises(contains="non-empty 2D array"):
+        _ = bz.transform(empty)
+    with assert_raises(contains="non-empty 2D array"):
+        _ = mm.inverse_transform(empty)
+    with assert_raises(contains="non-empty 2D array"):
+        _ = rs.inverse_transform(empty)
+
+    var wrong = Matrix[DType.float64](3, 5, 1.0)
+    with assert_raises(contains="MinMaxScaler.transform"):
+        _ = mm.transform(wrong)
+    with assert_raises(contains="RobustScaler.transform"):
+        _ = rs.transform(wrong)
+    with assert_raises(contains="Binarizer.transform"):
+        _ = bz.transform(wrong)
+
+
+def test_one_hot_encoder_validates_array_before_shape() raises:
+    var X = _ohe_fixture()
+    var encoder = OneHotEncoder()
+    encoder.fit(X)
+
+    var empty = Matrix[DType.float64](0, 9, 0)
+    with assert_raises(contains="non-empty 2D array"):
+        _ = encoder.transform(empty)
+    with assert_raises(contains="non-empty 2D array"):
+        _ = encoder.inverse_transform(empty)
+
+    var wrong = Matrix[DType.float64](2, 3, 0.0)
+    with assert_raises(contains="OneHotEncoder.transform"):
+        _ = encoder.transform(wrong)
+
+
+def test_one_hot_encoder_drop_never_indexes_missing_category() raises:
+    var X = _ohe_fixture()
+    var encoder = OneHotEncoder("first")
+    encoder.fit(X)
+    for f in range(encoder.n_features_in_):
+        assert_true(encoder.drop_idx_[f] < len(encoder.categories_[f]))
+    assert_true(encoder.n_features_out() >= 0)
+
+
+def test_one_hot_encoder_signed_zero_collapses_to_one_category() raises:
+    var X = Matrix[DType.float64](3, 1, 0)
+    X[0, 0] = -0.0
+    X[1, 0] = 0.0
+    X[2, 0] = 1.0
+
+    var encoder = OneHotEncoder()
+    var Xe = encoder.fit_transform(X)
+    assert_equal(len(encoder.categories_[0]), 2)
+    assert_equal(Xe.cols, 2)
+    assert_equal(Xe[0, 0], 1.0)
+    assert_equal(Xe[1, 0], 1.0)
+    assert_equal(Xe[2, 1], 1.0)
+
+    var probe = Matrix[DType.float64](1, 1, 0)
+    probe[0, 0] = -0.0
+    var neg = encoder.transform(probe)
+    probe[0, 0] = 0.0
+    var pos = encoder.transform(probe)
+    assert_equal(neg[0, 0], 1.0)
+    assert_equal(pos[0, 0], 1.0)
+
+
+def test_robust_scaler_single_row_quantiles() raises:
+    var X = Matrix[DType.float64](1, 2, 0)
+    X[0, 0] = 5.0
+    X[0, 1] = -3.0
+    var scaler = RobustScaler()
+    var Xs = scaler.fit_transform(X)
+    assert_equal(scaler.center_[0], 5.0)
+    assert_equal(scaler.center_[1], -3.0)
+    assert_equal(scaler.scale_[0], 1.0)
+    assert_equal(Xs[0, 0], 0.0)
+    assert_equal(Xs[0, 1], 0.0)
+
+
+def test_min_max_scaler_single_row_uses_unit_scale() raises:
+    var X = Matrix[DType.float64](1, 1, 5.0)
+    var scaler = MinMaxScaler()
+    scaler.fit(X)
+    assert_equal(scaler.scale_[0], 1.0)
+    assert_equal(scaler.min_[0], -5.0)
+    assert_equal(scaler.data_range_[0], 0.0)
+
+
+def test_robust_scaler_full_quantile_range_boundaries() raises:
+    var X = Matrix[DType.float64](6, 1, 0)
+    var vals: List[Float64] = [1.0, 2.0, 3.0, 4.0, 5.0, 100.0]
+    for i in range(6):
+        X[i, 0] = vals[i]
+
+    var scaler = RobustScaler(True, True, 0.0, 100.0)
+    scaler.fit(X)
+    assert_almost_equal(scaler.center_[0], 3.5, atol=1e-12)
+    assert_almost_equal(scaler.scale_[0], 99.0, atol=1e-12)
+
+    var Xs = scaler.transform(X)
+    assert_almost_equal(Xs[0, 0], (1.0 - 3.5) / 99.0, atol=1e-12)
+    assert_almost_equal(Xs[5, 0], (100.0 - 3.5) / 99.0, atol=1e-12)
+
+
+def test_robust_scaler_quantile_100_uses_maximum() raises:
+    var X = Matrix[DType.float64](11, 1, 0)
+    for i in range(11):
+        X[i, 0] = Float64(i)
+
+    var scaler = RobustScaler(True, True, 0.0, 100.0)
+    scaler.fit(X)
+    assert_almost_equal(scaler.center_[0], 5.0, atol=1e-12)
+    assert_almost_equal(scaler.scale_[0], 10.0, atol=1e-12)
+
+    var half = RobustScaler(True, True, 0.0, 50.0)
+    half.fit(X)
+    assert_almost_equal(half.scale_[0], 5.0, atol=1e-12)
 
 
 def main() raises:

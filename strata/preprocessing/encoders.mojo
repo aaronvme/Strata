@@ -128,7 +128,7 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
                 if i == 0 or col[i] != col[i - 1]:
                     uniques.append(col[i])
 
-            if self.drop == "first":
+            if self.drop == "first" and len(uniques) > 0:
                 self.drop_idx_.append(0)
             elif self.drop == "if_binary" and len(uniques) == 2:
                 self.drop_idx_.append(0)
@@ -159,13 +159,13 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
                 + String(self.fit_dtype)
                 + "]"
             )
+        check_array[in_dtype](X)
         if X.cols != len(self.categories_):
             raise DimensionMismatchError.error(
                 "X.cols == " + String(len(self.categories_)),
                 "X.cols == " + String(X.cols),
                 "OneHotEncoder.transform",
             )
-        check_array[in_dtype](X)
 
         var offsets = self._column_offsets()
         var res = Matrix[in_dtype](X.rows, offsets[X.cols], 0)
@@ -265,6 +265,7 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
                 + String(self.fit_dtype)
                 + "]"
             )
+        check_array[in_dtype](X, allow_empty=X.cols == 0)
         var n_features = len(self.categories_)
         var offsets = self._column_offsets()
         if X.cols != offsets[n_features]:
@@ -273,7 +274,6 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
                 "X.cols == " + String(X.cols),
                 "OneHotEncoder.inverse_transform",
             )
-        check_array[in_dtype](X, allow_empty=X.cols == 0)
 
         var res = Matrix[in_dtype](X.rows, n_features, 0)
         for r in range(X.rows):

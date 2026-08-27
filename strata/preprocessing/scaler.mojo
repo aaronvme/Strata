@@ -262,13 +262,13 @@ struct MinMaxScaler[compute_dtype: DType = DType.float64](
                 + String(self.fit_dtype)
                 + "]"
             )
+        check_array[in_dtype](X)
         if X.cols != len(self.scale_):
             raise DimensionMismatchError.error(
                 "X.cols == " + String(len(self.scale_)),
                 "X.cols == " + String(X.cols),
                 "MinMaxScaler.transform",
             )
-        check_array[in_dtype](X)
 
         var res = Matrix[in_dtype](X.rows, X.cols, 0)
         for r in range(X.rows):
@@ -327,13 +327,13 @@ struct MinMaxScaler[compute_dtype: DType = DType.float64](
                 + String(self.fit_dtype)
                 + "]"
             )
+        check_array[in_dtype](X)
         if X.cols != len(self.scale_):
             raise DimensionMismatchError.error(
                 "X.cols == " + String(len(self.scale_)),
                 "X.cols == " + String(X.cols),
                 "MinMaxScaler.inverse_transform",
             )
-        check_array[in_dtype](X)
 
         var res = Matrix[in_dtype](X.rows, X.cols, 0)
         for r in range(X.rows):
@@ -347,8 +347,12 @@ struct MinMaxScaler[compute_dtype: DType = DType.float64](
 
 def _quantile[
     dtype: DType
-](sorted_vals: List[Scalar[dtype]], q: Float64) -> Scalar[dtype]:
+](sorted_vals: List[Scalar[dtype]], q: Float64) raises -> Scalar[dtype]:
     var n = len(sorted_vals)
+    if n == 0:
+        raise InvalidParameterError.error(
+            "sorted_vals", "cannot compute a quantile of an empty column"
+        )
     if n == 1:
         return sorted_vals[0]
 
@@ -474,13 +478,13 @@ struct RobustScaler[compute_dtype: DType = DType.float64](
                 + String(self.fit_dtype)
                 + "]"
             )
+        check_array[in_dtype](X)
         if X.cols != len(self.center_):
             raise DimensionMismatchError.error(
                 "X.cols == " + String(len(self.center_)),
                 "X.cols == " + String(X.cols),
                 "RobustScaler.transform",
             )
-        check_array[in_dtype](X)
 
         var res = Matrix[in_dtype](X.rows, X.cols, 0)
         for r in range(X.rows):
@@ -535,13 +539,13 @@ struct RobustScaler[compute_dtype: DType = DType.float64](
                 + String(self.fit_dtype)
                 + "]"
             )
+        check_array[in_dtype](X)
         if X.cols != len(self.center_):
             raise DimensionMismatchError.error(
                 "X.cols == " + String(len(self.center_)),
                 "X.cols == " + String(X.cols),
                 "RobustScaler.inverse_transform",
             )
-        check_array[in_dtype](X)
 
         var res = Matrix[in_dtype](X.rows, X.cols, 0)
         for r in range(X.rows):
