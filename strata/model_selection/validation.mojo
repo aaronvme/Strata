@@ -421,3 +421,22 @@ struct CrossValidateResult(Movable):
         self.metrics = metrics^
         self.test_scores = test_scores^
         self.train_scores = train_scores^
+
+    def metric_index(self, metric: String) raises -> Int:
+        """Returns the position of a metric name within this result.
+
+        Args:
+            metric: Name of a metric evaluated during cross-validation.
+
+        Returns:
+            Index into the metrics, test_scores, and train_scores lists.
+        """
+        for m in range(len(self.metrics)):
+            if self.metrics[m] == metric:
+                return m
+        raise InvalidParameterError.error(
+            "metric",
+            "Metric '"
+            + metric
+            + "' was not evaluated in this cross-validation run",
+        )
