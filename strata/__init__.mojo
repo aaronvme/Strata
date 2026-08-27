@@ -83,6 +83,7 @@ from .model_selection import (
     StratifiedShuffleSplit,
     Split,
     cross_val_score,
+    cross_val_predict,
     GridSearchRegressor,
     GridSearchClassifier,
 )
