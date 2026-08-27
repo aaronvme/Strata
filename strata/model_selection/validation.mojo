@@ -390,3 +390,34 @@ def cross_val_predict[
             preds[splits[s].val_indices[i]] = fold_preds[i]
 
     return preds^
+
+
+struct CrossValidateResult(Movable):
+    """Per-fold scores for one or more metrics from a cross-validation run.
+
+    Scores are stored as parallel lists: metrics[m] names the metric whose
+    per-fold values are held in test_scores[m] and, when requested,
+    train_scores[m].
+    """
+
+    var metrics: List[String]
+    var test_scores: List[List[Float64]]
+    var train_scores: List[List[Float64]]
+
+    def __init__(
+        out self,
+        var metrics: List[String],
+        var test_scores: List[List[Float64]],
+        var train_scores: List[List[Float64]],
+    ):
+        """Initializes a cross-validation result.
+
+        Args:
+            metrics: Names of the evaluated metrics.
+            test_scores: Validation-fold scores for each metric.
+            train_scores: Training-fold scores for each metric, or an empty
+                list when training scores were not requested.
+        """
+        self.metrics = metrics^
+        self.test_scores = test_scores^
+        self.train_scores = train_scores^
