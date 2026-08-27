@@ -15,6 +15,7 @@ from strata.model_selection import (
     StratifiedKFold,
     TimeSeriesSplit,
     ShuffleSplit,
+    StratifiedShuffleSplit,
     Split,
     cross_val_score,
     GridSearchRegressor,
@@ -1677,6 +1678,538 @@ def test_shuffle_split_cross_val_score_integration() raises:
     assert_equal(len(scores), 3)
     for f in range(3):
         assert_true(scores[f] > 0.99)
+
+
+def _count_label[
+    target_dtype: DType
+](
+    y: List[Scalar[target_dtype]],
+    indices: List[Int],
+    label: Scalar[target_dtype],
+) -> Int:
+    var total = 0
+    for i in range(len(indices)):
+        if y[indices[i]] == label:
+            total += 1
+    return total
+
+
+def _assert_sorted_unique(indices: List[Int]) raises:
+    for i in range(1, len(indices)):
+        assert_true(indices[i - 1] < indices[i])
+
+
+def _binary_labels(n: Int, n_first: Int) -> List[Scalar[DType.int32]]:
+    var y = List[Scalar[DType.int32]](capacity=n)
+    for i in range(n):
+        y.append(Int32(1 if i < n_first else 0))
+    return y^
+
+
+def test_stratified_shuffle_split_default_parameters() raises:
+    var sss = StratifiedShuffleSplit()
+    assert_equal(sss.get_n_splits(), 10)
+
+    var y = _binary_labels(100, 30)
+    var splits = sss.split(y)
+
+    assert_equal(len(splits), 10)
+    _assert_split_shape(splits, 100, 90, 10)
+
+    for s in range(10):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 3)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(0)), 7)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 27)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(0)), 63)
+
+
+def test_stratified_shuffle_split_preserves_class_ratio() raises:
+    var y = _binary_labels(20, 4)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = sss.split(y)
+
+    assert_equal(len(splits), 3)
+    _assert_split_shape(splits, 20, 15, 5)
+
+    for s in range(3):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 1)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(0)), 4)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 3)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(0)), 12)
+
+
+def test_stratified_shuffle_split_balanced_two_class() raises:
+    var y = _binary_labels(100, 50)
+    var sss = StratifiedShuffleSplit(n_splits=4, test_size=0.2)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 100, 80, 20)
+    for s in range(4):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 10)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(0)), 10)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 40)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(0)), 40)
+
+
+def test_stratified_shuffle_split_three_classes_one_per_draw() raises:
+    var y = List[Scalar[DType.int32]](capacity=12)
+    for i in range(12):
+        y.append(Int32(i % 3))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.25)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 12, 9, 3)
+    for s in range(2):
+        for c in range(3):
+            assert_equal(_count_label(y, splits[s].val_indices, Int32(c)), 1)
+            assert_equal(_count_label(y, splits[s].train_indices, Int32(c)), 3)
+
+
+def test_stratified_shuffle_split_severe_class_imbalance() raises:
+    var y = _binary_labels(100, 10)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.1)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 100, 90, 10)
+    for s in range(3):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 1)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 9)
+
+
+def test_stratified_shuffle_split_indices_sorted_and_disjoint() raises:
+    var y = _binary_labels(30, 12)
+    var sss = StratifiedShuffleSplit(n_splits=4, test_size=0.3)
+    var splits = sss.split(y)
+
+    for s in range(4):
+        _assert_sorted_unique(splits[s].train_indices)
+        _assert_sorted_unique(splits[s].val_indices)
+
+    _assert_split_shape(splits, 30, 21, 9)
+
+
+def test_stratified_shuffle_split_no_class_overflow_when_sizes_fill_data() raises:
+    var y = _binary_labels(10, 3)
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.5, train_size=0.5)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 10, 5, 5)
+    for s in range(2):
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 2)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 1)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(0)), 3)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(0)), 4)
+
+
+def test_stratified_shuffle_split_covers_all_samples_when_train_size_unset() raises:
+    var y = _binary_labels(20, 8)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = sss.split(y)
+
+    for s in range(3):
+        assert_equal(
+            len(splits[s].train_indices) + len(splits[s].val_indices), 20
+        )
+
+        var seen = List[Bool](capacity=20)
+        for _ in range(20):
+            seen.append(False)
+        for i in range(len(splits[s].train_indices)):
+            seen[splits[s].train_indices[i]] = True
+        for i in range(len(splits[s].val_indices)):
+            seen[splits[s].val_indices[i]] = True
+        for i in range(20):
+            assert_true(seen[i])
+
+
+def test_stratified_shuffle_split_train_size_leaves_samples_unused() raises:
+    var y = _binary_labels(10, 5)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.2, train_size=0.35)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 10, 3, 2)
+    for s in range(3):
+        assert_true(
+            len(splits[s].train_indices) + len(splits[s].val_indices) < 10
+        )
+
+
+def test_stratified_shuffle_split_ceil_rounding_for_test_size() raises:
+    var y12 = _binary_labels(12, 6)
+    var tenth = StratifiedShuffleSplit(n_splits=1, test_size=0.1)
+    assert_equal(len(tenth.split(y12)[0].val_indices), 2)
+
+    var y10 = _binary_labels(10, 5)
+    var quarter = StratifiedShuffleSplit(n_splits=1, test_size=0.25)
+    assert_equal(len(quarter.split(y10)[0].val_indices), 3)
+
+    var exact = StratifiedShuffleSplit(n_splits=1, test_size=0.2)
+    assert_equal(len(exact.split(y10)[0].val_indices), 2)
+
+    var y20 = _binary_labels(20, 10)
+    var odd = StratifiedShuffleSplit(n_splits=1, test_size=0.11)
+    assert_equal(len(odd.split(y20)[0].val_indices), 3)
+
+
+def test_stratified_shuffle_split_floor_rounding_for_train_size() raises:
+    var y = _binary_labels(10, 5)
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2, train_size=0.35)
+    var splits = sss.split(y)
+
+    assert_equal(len(splits), 2)
+    for s in range(2):
+        assert_equal(len(splits[s].val_indices), 2)
+        assert_equal(len(splits[s].train_indices), 3)
+
+
+def test_stratified_shuffle_split_test_sets_may_overlap_across_draws() raises:
+    var y = _binary_labels(40, 20)
+    var sss = StratifiedShuffleSplit(n_splits=5, test_size=0.5)
+    var splits = sss.split(y)
+
+    var counts = List[Int](capacity=40)
+    for _ in range(40):
+        counts.append(0)
+
+    for s in range(5):
+        for i in range(len(splits[s].val_indices)):
+            counts[splits[s].val_indices[i]] += 1
+
+    var overlapping = 0
+    for i in range(40):
+        if counts[i] > 1:
+            overlapping += 1
+    assert_true(overlapping > 0)
+
+
+def test_stratified_shuffle_split_draws_are_independent() raises:
+    var y = _binary_labels(40, 16)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = sss.split(y)
+
+    var differs = False
+    for i in range(len(splits[0].val_indices)):
+        if splits[0].val_indices[i] != splits[1].val_indices[i]:
+            differs = True
+    assert_true(differs)
+
+
+def test_stratified_shuffle_split_reproducible_with_same_seed() raises:
+    var y = _binary_labels(24, 8)
+    var a = StratifiedShuffleSplit(n_splits=4, test_size=0.25, random_state=7)
+    var b = StratifiedShuffleSplit(n_splits=4, test_size=0.25, random_state=7)
+
+    var sa = a.split(y)
+    var sb = b.split(y)
+
+    for s in range(4):
+        assert_equal(len(sa[s].val_indices), len(sb[s].val_indices))
+        for i in range(len(sa[s].val_indices)):
+            assert_equal(sa[s].val_indices[i], sb[s].val_indices[i])
+        for i in range(len(sa[s].train_indices)):
+            assert_equal(sa[s].train_indices[i], sb[s].train_indices[i])
+
+
+def test_stratified_shuffle_split_different_seeds_produce_different_splits() raises:
+    var y = _binary_labels(30, 12)
+    var a = StratifiedShuffleSplit(n_splits=3, test_size=0.3, random_state=1)
+    var b = StratifiedShuffleSplit(n_splits=3, test_size=0.3, random_state=999)
+
+    var sa = a.split(y)
+    var sb = b.split(y)
+
+    var differs = False
+    for s in range(3):
+        for i in range(len(sa[s].val_indices)):
+            if sa[s].val_indices[i] != sb[s].val_indices[i]:
+                differs = True
+    assert_true(differs)
+
+
+def test_stratified_shuffle_split_single_split_allowed() raises:
+    var y = _binary_labels(10, 4)
+    var sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2)
+    assert_equal(sss.get_n_splits(), 1)
+
+    var splits = sss.split(y)
+    assert_equal(len(splits), 1)
+    _assert_split_shape(splits, 10, 8, 2)
+
+
+def test_stratified_shuffle_split_single_class_dataset() raises:
+    var y = List[Scalar[DType.int32]](capacity=10)
+    for _ in range(10):
+        y.append(Int32(7))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 10, 8, 2)
+    for s in range(2):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(7)), 2)
+
+
+def test_stratified_shuffle_split_float_labels() raises:
+    var y = List[Scalar[DType.float64]](capacity=20)
+    for i in range(20):
+        y.append(1.0 if i < 8 else 0.0)
+
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 20, 15, 5)
+    for s in range(3):
+        assert_equal(_count_label(y, splits[s].val_indices, Float64(1.0)), 2)
+        assert_equal(_count_label(y, splits[s].val_indices, Float64(0.0)), 3)
+
+
+def test_stratified_shuffle_split_is_stateless_across_calls() raises:
+    var y20 = _binary_labels(20, 8)
+    var y40 = _binary_labels(40, 16)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+
+    var first = sss.split(y20)
+    var other = sss.split(y40)
+    var again = sss.split(y20)
+
+    assert_equal(len(other[0].val_indices), 10)
+    for s in range(3):
+        assert_equal(len(first[s].val_indices), len(again[s].val_indices))
+        for i in range(len(first[s].val_indices)):
+            assert_equal(first[s].val_indices[i], again[s].val_indices[i])
+
+    assert_equal(sss.test_size, 0.25)
+    assert_equal(sss.train_size, 0.0)
+    assert_equal(sss.n_splits, 3)
+
+
+def test_stratified_shuffle_split_large_scale_invariants() raises:
+    var y = _binary_labels(1000, 200)
+    var sss = StratifiedShuffleSplit(n_splits=5, test_size=0.2)
+    var splits = sss.split(y)
+
+    assert_equal(len(splits), 5)
+    _assert_split_shape(splits, 1000, 800, 200)
+    for s in range(5):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 40)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 160)
+
+
+def test_stratified_shuffle_split_constructor_error_handling() raises:
+    var caught_zero_splits = False
+    try:
+        var _ = StratifiedShuffleSplit(n_splits=0)
+    except:
+        caught_zero_splits = True
+    assert_true(caught_zero_splits)
+
+    var caught_neg_splits = False
+    try:
+        var _ = StratifiedShuffleSplit(n_splits=-2)
+    except:
+        caught_neg_splits = True
+    assert_true(caught_neg_splits)
+
+    var caught_test_zero = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.0)
+    except:
+        caught_test_zero = True
+    assert_true(caught_test_zero)
+
+    var caught_test_one = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=1.0)
+    except:
+        caught_test_one = True
+    assert_true(caught_test_one)
+
+    var caught_test_neg = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=-0.1)
+    except:
+        caught_test_neg = True
+    assert_true(caught_test_neg)
+
+    var caught_train_neg = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.2, train_size=-0.1)
+    except:
+        caught_train_neg = True
+    assert_true(caught_train_neg)
+
+    var caught_train_one = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.2, train_size=1.0)
+    except:
+        caught_train_one = True
+    assert_true(caught_train_one)
+
+    var caught_sum = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.6, train_size=0.7)
+    except:
+        caught_sum = True
+    assert_true(caught_sum)
+
+    var ok = StratifiedShuffleSplit(n_splits=1, test_size=0.5, train_size=0.5)
+    assert_equal(ok.get_n_splits(), 1)
+
+
+def test_stratified_shuffle_split_rejects_empty_labels() raises:
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.25)
+    var empty = List[Scalar[DType.int32]]()
+
+    var caught = False
+    try:
+        var _ = sss.split(empty)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_rejects_test_smaller_than_class_count() raises:
+    var y = List[Scalar[DType.int32]](capacity=10)
+    for i in range(10):
+        y.append(Int32(i % 4))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.1)
+    var caught = False
+    try:
+        var _ = sss.split(y)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_rejects_train_smaller_than_class_count() raises:
+    var y = List[Scalar[DType.int32]](capacity=10)
+    for i in range(10):
+        y.append(Int32(i % 4))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.7, train_size=0.2)
+    var caught = False
+    try:
+        var _ = sss.split(y)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_rejects_empty_train_set() raises:
+    var y = _binary_labels(5, 2)
+    var sss = StratifiedShuffleSplit(n_splits=1, test_size=0.9)
+
+    var caught = False
+    try:
+        var _ = sss.split(y)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_rejects_rounded_total_exceeding_samples() raises:
+    var sss = StratifiedShuffleSplit(
+        n_splits=1, test_size=0.28, train_size=0.72
+    )
+
+    var y25 = _binary_labels(25, 10)
+    var caught = False
+    try:
+        var _ = sss.split(y25)
+    except:
+        caught = True
+    assert_true(caught)
+
+    var y10 = _binary_labels(10, 5)
+    var splits = sss.split(y10)
+    assert_equal(len(splits[0].val_indices), 3)
+    assert_equal(len(splits[0].train_indices), 7)
+
+
+def test_stratified_shuffle_split_matrix_overload_matches_labels_only() raises:
+    var X = Matrix[DType.float64](20, 3, 1.0)
+    var y = _binary_labels(20, 8)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+
+    var from_matrix = sss.split(X, y)
+    var from_labels = sss.split(y)
+
+    assert_equal(len(from_matrix), len(from_labels))
+    for s in range(len(from_matrix)):
+        for i in range(len(from_labels[s].val_indices)):
+            assert_equal(
+                from_matrix[s].val_indices[i], from_labels[s].val_indices[i]
+            )
+        for i in range(len(from_labels[s].train_indices)):
+            assert_equal(
+                from_matrix[s].train_indices[i],
+                from_labels[s].train_indices[i],
+            )
+
+
+def test_stratified_shuffle_split_matrix_overload_dtype_flexibility() raises:
+    var y = _binary_labels(20, 8)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+
+    var X32 = Matrix[DType.float32](20, 2, 1.0)
+    var Xi = Matrix[DType.int32](20, 2, 1)
+
+    assert_equal(len(sss.split(X32, y)), 3)
+    assert_equal(len(sss.split(Xi, y)), 3)
+
+
+def test_stratified_shuffle_split_matrix_overload_rejects_length_mismatch() raises:
+    var X = Matrix[DType.float64](20, 3, 1.0)
+    var y = _binary_labels(19, 8)
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.25)
+
+    var caught = False
+    try:
+        var _ = sss.split(X, y)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_matrix_overload_rejects_empty() raises:
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.25)
+
+    var caught_rows = False
+    try:
+        var empty_X = Matrix[DType.float64](0, 3, 0)
+        var empty_y = List[Scalar[DType.int32]]()
+        var _ = sss.split(empty_X, empty_y)
+    except:
+        caught_rows = True
+    assert_true(caught_rows)
+
+    var caught_cols = False
+    try:
+        var no_cols = Matrix[DType.float64](20, 0, 0)
+        var y = _binary_labels(20, 8)
+        var _ = sss.split(no_cols, y)
+    except:
+        caught_cols = True
+    assert_true(caught_cols)
+
+
+def test_stratified_shuffle_split_cross_val_score_integration() raises:
+    var X = Matrix[DType.float64](40, 1, 0)
+    var y = List[Scalar[DType.int32]](capacity=40)
+    for i in range(40):
+        X[i, 0] = (Float64(i) - 19.5) * 0.2
+        y.append(Int32(0 if i < 20 else 1))
+
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = sss.split(X, y)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var scores = cross_val_score(model, X, y, splits, scoring="accuracy")
+    assert_equal(len(scores), 3)
+    for s in range(3):
+        assert_true(scores[s] > 0.9)
 
 
 def main() raises:
