@@ -129,3 +129,9 @@ struct TimeSeriesSplit(Movable):
             splits.append(Split(train_indices^, val_indices^))
 
         return splits^
+
+    def split[dtype: DType](self, X: Matrix[dtype]) raises -> List[Split]:
+        """Generates indices to split matrix records into train and test sets.
+        """
+        check_array(X)
+        return self.split(X.rows)
