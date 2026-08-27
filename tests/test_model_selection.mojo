@@ -911,7 +911,6 @@ def _assert_split_shape(
             seen[v] = True
 
 
-
 def test_time_series_split_expanding_window_defaults() raises:
     var tss = TimeSeriesSplit(n_splits=3)
     var splits = tss.split(10)
@@ -1328,7 +1327,6 @@ def test_time_series_split_cross_val_score_integration() raises:
         assert_true(scores[f] > 0.99)
 
 
-
 def test_shuffle_split_default_parameters() raises:
     var ss = ShuffleSplit()
     assert_equal(ss.get_n_splits(), 10)
@@ -1683,4 +1681,3 @@ def test_shuffle_split_cross_val_score_integration() raises:
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
-
