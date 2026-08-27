@@ -486,7 +486,137 @@ def test_kmeans_zero_tolerance_exact_convergence() raises:
     assert_true(km.n_iter_ >= 1)
 
 
+def test_kmeans_unbalanced_clusters() raises:
+    # Cluster 0 has 20 points, Cluster 1 has 2 points
+    var X = Matrix[DType.float64](22, 2, 0)
+    for r in range(20):
+        X[r, 0] = 0.0 + Float64(r) * 0.01
+        X[r, 1] = 0.0 - Float64(r) * 0.01
+
+    X[20, 0] = 100.0
+    X[20, 1] = 100.0
+    X[21, 0] = 100.1
+    X[21, 1] = 99.9
+
+    var km = KMeans[DType.float64](n_clusters=2, random_state=42)
+    km.fit(X)
+
+    assert_true(km.is_fitted)
+    var c_small = km.labels_[20]
+    var c_large = km.labels_[0]
+    assert_true(c_small != c_large)
+    assert_equal(km.labels_[21], c_small)
+    for r in range(20):
+        assert_equal(km.labels_[r], c_large)
+
+
+def test_kmeans_high_dimensional_space() raises:
+    # N=30 samples, D=50 features, K=3 clusters
+    var N = 30
+    var D = 50
+    var K = 3
+    var X = Matrix[DType.float64](N, D, 0)
+
+    for i in range(N):
+        var cluster_id = i // 10
+        var center_val = Float64(cluster_id * 50)
+        for j in range(D):
+            X[i, j] = center_val + Float64(i % 10) * 0.05
+
+    var km = KMeans[DType.float64](n_clusters=K, random_state=42)
+    km.fit(X)
+
+    assert_true(km.is_fitted)
+    assert_equal(km.cluster_centers_.rows, 3)
+    assert_equal(km.cluster_centers_.cols, 50)
+
+    for c in range(3):
+        var first_label = km.labels_[c * 10]
+        for i in range(c * 10, (c + 1) * 10):
+            assert_equal(km.labels_[i], first_label)
+
+
+def test_kmeans_refit_resets_dimensions_and_shapes() raises:
+    # First fit on (10, 4)
+    var X1 = Matrix[DType.float64](10, 4, 1.0)
+    var km = KMeans[DType.float64](n_clusters=2, random_state=42)
+    km.fit(X1)
+    assert_equal(km.cluster_centers_.rows, 2)
+    assert_equal(km.cluster_centers_.cols, 4)
+    assert_equal(len(km.labels_), 10)
+
+    # Refit on (6, 2)
+    var X2 = Matrix[DType.float64](6, 2, 5.0)
+    km.fit(X2)
+    assert_equal(km.cluster_centers_.rows, 2)
+    assert_equal(km.cluster_centers_.cols, 2)
+    assert_equal(len(km.labels_), 6)
+
+
+def test_kmeans_bfloat16_precision() raises:
+    var X = Matrix[DType.bfloat16](4, 2, 0)
+    X[0, 0] = 0.0
+    X[0, 1] = 0.0
+    X[1, 0] = 0.1
+    X[1, 1] = 0.1
+    X[2, 0] = 20.0
+    X[2, 1] = 20.0
+    X[3, 0] = 20.1
+    X[3, 1] = 20.1
+
+    var km = KMeans[DType.bfloat16](n_clusters=2, random_state=42)
+    km.fit(X)
+    assert_true(km.is_fitted)
+
+    var preds = km.predict(X)
+    assert_equal(len(preds), 4)
+
+
+def test_kmeans_float16_precision() raises:
+    var X = Matrix[DType.float16](4, 2, 0)
+    X[0, 0] = 0.0
+    X[0, 1] = 0.0
+    X[1, 0] = 0.1
+    X[1, 1] = 0.1
+    X[2, 0] = 20.0
+    X[2, 1] = 20.0
+    X[3, 0] = 20.1
+    X[3, 1] = 20.1
+
+    var km = KMeans[DType.float16](n_clusters=2, random_state=42)
+    km.fit(X)
+    assert_true(km.is_fitted)
+
+    var preds = km.predict(X)
+    assert_equal(len(preds), 4)
+
+
+def test_kmeans_transform_exact_distance_geometry() raises:
+    # 2 centroids: (0, 0) and (10, 10)
+    var X = Matrix[DType.float64](2, 2, 0)
+    X[0, 0] = 0.0
+    X[0, 1] = 0.0
+    X[1, 0] = 10.0
+    X[1, 1] = 10.0
+
+    var km = KMeans[DType.float64](n_clusters=2, random_state=42)
+    km.fit(X)
+
+    # Test point at (3, 4): distance to (0, 0) is sqrt(3^2 + 4^2) = 5.0
+    var X_query = Matrix[DType.float64](1, 2, 0)
+    X_query[0, 0] = 3.0
+    X_query[0, 1] = 4.0
+
+    var dists = km.transform(X_query)
+    assert_equal(dists.rows, 1)
+    assert_equal(dists.cols, 2)
+
+    var c_origin = km.predict(Matrix[DType.float64](1, 2, 0))[0]
+    assert_almost_equal(Float64(dists[0, c_origin]), 5.0, atol=1e-5)
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
+
 
 
