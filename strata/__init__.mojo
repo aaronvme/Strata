@@ -80,6 +80,7 @@ from .model_selection import (
     StratifiedKFold,
     TimeSeriesSplit,
     ShuffleSplit,
+    StratifiedShuffleSplit,
     Split,
     cross_val_score,
     GridSearchRegressor,
