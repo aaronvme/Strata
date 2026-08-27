@@ -27,8 +27,11 @@ We have established a robust, thoroughly tested core engine:
 - **Validation & Domain Errors**:
   - Domain exceptions: `DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, `DataConversionError`
   - Structural validators: `check_array`, `check_X_y`, `check_sparse`, `check_is_fitted`
+- **Dimensionality Reduction (`strata.decomposition`)**:
+  - `PCA` (Exact SVD, mean centering, whitening, deterministic sign flips, inverse reconstruction)
+  - `TruncatedSVD` (Linear projection for dense and sparse `CSRMatrix` via hardware-vectorized `spmm`)
 - **Test Coverage**:
-  - 13 modular test suites (129 passing tests) verifying mathematical invariants, LAPACK decompositions, strided slicing, and edge cases.
+  - 17 modular test suites (432 passing tests) verifying mathematical invariants, LAPACK decompositions, strided slicing, and edge cases.
 
 ---
 
@@ -55,10 +58,11 @@ We have established a robust, thoroughly tested core engine:
   - [x] `Ridge` ($L_2$-regularized closed-form solver: `auto`, `cholesky`, `svd`, `solve`)
   - [x] `LogisticRegression` (Binary and multinomial softmax classification with $L_2$ / unregularized optimization)
 - [ ] **Preprocessing (`strata.preprocessing`)**:
-  - `MinMaxScaler`
-  - `RobustScaler`
-  - `OneHotEncoder`
-  - `Binarizer`
+  - [x] `StandardScaler`
+  - [ ] `MinMaxScaler`
+  - [ ] `RobustScaler`
+  - [ ] `OneHotEncoder`
+  - [ ] `Binarizer`
 - [x] **Model Selection (`strata.model_selection`)**:
   - [x] `KFold` and `StratifiedKFold`
   - [x] `cross_val_score`
@@ -72,6 +76,9 @@ We have established a robust, thoroughly tested core engine:
 ---
 
 ### 3. Classical Machine Learning Algorithms
+- [x] **Dimensionality Reduction (`strata.decomposition`)**:
+  - [x] `PCA` (Exact SVD, empirical mean centering, whitening, and inverse reconstruction)
+  - [x] `TruncatedSVD` (Linear dimensionality reduction for dense and sparse `CSRMatrix` via SpMM)
 - [ ] **Clustering (`strata.cluster`)**:
   - `KMeans` (with KMeans++ initialization)
   - `KModes` (for categorical features)
@@ -80,9 +87,6 @@ We have established a robust, thoroughly tested core engine:
   - `DecisionTreeClassifier` & `DecisionTreeRegressor`
   - `RandomForestClassifier` & `RandomForestRegressor`
   - `GradientBoosting`
-- [ ] **Dimensionality Reduction (`strata.decomposition`)**:
-  - `PCA` (Randomized SVD and power iteration)
-  - `TruncatedSVD`
 - [ ] **Nearest Neighbors (`strata.neighbors`)**:
   - `KNeighborsClassifier` & `KNeighborsRegressor`
   - KD-Tree spatial index
