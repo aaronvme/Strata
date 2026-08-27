@@ -84,6 +84,7 @@ from .model_selection import (
     GridSearchClassifier,
 )
 from .linear_model import LinearRegression, Ridge, LogisticRegression
+from .decomposition import PCA, TruncatedSVD
 from .metrics import (
     mean_squared_error,
     root_mean_squared_error,

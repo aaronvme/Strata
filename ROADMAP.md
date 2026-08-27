@@ -27,8 +27,11 @@ We have established a robust, thoroughly tested core engine:
 - **Validation & Domain Errors**:
   - Domain exceptions: `DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, `DataConversionError`
   - Structural validators: `check_array`, `check_X_y`, `check_sparse`, `check_is_fitted`
+- **Dimensionality Reduction (`strata.decomposition`)**:
+  - `PCA` (Exact SVD, mean centering, whitening, deterministic sign flips, inverse reconstruction)
+  - `TruncatedSVD` (Linear projection for dense and sparse `CSRMatrix` via hardware-vectorized `spmm`)
 - **Test Coverage**:
-  - 16 modular test suites verifying mathematical invariants, LAPACK decompositions, strided slicing, and edge cases.
+  - 17 modular test suites (432 passing tests)
 
 ---
 
@@ -73,6 +76,9 @@ We have established a robust, thoroughly tested core engine:
 ---
 
 ### 3. Classical Machine Learning Algorithms
+- [x] **Dimensionality Reduction (`strata.decomposition`)**:
+  - [x] `PCA` (Exact SVD, empirical mean centering, whitening, and inverse reconstruction)
+  - [x] `TruncatedSVD` (Linear dimensionality reduction for dense and sparse `CSRMatrix` via SpMM)
 - [ ] **Clustering (`strata.cluster`)**:
   - `KMeans` (with KMeans++ initialization)
   - `KModes` (for categorical features)
@@ -81,9 +87,6 @@ We have established a robust, thoroughly tested core engine:
   - `DecisionTreeClassifier` & `DecisionTreeRegressor`
   - `RandomForestClassifier` & `RandomForestRegressor`
   - `GradientBoosting`
-- [ ] **Dimensionality Reduction (`strata.decomposition`)**:
-  - `PCA` (Randomized SVD and power iteration)
-  - `TruncatedSVD`
 - [ ] **Nearest Neighbors (`strata.neighbors`)**:
   - `KNeighborsClassifier` & `KNeighborsRegressor`
   - KD-Tree spatial index
