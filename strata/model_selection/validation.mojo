@@ -341,6 +341,25 @@ def cross_val_predict[
     estimator: ModelType,
     X: Matrix[feat_dtype],
     y: List[Scalar[target_dtype]],
+    cv: Int = 5,
+) raises -> List[Int]:
+    """Generates out-of-fold class label predictions across K stratified folds.
+    """
+    var skf = StratifiedKFold(n_splits=cv)
+    var splits = skf.split[feat_dtype, target_dtype](X, y)
+    return cross_val_predict[ModelType, feat_dtype, target_dtype](
+        estimator, X, y, splits
+    )
+
+
+def cross_val_predict[
+    ModelType: Classifier,
+    feat_dtype: DType = DType.float64,
+    target_dtype: DType = DType.int32,
+](
+    estimator: ModelType,
+    X: Matrix[feat_dtype],
+    y: List[Scalar[target_dtype]],
     splits: List[Split],
 ) raises -> List[Int]:
     """Generates out-of-fold class label predictions on pre-defined splits."""
