@@ -69,8 +69,8 @@ Strata is a native machine learning library for Mojo designed around familiar sc
 ### Cluster Analysis & Dimensionality Reduction
 - [x] `PCA` (Exact SVD, mean centering, whitening, and inverse reconstruction)
 - [x] `TruncatedSVD` (Linear projection for dense and sparse `CSRMatrix` via SpMM)
-- [ ] `KMeans` (k-means++ initialization, SIMD Lloyd's algorithm)
-- [ ] `MiniBatchKMeans` (Streaming cluster updates)
+- [x] `KMeans` (k-means++ initialization, SIMD Lloyd's algorithm)
+- [x] `MiniBatchKMeans` (Streaming cluster updates)
 - [ ] `KModes` (Categorical frequency-based clustering)
 - [ ] `DBSCAN` (Density-based spatial clustering)
 

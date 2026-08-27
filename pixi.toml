@@ -32,7 +32,10 @@ test-ridge = "mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack tests
 test-logistic-regression = "mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack tests/test_logistic_regression.mojo"
 test-decomposition = "mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack tests/test_decomposition.mojo"
 test-pca = "mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack tests/test_decomposition.mojo"
-test-all = { depends-on = ["test-matrix", "test-linalg", "test-sparse", "test-math", "test-dataset", "test-pipelines", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-model-selection", "test-metrics", "test-linear-regression", "test-ridge", "test-logistic-regression", "test-decomposition"] }
+test-kmeans-common = "mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack tests/test_kmeans_common.mojo"
+test-kmeans = "mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack tests/test_kmeans.mojo"
+test-minibatch-kmeans = "mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack tests/test_minibatch_kmeans.mojo"
+test-all = { depends-on = ["test-matrix", "test-linalg", "test-sparse", "test-math", "test-dataset", "test-pipelines", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-model-selection", "test-metrics", "test-linear-regression", "test-ridge", "test-logistic-regression", "test-decomposition", "test-kmeans-common", "test-kmeans", "test-minibatch-kmeans"] }
 test = "find tests -name 'test_*.mojo' -exec mojo -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack {} \\;"
 format = "mojo format strata tests"
 

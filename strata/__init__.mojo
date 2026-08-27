@@ -87,6 +87,7 @@ from .model_selection import (
 )
 from .linear_model import LinearRegression, Ridge, LogisticRegression
 from .decomposition import PCA, TruncatedSVD
+from .cluster import KMeans, MiniBatchKMeans
 from .metrics import (
     mean_squared_error,
     root_mean_squared_error,
