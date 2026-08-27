@@ -887,6 +887,31 @@ def _assert_forward_only(splits: List[Split], n_samples: Int) raises:
         assert_true(splits[f].val_indices[0] > splits[f - 1].val_indices[0])
 
 
+def _assert_split_shape(
+    splits: List[Split], n_samples: Int, n_train: Int, n_test: Int
+) raises:
+    for f in range(len(splits)):
+        assert_equal(len(splits[f].train_indices), n_train)
+        assert_equal(len(splits[f].val_indices), n_test)
+
+        var seen = List[Bool](capacity=n_samples)
+        for _ in range(n_samples):
+            seen.append(False)
+
+        for i in range(len(splits[f].train_indices)):
+            var t = splits[f].train_indices[i]
+            assert_true(t >= 0 and t < n_samples)
+            assert_false(seen[t])
+            seen[t] = True
+
+        for i in range(len(splits[f].val_indices)):
+            var v = splits[f].val_indices[i]
+            assert_true(v >= 0 and v < n_samples)
+            assert_false(seen[v])
+            seen[v] = True
+
+
+
 def test_time_series_split_expanding_window_defaults() raises:
     var tss = TimeSeriesSplit(n_splits=3)
     var splits = tss.split(10)
@@ -1130,32 +1155,178 @@ def test_time_series_split_matrix_overload_matches_count() raises:
 
     assert_equal(len(from_matrix), len(from_count))
     for f in range(len(from_matrix)):
+        assert_equal(
+            len(from_matrix[f].val_indices), len(from_count[f].val_indices)
+        )
+        assert_equal(
+            len(from_matrix[f].train_indices), len(from_count[f].train_indices)
+        )
+        for i in range(len(from_count[f].val_indices)):
+            assert_equal(
+                from_matrix[f].val_indices[i], from_count[f].val_indices[i]
+            )
         for i in range(len(from_count[f].train_indices)):
             assert_equal(
                 from_matrix[f].train_indices[i], from_count[f].train_indices[i]
             )
-def _assert_split_shape(
-    splits: List[Split], n_samples: Int, n_train: Int, n_test: Int
-) raises:
-    for f in range(len(splits)):
-        assert_equal(len(splits[f].train_indices), n_train)
-        assert_equal(len(splits[f].val_indices), n_test)
 
-        var seen = List[Bool](capacity=n_samples)
-        for _ in range(n_samples):
-            seen.append(False)
 
-        for i in range(len(splits[f].train_indices)):
-            var t = splits[f].train_indices[i]
-            assert_true(t >= 0 and t < n_samples)
-            assert_false(seen[t])
-            seen[t] = True
+def test_time_series_split_matrix_overload_dtype_flexibility() raises:
+    var X32 = Matrix[DType.float32](12, 2, 1.0)
+    var Xi = Matrix[DType.int32](12, 2, 1)
+    var tss = TimeSeriesSplit(n_splits=3)
 
-        for i in range(len(splits[f].val_indices)):
-            var v = splits[f].val_indices[i]
-            assert_true(v >= 0 and v < n_samples)
-            assert_false(seen[v])
-            seen[v] = True
+    assert_equal(len(tss.split(X32)), 3)
+    assert_equal(len(tss.split(Xi)), 3)
+
+
+def test_time_series_split_matrix_overload_rejects_empty() raises:
+    var tss = TimeSeriesSplit(n_splits=3)
+
+    var caught_rows = False
+    try:
+        var empty = Matrix[DType.float64](0, 3, 0)
+        var _ = tss.split(empty)
+    except:
+        caught_rows = True
+    assert_true(caught_rows)
+
+    var caught_cols = False
+    try:
+        var no_cols = Matrix[DType.float64](12, 0, 0)
+        var _ = tss.split(no_cols)
+    except:
+        caught_cols = True
+    assert_true(caught_cols)
+
+
+def test_time_series_split_constructor_error_handling() raises:
+    var caught_one = False
+    try:
+        var _ = TimeSeriesSplit(n_splits=1)
+    except:
+        caught_one = True
+    assert_true(caught_one)
+
+    var caught_zero = False
+    try:
+        var _ = TimeSeriesSplit(n_splits=0)
+    except:
+        caught_zero = True
+    assert_true(caught_zero)
+
+    var caught_neg_splits = False
+    try:
+        var _ = TimeSeriesSplit(n_splits=-3)
+    except:
+        caught_neg_splits = True
+    assert_true(caught_neg_splits)
+
+    var caught_gap = False
+    try:
+        var _ = TimeSeriesSplit(n_splits=3, gap=-1)
+    except:
+        caught_gap = True
+    assert_true(caught_gap)
+
+    var caught_max = False
+    try:
+        var _ = TimeSeriesSplit(n_splits=3, max_train_size=-1)
+    except:
+        caught_max = True
+    assert_true(caught_max)
+
+    var caught_test = False
+    try:
+        var _ = TimeSeriesSplit(n_splits=3, test_size=-1)
+    except:
+        caught_test = True
+    assert_true(caught_test)
+
+
+def test_time_series_split_rejects_nonpositive_sample_counts() raises:
+    var tss = TimeSeriesSplit(n_splits=3)
+
+    var caught_zero = False
+    try:
+        var _ = tss.split(0)
+    except:
+        caught_zero = True
+    assert_true(caught_zero)
+
+    var caught_neg = False
+    try:
+        var _ = tss.split(-5)
+    except:
+        caught_neg = True
+    assert_true(caught_neg)
+
+
+def test_time_series_split_rejects_too_few_samples_for_folds() raises:
+    var tss = TimeSeriesSplit(n_splits=5)
+
+    var caught_equal = False
+    try:
+        var _ = tss.split(5)
+    except:
+        caught_equal = True
+    assert_true(caught_equal)
+
+    var caught_fewer = False
+    try:
+        var _ = tss.split(3)
+    except:
+        caught_fewer = True
+    assert_true(caught_fewer)
+
+    assert_equal(len(tss.split(6)), 5)
+
+
+def test_time_series_split_rejects_oversized_test_size() raises:
+    var tss = TimeSeriesSplit(n_splits=3, test_size=5)
+
+    var caught = False
+    try:
+        var _ = tss.split(12)
+    except:
+        caught = True
+    assert_true(caught)
+
+    assert_equal(len(tss.split(16)), 3)
+
+
+def test_time_series_split_rejects_oversized_gap() raises:
+    var tss = TimeSeriesSplit(n_splits=3, gap=10)
+
+    var caught = False
+    try:
+        var _ = tss.split(12)
+    except:
+        caught = True
+    assert_true(caught)
+
+    var wide = TimeSeriesSplit(n_splits=2, gap=3)
+    var splits = wide.split(12)
+    assert_equal(len(splits), 2)
+    assert_true(len(splits[0].train_indices) > 0)
+
+
+def test_time_series_split_cross_val_score_integration() raises:
+    var X = Matrix[DType.float64](20, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=20)
+    for i in range(20):
+        X[i, 0] = Float64(i)
+        y.append(Float64(2 * i + 5))
+
+    var tss = TimeSeriesSplit(n_splits=3)
+    var splits = tss.split(X)
+    var model = LinearRegression[DType.float64]()
+
+    var scores = cross_val_score(model, X, y, splits, scoring="r2")
+    assert_equal(len(scores), 3)
+    for f in range(3):
+        assert_true(scores[f] > 0.99)
+
 
 
 def test_shuffle_split_default_parameters() raises:
@@ -1333,23 +1504,16 @@ def test_shuffle_split_matrix_overload_matches_count() raises:
 
     assert_equal(len(from_matrix), len(from_count))
     for f in range(len(from_matrix)):
+        assert_equal(
+            len(from_matrix[f].val_indices), len(from_count[f].val_indices)
+        )
+        assert_equal(
+            len(from_matrix[f].train_indices), len(from_count[f].train_indices)
+        )
         for i in range(len(from_count[f].val_indices)):
             assert_equal(
                 from_matrix[f].val_indices[i], from_count[f].val_indices[i]
             )
-
-
-def test_time_series_split_matrix_overload_dtype_flexibility() raises:
-    var X32 = Matrix[DType.float32](12, 2, 1.0)
-    var Xi = Matrix[DType.int32](12, 2, 1)
-    var tss = TimeSeriesSplit(n_splits=3)
-
-    assert_equal(len(tss.split(X32)), 3)
-    assert_equal(len(tss.split(Xi)), 3)
-
-
-def test_time_series_split_matrix_overload_rejects_empty() raises:
-    var tss = TimeSeriesSplit(n_splits=3)
         for i in range(len(from_count[f].train_indices)):
             assert_equal(
                 from_matrix[f].train_indices[i], from_count[f].train_indices[i]
@@ -1385,24 +1549,6 @@ def test_shuffle_split_matrix_overload_rejects_empty() raises:
     assert_true(caught_cols)
 
 
-def test_time_series_split_constructor_error_handling() raises:
-    var caught_one = False
-    try:
-        var _ = TimeSeriesSplit(n_splits=1)
-    except:
-        caught_one = True
-    assert_true(caught_one)
-
-    var caught_zero = False
-    try:
-        var _ = TimeSeriesSplit(n_splits=0)
-    except:
-        caught_zero = True
-    assert_true(caught_zero)
-
-    var caught_neg_splits = False
-    try:
-        var _ = TimeSeriesSplit(n_splits=-3)
 def test_shuffle_split_constructor_error_handling() raises:
     var caught_zero_splits = False
     try:
@@ -1418,72 +1564,6 @@ def test_shuffle_split_constructor_error_handling() raises:
         caught_neg_splits = True
     assert_true(caught_neg_splits)
 
-    var caught_gap = False
-    try:
-        var _ = TimeSeriesSplit(n_splits=3, gap=-1)
-    except:
-        caught_gap = True
-    assert_true(caught_gap)
-
-    var caught_max = False
-    try:
-        var _ = TimeSeriesSplit(n_splits=3, max_train_size=-1)
-    except:
-        caught_max = True
-    assert_true(caught_max)
-
-    var caught_test = False
-    try:
-        var _ = TimeSeriesSplit(n_splits=3, test_size=-1)
-    except:
-        caught_test = True
-    assert_true(caught_test)
-
-
-def test_time_series_split_rejects_nonpositive_sample_counts() raises:
-    var tss = TimeSeriesSplit(n_splits=3)
-
-    var caught_zero = False
-    try:
-        var _ = tss.split(0)
-    except:
-        caught_zero = True
-    assert_true(caught_zero)
-
-    var caught_neg = False
-    try:
-        var _ = tss.split(-5)
-    except:
-        caught_neg = True
-    assert_true(caught_neg)
-
-
-def test_time_series_split_rejects_too_few_samples_for_folds() raises:
-    var tss = TimeSeriesSplit(n_splits=5)
-
-    var caught_equal = False
-    try:
-        var _ = tss.split(5)
-    except:
-        caught_equal = True
-    assert_true(caught_equal)
-
-    var caught_fewer = False
-    try:
-        var _ = tss.split(3)
-    except:
-        caught_fewer = True
-    assert_true(caught_fewer)
-
-    assert_equal(len(tss.split(6)), 5)
-
-
-def test_time_series_split_rejects_oversized_test_size() raises:
-    var tss = TimeSeriesSplit(n_splits=3, test_size=5)
-
-    var caught = False
-    try:
-        var _ = tss.split(12)
     var caught_test_zero = False
     try:
         var _ = ShuffleSplit(test_size=0.0)
@@ -1558,15 +1638,6 @@ def test_shuffle_split_rejects_empty_train_set() raises:
         caught = True
     assert_true(caught)
 
-    assert_equal(len(tss.split(16)), 3)
-
-
-def test_time_series_split_rejects_oversized_gap() raises:
-    var tss = TimeSeriesSplit(n_splits=3, gap=10)
-
-    var caught = False
-    try:
-        var _ = tss.split(12)
     var tiny = ShuffleSplit(n_splits=1, test_size=0.6)
     var caught_tiny = False
     try:
@@ -1588,21 +1659,6 @@ def test_shuffle_split_rejects_rounded_total_exceeding_samples() raises:
         caught = True
     assert_true(caught)
 
-    var wide = TimeSeriesSplit(n_splits=2, gap=3)
-    var splits = wide.split(12)
-    assert_equal(len(splits), 2)
-    assert_true(len(splits[0].train_indices) > 0)
-
-
-def test_time_series_split_cross_val_score_integration() raises:
-    var X = Matrix[DType.float64](20, 1, 0)
-    var y = List[Scalar[DType.float64]](capacity=20)
-    for i in range(20):
-        X[i, 0] = Float64(i)
-        y.append(Float64(2 * i + 5))
-
-    var tss = TimeSeriesSplit(n_splits=3)
-    var splits = tss.split(X)
     var splits = ss.split(10)
     assert_equal(len(splits[0].val_indices), 3)
     assert_equal(len(splits[0].train_indices), 7)
@@ -1627,3 +1683,4 @@ def test_shuffle_split_cross_val_score_integration() raises:
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
+
