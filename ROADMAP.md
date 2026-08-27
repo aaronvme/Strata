@@ -1,10 +1,10 @@
 # Strata Roadmap
 
-Strata is a native machine learning library for Mojo. The goal is to provide the familiar, expressive workflow of `scikit-learn` combined with native performance, zero-copy views, compile-time trait safety, and hardware acceleration out of the box—with zero C/C++ extensions or foreign runtimes.
+Strata is a native machine learning library for Mojo designed around familiar scikit-learn APIs, explicit memory control, and native linear algebra kernels.
 
 ---
 
-## Current State
+## Current Status
 
 We have established a robust, thoroughly tested core engine:
 
@@ -35,7 +35,7 @@ We have established a robust, thoroughly tested core engine:
 
 ---
 
-## Roadmap
+## Planned Work
 
 ### 1. Engine & Kernel Optimization
 - [x] **Base traits & pipeline composition**: Unified 2-method pattern with composable $N$-step pipelines.
@@ -69,7 +69,9 @@ We have established a robust, thoroughly tested core engine:
   - [x] `GridSearchRegressor` and `GridSearchClassifier`
   - [x] `TimeSeriesSplit` (Rolling / expanding temporal cross-validation)
   - [ ] `cross_val_predict` (Out-of-fold prediction matrices)
-  - [ ] `ShuffleSplit` & `StratifiedShuffleSplit` (Monte Carlo random splits)
+  - [x] `TimeSeriesSplit` (Rolling / expanding temporal cross-validation)
+  - [x] `ShuffleSplit` (Monte Carlo random train/test splits)
+  - [ ] `StratifiedShuffleSplit` (Class-balanced Monte Carlo splits)
   - [ ] `RandomizedSearchRegressor` & `RandomizedSearchClassifier`
   - [ ] `cross_validate` (Multi-metric evaluation)
 
@@ -81,25 +83,32 @@ We have established a robust, thoroughly tested core engine:
   - [x] `TruncatedSVD` (Linear dimensionality reduction for dense and sparse `CSRMatrix` via SpMM)
 - [ ] **Clustering (`strata.cluster`)**:
   - `KMeans` (with KMeans++ initialization)
-  - `KModes` (for categorical features)
+  - `KModes` (for categorical data)
   - `DBSCAN`
-- [ ] **Trees & Ensembles (`strata.tree`, `strata.ensemble`)**:
-  - `DecisionTreeClassifier` & `DecisionTreeRegressor`
-  - `RandomForestClassifier` & `RandomForestRegressor`
+- [ ] **Tree & Ensemble Models (`strata.tree`, `strata.ensemble`)**:
+  - `DecisionTreeClassifier` and `DecisionTreeRegressor`
+  - `RandomForestClassifier` and `RandomForestRegressor`
   - `GradientBoosting`
 - [ ] **Nearest Neighbors (`strata.neighbors`)**:
-  - `KNeighborsClassifier` & `KNeighborsRegressor`
-  - KD-Tree spatial index
+  - `KNeighborsClassifier` and `KNeighborsRegressor`
+  - KD-Tree and Ball-Tree spatial indices
 
----
+### 2. Preprocessing & Feature Engineering
+- [x] `StandardScaler`
+- [ ] `MinMaxScaler`
+- [ ] `RobustScaler`
+- [ ] `OneHotEncoder`
+- [ ] `Binarizer`
+- [ ] `Normalizer`
 
-### 4. Advanced Capabilities & Hardware Acceleration
-- [ ] GPU acceleration (Mojo GPU backend for dense and sparse tensor operations).
-- [ ] Out-of-core chunked streaming for large-scale datasets.
-- [ ] Apache Arrow and Parquet zero-copy ingestion.
+### 3. Model Selection Enhancements
+- [ ] `cross_val_predict` (out-of-fold prediction matrices)
+- [ ] `TimeSeriesSplit` (temporal rolling / expanding splits)
+- [ ] `ShuffleSplit` and `StratifiedShuffleSplit`
+- [ ] `RandomizedSearchRegressor` and `RandomizedSearchClassifier`
+- [ ] `cross_validate` (multi-metric evaluation)
 
----
-
-## Contributing
-
-To contribute an algorithm or feature, check the tasks above, review [CONTRIBUTORS.md](./CONTRIBUTORS.md), and submit a pull request.
+### 4. Performance & Hardware Acceleration
+- [ ] Multi-threaded dense and sparse matrix kernels using `parallel_for`.
+- [ ] GPU backend for dense matrix multiplication and iterative solvers.
+- [ ] Arrow and Parquet zero-copy ingestion for tabular data.

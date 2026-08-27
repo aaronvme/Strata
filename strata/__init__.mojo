@@ -79,6 +79,7 @@ from .model_selection import (
     KFold,
     StratifiedKFold,
     TimeSeriesSplit,
+    ShuffleSplit,
     Split,
     cross_val_score,
     GridSearchRegressor,
