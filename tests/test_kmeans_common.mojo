@@ -227,7 +227,59 @@ def test_distance_computation_multi_dimension() raises:
     assert_almost_equal(Float64(dist), sqrt(10.0), atol=1e-7)
 
 
+def test_kmeans_plus_plus_extreme_outliers() raises:
+    # 5 points at (0, 0) and 1 extreme outlier at (1000, 1000)
+    var X = Matrix[DType.float64](6, 2, 0)
+    for r in range(5):
+        X[r, 0] = 0.0
+        X[r, 1] = 0.0
+    X[5, 0] = 1000.0
+    X[5, 1] = 1000.0
+
+    var centers = _init_centroids_kmeans_plus_plus(X, 2, seed=42)
+    assert_equal(centers.rows, 2)
+    assert_equal(centers.cols, 2)
+
+    # One centroid should be at (0, 0) and the other at (1000, 1000)
+    var has_outlier = False
+    var has_origin = False
+    for r in range(2):
+        if Float64(centers[r, 0]) > 500.0:
+            has_outlier = True
+        else:
+            has_origin = True
+    assert_true(has_outlier)
+    assert_true(has_origin)
+
+
+def test_distance_computation_with_negative_and_zero_values() raises:
+    var X = Matrix[DType.float64](2, 3, 0)
+    X[0, 0] = -5.0
+    X[0, 1] = 0.0
+    X[0, 2] = 5.0
+    X[1, 0] = -10.0
+    X[1, 1] = -20.0
+    X[1, 2] = -30.0
+
+    var C = Matrix[DType.float64](1, 3, 0)
+    C[0, 0] = 0.0
+    C[0, 1] = 0.0
+    C[0, 2] = 0.0
+
+    # (-5)^2 + 0^2 + 5^2 = 25 + 25 = 50
+    var dist_sq_0 = _squared_euclidean_distance(X, 0, C, 0)
+    assert_almost_equal(Float64(dist_sq_0), 50.0, atol=1e-7)
+
+    # (-10)^2 + (-20)^2 + (-30)^2 = 100 + 400 + 900 = 1400
+    var dist_sq_1 = _squared_euclidean_distance(X, 1, C, 0)
+    assert_almost_equal(Float64(dist_sq_1), 1400.0, atol=1e-7)
+    assert_almost_equal(
+        Float64(_euclidean_distance(X, 1, C, 0)), sqrt(1400.0), atol=1e-7
+    )
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
+
 
 

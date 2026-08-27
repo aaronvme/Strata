@@ -144,7 +144,7 @@ def _init_centroids_kmeans_plus_plus[
         for i in range(n):
             sum_sq += Float64(closest_dist_sq[i])
 
-        var chosen_idx = 0
+        var chosen_idx = n - 1
         if sum_sq <= 1e-12:
             chosen_idx = rng.next_int(n)
         else:
