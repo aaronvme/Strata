@@ -229,3 +229,12 @@ struct StratifiedShuffleSplit(Movable):
             splits.append(Split(train_indices^, val_indices^))
 
         return splits^
+
+    def split[
+        feat_dtype: DType, target_dtype: DType
+    ](
+        self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]]
+    ) raises -> List[Split]:
+        """Generates stratified random train and test indices from X and y."""
+        check_X_y(X, y)
+        return self.split[target_dtype](y)
