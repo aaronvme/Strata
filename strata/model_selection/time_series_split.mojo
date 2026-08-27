@@ -61,3 +61,71 @@ struct TimeSeriesSplit(Movable):
         self.max_train_size = max_train_size
         self.test_size = test_size
         self.gap = gap
+
+    def get_n_splits(self) -> Int:
+        """Returns the number of splitting iterations in the cross-validator."""
+        return self.n_splits
+
+    def split(self, n_samples: Int) raises -> List[Split]:
+        """Generates indices to split time-ordered data into train and test sets.
+
+        Args:
+            n_samples: Total number of samples in the dataset.
+
+        Returns:
+            List of Split objects containing train and validation indices.
+        """
+        if n_samples <= 0:
+            raise InvalidParameterError.error(
+                "n_samples",
+                "n_samples must be strictly positive, got " + String(n_samples),
+            )
+
+        var n_folds = self.n_splits + 1
+        if n_folds > n_samples:
+            raise InvalidParameterError.error(
+                "n_splits",
+                "Cannot have number of folds n_folds="
+                + String(n_folds)
+                + " greater than the number of samples n_samples="
+                + String(n_samples),
+            )
+
+        var fold_test_size = self.test_size
+        if fold_test_size == 0:
+            fold_test_size = n_samples // n_folds
+
+        if n_samples - self.gap - fold_test_size * self.n_splits <= 0:
+            raise InvalidParameterError.error(
+                "n_splits",
+                "Too many splits n_splits="
+                + String(self.n_splits)
+                + " for number of samples n_samples="
+                + String(n_samples)
+                + " with test_size="
+                + String(fold_test_size)
+                + " and gap="
+                + String(self.gap),
+            )
+
+        var first_test_start = n_samples - self.n_splits * fold_test_size
+        var splits = List[Split](capacity=self.n_splits)
+
+        for f in range(self.n_splits):
+            var test_start = first_test_start + f * fold_test_size
+            var train_end = test_start - self.gap
+            var train_start = 0
+            if self.max_train_size > 0 and self.max_train_size < train_end:
+                train_start = train_end - self.max_train_size
+
+            var train_indices = List[Int](capacity=train_end - train_start)
+            for i in range(train_start, train_end):
+                train_indices.append(i)
+
+            var val_indices = List[Int](capacity=fold_test_size)
+            for i in range(test_start, test_start + fold_test_size):
+                val_indices.append(i)
+
+            splits.append(Split(train_indices^, val_indices^))
+
+        return splits^
