@@ -78,6 +78,7 @@ from .model_selection import (
     train_test_split,
     KFold,
     StratifiedKFold,
+    ShuffleSplit,
     Split,
     cross_val_score,
     GridSearchRegressor,

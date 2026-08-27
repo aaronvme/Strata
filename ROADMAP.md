@@ -69,7 +69,8 @@ We have established a robust, thoroughly tested core engine:
   - [x] `GridSearchRegressor` and `GridSearchClassifier`
   - [ ] `cross_val_predict` (Out-of-fold prediction matrices)
   - [ ] `TimeSeriesSplit` (Rolling / expanding temporal cross-validation)
-  - [ ] `ShuffleSplit` & `StratifiedShuffleSplit` (Monte Carlo random splits)
+  - [x] `ShuffleSplit` (Monte Carlo random train/test splits)
+  - [ ] `StratifiedShuffleSplit` (Class-balanced Monte Carlo splits)
   - [ ] `RandomizedSearchRegressor` & `RandomizedSearchClassifier`
   - [ ] `cross_validate` (Multi-metric evaluation)
 
