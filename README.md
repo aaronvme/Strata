@@ -75,6 +75,25 @@ def main() raises:
     var preds = pipe.predict(X)
 ```
 
+### Clustering
+
+```mojo
+from strata import Matrix, KMeans, MiniBatchKMeans
+
+def main() raises:
+    var X = Matrix[DType.float64](6, 2, 0)
+    # Cluster samples into K groups using Lloyd's algorithm
+    var kmeans = KMeans(n_clusters=2, init="k-means++", random_state=42)
+    kmeans.fit(X)
+
+    var labels = kmeans.predict(X)
+    var dists = kmeans.transform(X)
+
+    # Online streaming mini-batch clustering
+    var mbk = MiniBatchKMeans(n_clusters=2, batch_size=32, random_state=42)
+    mbk.partial_fit(X)
+```
+
 ---
 
 ## Implemented Modules
@@ -84,12 +103,13 @@ def main() raises:
   - `MatrixView[dtype, origin]`: Zero-copy strided 2D view.
   - `CSRMatrix[dtype]`, `CSCMatrix[dtype]`: Compressed sparse row/column matrices with `spmv`, `spmm`, `spgemm`, `sddmm`.
   - `linalg`: SIMD `gemm`, `dense_dot_vec`, and LAPACK bindings (`svd`, `eigh`, `qr`, `cholesky`, `lstsq`, `solve`, `inv`).
-  - `dataset`: `Dataset` container for features, targets, and feature names.
+  - `dataset`: `Dataset` container for features, targets, and metadata.
   - `interop`: NumPy and SciPy sparse conversions.
 - **`strata.linear_model`**: `LinearRegression`, `Ridge`, `LogisticRegression` (binary and multinomial).
 - **`strata.decomposition`**: `PCA` (with whitening and sign-flip), `TruncatedSVD` (dense and sparse CSR via SpMM).
+- **`strata.cluster`**: `KMeans` (k-means++, Lloyd's algorithm, distance-space transforms), `MiniBatchKMeans` (streaming online updates, EWMA inertia smoothing, `partial_fit`).
 - **`strata.preprocessing`**: `StandardScaler`, `MinMaxScaler`, `RobustScaler`, `OneHotEncoder`, `Binarizer`.
-- **`strata.model_selection`**: `KFold`, `StratifiedKFold`, `cross_val_score`, `GridSearchRegressor`, `GridSearchClassifier`.
+- **`strata.model_selection`**: `train_test_split`, `KFold`, `StratifiedKFold`, `TimeSeriesSplit`, `ShuffleSplit`, `cross_val_score`, `GridSearchRegressor`, `GridSearchClassifier`.
 - **`strata.metrics`**:
   - Regression: `mean_squared_error`, `root_mean_squared_error`, `mean_absolute_error`, `r2_score`.
   - Classification: `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `confusion_matrix`.
@@ -106,7 +126,7 @@ pixi run test-all
 # Format code
 pixi run format
 
-# Typecheck / compile package
+# Compile package
 pixi run build
 ```
 
