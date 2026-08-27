@@ -64,6 +64,10 @@ struct ShuffleSplit(Movable):
         self.train_size = train_size
         self.random_state = random_state
 
+    def get_n_splits(self) -> Int:
+        """Returns the number of splitting iterations in the cross-validator."""
+        return self.n_splits
+
     def split(self, n_samples: Int) raises -> List[Split]:
         """Generates randomly permuted train and test indices for each split.
 
@@ -122,3 +126,9 @@ struct ShuffleSplit(Movable):
             splits.append(Split(train_indices^, val_indices^))
 
         return splits^
+
+    def split[dtype: DType](self, X: Matrix[dtype]) raises -> List[Split]:
+        """Generates indices to split matrix records into train and test sets.
+        """
+        check_array(X)
+        return self.split(X.rows)
