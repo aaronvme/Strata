@@ -13,6 +13,7 @@ from strata import (
 from strata.model_selection import (
     KFold,
     StratifiedKFold,
+    ShuffleSplit,
     Split,
     cross_val_score,
     GridSearchRegressor,
@@ -848,6 +849,376 @@ def test_full_train_test_split_and_gridsearch_workflow() raises:
     for i in range(5):
         var expected = split.test.targets[i]
         assert_true(abs(test_preds[i] - expected) < 0.5)
+
+
+def _assert_split_shape(
+    splits: List[Split], n_samples: Int, n_train: Int, n_test: Int
+) raises:
+    for f in range(len(splits)):
+        assert_equal(len(splits[f].train_indices), n_train)
+        assert_equal(len(splits[f].val_indices), n_test)
+
+        var seen = List[Bool](capacity=n_samples)
+        for _ in range(n_samples):
+            seen.append(False)
+
+        for i in range(len(splits[f].train_indices)):
+            var t = splits[f].train_indices[i]
+            assert_true(t >= 0 and t < n_samples)
+            assert_false(seen[t])
+            seen[t] = True
+
+        for i in range(len(splits[f].val_indices)):
+            var v = splits[f].val_indices[i]
+            assert_true(v >= 0 and v < n_samples)
+            assert_false(seen[v])
+            seen[v] = True
+
+
+def test_shuffle_split_default_parameters() raises:
+    var ss = ShuffleSplit()
+    assert_equal(ss.get_n_splits(), 10)
+
+    var splits = ss.split(100)
+    assert_equal(len(splits), 10)
+    _assert_split_shape(splits, 100, 90, 10)
+
+
+def test_shuffle_split_sizes_and_within_split_disjointness() raises:
+    var ss = ShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = ss.split(10)
+
+    assert_equal(len(splits), 3)
+    _assert_split_shape(splits, 10, 7, 3)
+
+
+def test_shuffle_split_covers_all_samples_when_train_size_unset() raises:
+    var ss = ShuffleSplit(n_splits=4, test_size=0.25)
+    var splits = ss.split(20)
+
+    for f in range(4):
+        assert_equal(
+            len(splits[f].train_indices) + len(splits[f].val_indices), 20
+        )
+
+        var seen = List[Bool](capacity=20)
+        for _ in range(20):
+            seen.append(False)
+        for i in range(len(splits[f].train_indices)):
+            seen[splits[f].train_indices[i]] = True
+        for i in range(len(splits[f].val_indices)):
+            seen[splits[f].val_indices[i]] = True
+        for i in range(20):
+            assert_true(seen[i])
+
+
+def test_shuffle_split_ceil_rounding_for_test_size() raises:
+    var half = ShuffleSplit(n_splits=1, test_size=0.1)
+    assert_equal(len(half.split(5)[0].val_indices), 1)
+
+    var quarter = ShuffleSplit(n_splits=1, test_size=0.25)
+    assert_equal(len(quarter.split(10)[0].val_indices), 3)
+
+    var tenth = ShuffleSplit(n_splits=1, test_size=0.1)
+    assert_equal(len(tenth.split(12)[0].val_indices), 2)
+
+    var exact = ShuffleSplit(n_splits=1, test_size=0.2)
+    assert_equal(len(exact.split(10)[0].val_indices), 2)
+
+
+def test_shuffle_split_floor_rounding_for_train_size() raises:
+    var ss = ShuffleSplit(n_splits=2, test_size=0.2, train_size=0.35)
+    var splits = ss.split(10)
+
+    assert_equal(len(splits), 2)
+    for f in range(2):
+        assert_equal(len(splits[f].val_indices), 2)
+        assert_equal(len(splits[f].train_indices), 3)
+
+
+def test_shuffle_split_train_size_leaves_samples_unused() raises:
+    var ss = ShuffleSplit(n_splits=3, test_size=0.2, train_size=0.3)
+    var splits = ss.split(10)
+
+    _assert_split_shape(splits, 10, 3, 2)
+    for f in range(3):
+        assert_true(
+            len(splits[f].train_indices) + len(splits[f].val_indices) < 10
+        )
+
+
+def test_shuffle_split_test_sets_may_overlap_across_draws() raises:
+    var ss = ShuffleSplit(n_splits=5, test_size=0.5)
+    var splits = ss.split(20)
+
+    var counts = List[Int](capacity=20)
+    for _ in range(20):
+        counts.append(0)
+
+    for f in range(5):
+        for i in range(len(splits[f].val_indices)):
+            counts[splits[f].val_indices[i]] += 1
+
+    var overlapping = 0
+    for i in range(20):
+        if counts[i] > 1:
+            overlapping += 1
+    assert_true(overlapping > 0)
+
+
+def test_shuffle_split_draws_are_independent() raises:
+    var ss = ShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = ss.split(20)
+
+    var differs = False
+    for i in range(len(splits[0].val_indices)):
+        if splits[0].val_indices[i] != splits[1].val_indices[i]:
+            differs = True
+    assert_true(differs)
+
+
+def test_shuffle_split_reproducible_with_same_seed() raises:
+    var a = ShuffleSplit(n_splits=4, test_size=0.25, random_state=7)
+    var b = ShuffleSplit(n_splits=4, test_size=0.25, random_state=7)
+
+    var sa = a.split(16)
+    var sb = b.split(16)
+
+    for f in range(4):
+        assert_equal(len(sa[f].val_indices), len(sb[f].val_indices))
+        for i in range(len(sa[f].val_indices)):
+            assert_equal(sa[f].val_indices[i], sb[f].val_indices[i])
+        for i in range(len(sa[f].train_indices)):
+            assert_equal(sa[f].train_indices[i], sb[f].train_indices[i])
+
+
+def test_shuffle_split_different_seeds_produce_different_splits() raises:
+    var a = ShuffleSplit(n_splits=3, test_size=0.3, random_state=1)
+    var b = ShuffleSplit(n_splits=3, test_size=0.3, random_state=999)
+
+    var sa = a.split(30)
+    var sb = b.split(30)
+
+    var differs = False
+    for f in range(3):
+        for i in range(len(sa[f].val_indices)):
+            if sa[f].val_indices[i] != sb[f].val_indices[i]:
+                differs = True
+    assert_true(differs)
+
+
+def test_shuffle_split_single_split_allowed() raises:
+    var ss = ShuffleSplit(n_splits=1, test_size=0.2)
+    assert_equal(ss.get_n_splits(), 1)
+
+    var splits = ss.split(10)
+    assert_equal(len(splits), 1)
+    _assert_split_shape(splits, 10, 8, 2)
+
+
+def test_shuffle_split_large_scale_invariants() raises:
+    var ss = ShuffleSplit(n_splits=5, test_size=0.2)
+    var splits = ss.split(1000)
+
+    assert_equal(len(splits), 5)
+    _assert_split_shape(splits, 1000, 800, 200)
+
+
+def test_shuffle_split_is_stateless_across_calls() raises:
+    var ss = ShuffleSplit(n_splits=3, test_size=0.25)
+
+    var first = ss.split(20)
+    var other = ss.split(40)
+    var again = ss.split(20)
+
+    assert_equal(len(other[0].val_indices), 10)
+    for f in range(3):
+        assert_equal(len(first[f].val_indices), len(again[f].val_indices))
+        for i in range(len(first[f].val_indices)):
+            assert_equal(first[f].val_indices[i], again[f].val_indices[i])
+
+    assert_equal(ss.test_size, 0.25)
+    assert_equal(ss.train_size, 0.0)
+
+
+def test_shuffle_split_matrix_overload_matches_count() raises:
+    var X = Matrix[DType.float64](20, 3, 1.0)
+    var ss = ShuffleSplit(n_splits=3, test_size=0.25)
+
+    var from_matrix = ss.split(X)
+    var from_count = ss.split(20)
+
+    assert_equal(len(from_matrix), len(from_count))
+    for f in range(len(from_matrix)):
+        for i in range(len(from_count[f].val_indices)):
+            assert_equal(
+                from_matrix[f].val_indices[i], from_count[f].val_indices[i]
+            )
+        for i in range(len(from_count[f].train_indices)):
+            assert_equal(
+                from_matrix[f].train_indices[i], from_count[f].train_indices[i]
+            )
+
+
+def test_shuffle_split_matrix_overload_dtype_flexibility() raises:
+    var X32 = Matrix[DType.float32](20, 2, 1.0)
+    var Xi = Matrix[DType.int32](20, 2, 1)
+    var ss = ShuffleSplit(n_splits=3, test_size=0.25)
+
+    assert_equal(len(ss.split(X32)), 3)
+    assert_equal(len(ss.split(Xi)), 3)
+
+
+def test_shuffle_split_matrix_overload_rejects_empty() raises:
+    var ss = ShuffleSplit(n_splits=3, test_size=0.25)
+
+    var caught_rows = False
+    try:
+        var empty = Matrix[DType.float64](0, 3, 0)
+        var _ = ss.split(empty)
+    except:
+        caught_rows = True
+    assert_true(caught_rows)
+
+    var caught_cols = False
+    try:
+        var no_cols = Matrix[DType.float64](20, 0, 0)
+        var _ = ss.split(no_cols)
+    except:
+        caught_cols = True
+    assert_true(caught_cols)
+
+
+def test_shuffle_split_constructor_error_handling() raises:
+    var caught_zero_splits = False
+    try:
+        var _ = ShuffleSplit(n_splits=0)
+    except:
+        caught_zero_splits = True
+    assert_true(caught_zero_splits)
+
+    var caught_neg_splits = False
+    try:
+        var _ = ShuffleSplit(n_splits=-2)
+    except:
+        caught_neg_splits = True
+    assert_true(caught_neg_splits)
+
+    var caught_test_zero = False
+    try:
+        var _ = ShuffleSplit(test_size=0.0)
+    except:
+        caught_test_zero = True
+    assert_true(caught_test_zero)
+
+    var caught_test_one = False
+    try:
+        var _ = ShuffleSplit(test_size=1.0)
+    except:
+        caught_test_one = True
+    assert_true(caught_test_one)
+
+    var caught_test_neg = False
+    try:
+        var _ = ShuffleSplit(test_size=-0.1)
+    except:
+        caught_test_neg = True
+    assert_true(caught_test_neg)
+
+    var caught_train_neg = False
+    try:
+        var _ = ShuffleSplit(test_size=0.2, train_size=-0.1)
+    except:
+        caught_train_neg = True
+    assert_true(caught_train_neg)
+
+    var caught_train_one = False
+    try:
+        var _ = ShuffleSplit(test_size=0.2, train_size=1.0)
+    except:
+        caught_train_one = True
+    assert_true(caught_train_one)
+
+    var caught_sum = False
+    try:
+        var _ = ShuffleSplit(test_size=0.6, train_size=0.7)
+    except:
+        caught_sum = True
+    assert_true(caught_sum)
+
+    var ok = ShuffleSplit(n_splits=1, test_size=0.5, train_size=0.5)
+    assert_equal(ok.get_n_splits(), 1)
+
+
+def test_shuffle_split_rejects_nonpositive_sample_counts() raises:
+    var ss = ShuffleSplit(n_splits=3, test_size=0.25)
+
+    var caught_zero = False
+    try:
+        var _ = ss.split(0)
+    except:
+        caught_zero = True
+    assert_true(caught_zero)
+
+    var caught_neg = False
+    try:
+        var _ = ss.split(-5)
+    except:
+        caught_neg = True
+    assert_true(caught_neg)
+
+
+def test_shuffle_split_rejects_empty_train_set() raises:
+    var ss = ShuffleSplit(n_splits=2, test_size=0.9)
+
+    var caught = False
+    try:
+        var _ = ss.split(5)
+    except:
+        caught = True
+    assert_true(caught)
+
+    var tiny = ShuffleSplit(n_splits=1, test_size=0.6)
+    var caught_tiny = False
+    try:
+        var _ = tiny.split(1)
+    except:
+        caught_tiny = True
+    assert_true(caught_tiny)
+
+    assert_equal(len(ss.split(20)[0].train_indices), 2)
+
+
+def test_shuffle_split_rejects_rounded_total_exceeding_samples() raises:
+    var ss = ShuffleSplit(n_splits=1, test_size=0.28, train_size=0.72)
+
+    var caught = False
+    try:
+        var _ = ss.split(25)
+    except:
+        caught = True
+    assert_true(caught)
+
+    var splits = ss.split(10)
+    assert_equal(len(splits[0].val_indices), 3)
+    assert_equal(len(splits[0].train_indices), 7)
+
+
+def test_shuffle_split_cross_val_score_integration() raises:
+    var X = Matrix[DType.float64](40, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=40)
+    for i in range(40):
+        X[i, 0] = Float64(i)
+        y.append(Float64(3 * i - 4))
+
+    var ss = ShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = ss.split(X)
+    var model = LinearRegression[DType.float64]()
+
+    var scores = cross_val_score(model, X, y, splits, scoring="r2")
+    assert_equal(len(scores), 3)
+    for f in range(3):
+        assert_true(scores[f] > 0.99)
 
 
 def main() raises:
