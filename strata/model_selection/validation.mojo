@@ -229,6 +229,24 @@ def cross_val_predict[
     estimator: ModelType,
     X: Matrix[feat_dtype],
     y: List[Scalar[target_dtype]],
+    cv: Int = 5,
+) raises -> List[Scalar[feat_dtype]]:
+    """Generates out-of-fold regression predictions across K folds."""
+    var kf = KFold(n_splits=cv)
+    var splits = kf.split(X.rows)
+    return cross_val_predict[ModelType, feat_dtype, target_dtype](
+        estimator, X, y, splits
+    )
+
+
+def cross_val_predict[
+    ModelType: Regressor,
+    feat_dtype: DType = DType.float64,
+    target_dtype: DType = DType.float64,
+](
+    estimator: ModelType,
+    X: Matrix[feat_dtype],
+    y: List[Scalar[target_dtype]],
     splits: List[Split],
 ) raises -> List[Scalar[feat_dtype]]:
     """Generates out-of-fold regression predictions on pre-defined splits."""
