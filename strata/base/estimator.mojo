@@ -141,10 +141,13 @@ def transform[
     """Transforms dataset records and returns a new Dataset preserving labels and names.
     """
     var transformed_records = model.transform[feat_dtype](dataset.records)
+    var out_feature_names = dataset.feature_names.copy()
+    if len(out_feature_names) != transformed_records.cols:
+        out_feature_names = List[String]()
     return Dataset[feat_dtype, target_dtype](
         transformed_records^,
         dataset.targets.copy(),
-        dataset.feature_names.copy(),
+        out_feature_names^,
         dataset.target_names.copy(),
     )
 
@@ -156,9 +159,12 @@ def fit_transform[
 ]:
     """Fits transformer and transforms dataset records in place."""
     var transformed_records = model.fit_transform[feat_dtype](dataset.records)
+    var out_feature_names = dataset.feature_names.copy()
+    if len(out_feature_names) != transformed_records.cols:
+        out_feature_names = List[String]()
     return Dataset[feat_dtype, target_dtype](
         transformed_records^,
         dataset.targets.copy(),
-        dataset.feature_names.copy(),
+        out_feature_names^,
         dataset.target_names.copy(),
     )

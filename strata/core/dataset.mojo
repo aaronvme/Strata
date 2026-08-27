@@ -1,7 +1,7 @@
 from ..core.matrix import Matrix
 from ..utils.validation import check_consistent_length, check_array
 from ..utils.random import permutation
-from ..exceptions.errors import InvalidParameterError
+from ..exceptions.errors import InvalidParameterError, DimensionMismatchError
 
 
 struct DatasetSplit[
@@ -55,6 +55,14 @@ struct Dataset[
     ) raises:
         check_consistent_length(records, targets)
         check_array[Self.feat_dtype](records)
+        if len(feature_names) > 0 and len(feature_names) != records.cols:
+            raise DimensionMismatchError.error(
+                "len(feature_names) == records.cols ("
+                + String(records.cols)
+                + ")",
+                "len(feature_names) == " + String(len(feature_names)),
+                "Dataset.__init__",
+            )
         self.records = records^
         self.targets = targets^
         self.feature_names = feature_names^

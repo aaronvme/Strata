@@ -331,12 +331,16 @@ def test_dataset_records_access() raises:
     assert_equal(ds.records[1, 1], 22.0)
 
 
-def test_dataset_empty_records_error() raises:
-    var X = Matrix[DType.float64](0, 0, 0)
-    var y = List[Scalar[DType.float64]]()
+def test_dataset_feature_names_mismatch_error() raises:
+    var X = Matrix[DType.float64](4, 2, 1.0)
+    var y: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0, 4.0]
+    var bad_feat_names: List[String] = ["f1", "f2", "f3"]
+    var target_names: List[String] = ["t1"]
+
     with assert_raises():
-        _ = Dataset(X^, y^)
+        _ = Dataset(X^, y^, bad_feat_names^, target_names^)
 
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
+
