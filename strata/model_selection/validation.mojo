@@ -219,3 +219,87 @@ def cross_val_score[
         scores.append(score)
 
     return scores^
+
+
+def cross_val_predict[
+    ModelType: Regressor,
+    feat_dtype: DType = DType.float64,
+    target_dtype: DType = DType.float64,
+](
+    estimator: ModelType,
+    X: Matrix[feat_dtype],
+    y: List[Scalar[target_dtype]],
+    splits: List[Split],
+) raises -> List[Scalar[feat_dtype]]:
+    """Generates out-of-fold regression predictions on pre-defined splits."""
+    check_X_y(X, y)
+    var n_splits = len(splits)
+    if n_splits == 0:
+        raise InvalidParameterError.error(
+            "splits", "Number of cross-validation splits must be greater than 0"
+        )
+
+    var n_samples = X.rows
+    var covered = List[Bool](capacity=n_samples)
+    for _ in range(n_samples):
+        covered.append(False)
+
+    for s in range(n_splits):
+        if len(splits[s].train_indices) == 0:
+            raise InvalidParameterError.error(
+                "splits",
+                "Fold " + String(s) + " contains empty training indices",
+            )
+        if len(splits[s].val_indices) == 0:
+            raise InvalidParameterError.error(
+                "splits",
+                "Fold " + String(s) + " contains empty validation indices",
+            )
+        for i in range(len(splits[s].val_indices)):
+            var v = splits[s].val_indices[i]
+            if v < 0 or v >= n_samples:
+                raise InvalidParameterError.error(
+                    "splits",
+                    "Validation index "
+                    + String(v)
+                    + " is out of bounds for a dataset with "
+                    + String(n_samples)
+                    + " samples",
+                )
+            if covered[v]:
+                raise InvalidParameterError.error(
+                    "splits",
+                    "cross_val_predict requires splits that partition the"
+                    " data, but sample "
+                    + String(v)
+                    + " appears in more than one validation fold",
+                )
+            covered[v] = True
+
+    for i in range(n_samples):
+        if not covered[i]:
+            raise InvalidParameterError.error(
+                "splits",
+                "cross_val_predict requires splits that partition the data,"
+                " but sample "
+                + String(i)
+                + " appears in no validation fold",
+            )
+
+    var preds = List[Scalar[feat_dtype]](capacity=n_samples)
+    for _ in range(n_samples):
+        preds.append(Scalar[feat_dtype](0))
+
+    for s in range(n_splits):
+        var X_train = take_rows(X, splits[s].train_indices)
+        var y_train = take_elements(y, splits[s].train_indices)
+        var X_val = take_rows(X, splits[s].val_indices)
+
+        var model = estimator.copy()
+        model.fit(X_train, y_train)
+        var fold_preds = model.predict(X_val)
+
+        for i in range(len(splits[s].val_indices)):
+            preds[splits[s].val_indices[i]] = fold_preds[i]
+
+    return preds^
