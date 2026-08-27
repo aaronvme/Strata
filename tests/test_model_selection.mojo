@@ -18,6 +18,7 @@ from strata.model_selection import (
     StratifiedShuffleSplit,
     Split,
     cross_val_score,
+    cross_val_predict,
     GridSearchRegressor,
     GridSearchClassifier,
     take_rows,
@@ -2210,6 +2211,394 @@ def test_stratified_shuffle_split_cross_val_score_integration() raises:
     assert_equal(len(scores), 3)
     for s in range(3):
         assert_true(scores[s] > 0.9)
+
+
+def _linear_dataset(
+    n: Int,
+) -> Tuple[Matrix[DType.float64], List[Scalar[DType.float64]]]:
+    var X = Matrix[DType.float64](n, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=n)
+    for i in range(n):
+        X[i, 0] = Float64(i)
+        y.append(Float64(3 * i - 4))
+    return (X^, y^)
+
+
+def _separable_dataset(
+    n: Int,
+) -> Tuple[Matrix[DType.float64], List[Scalar[DType.int32]]]:
+    var X = Matrix[DType.float64](n, 1, 0)
+    var y = List[Scalar[DType.int32]](capacity=n)
+    var half = n // 2
+    for i in range(n):
+        if i < half:
+            X[i, 0] = -2.0 + Float64(i) * 0.05
+            y.append(Int32(0))
+        else:
+            X[i, 0] = 2.0 + Float64(i - half) * 0.05
+            y.append(Int32(1))
+    return (X^, y^)
+
+
+def _manual_splits(
+    train_sets: List[List[Int]], val_sets: List[List[Int]]
+) -> List[Split]:
+    var splits = List[Split]()
+    for s in range(len(train_sets)):
+        splits.append(Split(train_sets[s].copy(), val_sets[s].copy()))
+    return splits^
+
+
+def test_cross_val_predict_regression_one_prediction_per_row() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+
+    var preds = cross_val_predict(model, data[0], data[1], cv=5)
+
+    assert_equal(len(preds), 20)
+    for i in range(20):
+        assert_true(abs(preds[i] - data[1][i]) < 1e-6)
+
+
+def test_cross_val_predict_regression_matches_manual_fold_fits() raises:
+    var X = Matrix[DType.float64](12, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i)
+        y.append(Float64(i * i))
+
+    var kf = KFold(n_splits=3)
+    var splits = kf.split(12)
+    var model = LinearRegression[DType.float64]()
+
+    var preds = cross_val_predict(model, X, y, splits)
+    assert_equal(len(preds), 12)
+
+    for s in range(3):
+        var X_train = take_rows(X, splits[s].train_indices)
+        var y_train = take_elements(y, splits[s].train_indices)
+        var X_val = take_rows(X, splits[s].val_indices)
+
+        var fold_model = LinearRegression[DType.float64]()
+        fold_model.fit(X_train, y_train)
+        var fold_preds = fold_model.predict(X_val)
+
+        for i in range(len(splits[s].val_indices)):
+            assert_equal(preds[splits[s].val_indices[i]], fold_preds[i])
+
+
+def test_cross_val_predict_regression_preserves_row_order() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+
+    var preds = cross_val_predict(model, data[0], data[1], cv=5)
+
+    for i in range(19):
+        assert_true(preds[i] < preds[i + 1])
+
+
+def test_cross_val_predict_regression_cv_overload_matches_kfold() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+
+    var kf = KFold(n_splits=4)
+    var splits = kf.split(16)
+
+    var from_cv = cross_val_predict(model, data[0], data[1], cv=4)
+    var from_splits = cross_val_predict(model, data[0], data[1], splits)
+
+    assert_equal(len(from_cv), len(from_splits))
+    for i in range(16):
+        assert_equal(from_cv[i], from_splits[i])
+
+
+def test_cross_val_predict_regression_accepts_stratified_kfold_splits() raises:
+    var X = Matrix[DType.float64](20, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=20)
+    var labels = List[Scalar[DType.int32]](capacity=20)
+    for i in range(20):
+        X[i, 0] = Float64(i)
+        y.append(Float64(2 * i + 1))
+        labels.append(Int32(i % 2))
+
+    var skf = StratifiedKFold(n_splits=4)
+    var splits = skf.split(labels)
+    var model = LinearRegression[DType.float64]()
+
+    var preds = cross_val_predict(model, X, y, splits)
+    assert_equal(len(preds), 20)
+    for i in range(20):
+        assert_true(abs(preds[i] - y[i]) < 1e-6)
+
+
+def test_cross_val_predict_regression_dtype_flexibility() raises:
+    var X = Matrix[DType.float32](12, 1, 0)
+    var y = List[Scalar[DType.float32]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float32(i)
+        y.append(Float32(2 * i + 3))
+
+    var model = LinearRegression[DType.float32]()
+    var preds = cross_val_predict(model, X, y, cv=3)
+
+    assert_equal(len(preds), 12)
+    for i in range(12):
+        assert_true(abs(preds[i] - y[i]) < 1e-2)
+
+
+def test_cross_val_predict_classification_one_label_per_row() raises:
+    var data = _separable_dataset(20)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var preds = cross_val_predict(model, data[0], data[1], cv=4)
+
+    assert_equal(len(preds), 20)
+    for i in range(20):
+        assert_true(preds[i] == 0 or preds[i] == 1)
+
+
+def test_cross_val_predict_classification_accurate_on_separable_data() raises:
+    var data = _separable_dataset(40)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var preds = cross_val_predict(model, data[0], data[1], cv=4)
+
+    var correct = 0
+    for i in range(40):
+        if preds[i] == Int(data[1][i]):
+            correct += 1
+    assert_true(Float64(correct) / 40.0 > 0.9)
+
+
+def test_cross_val_predict_classification_cv_overload_matches_stratified() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var skf = StratifiedKFold(n_splits=3)
+    var splits = skf.split(data[0], data[1])
+
+    var from_cv = cross_val_predict(model, data[0], data[1], cv=3)
+    var from_splits = cross_val_predict(model, data[0], data[1], splits)
+
+    assert_equal(len(from_cv), len(from_splits))
+    for i in range(24):
+        assert_equal(from_cv[i], from_splits[i])
+
+
+def test_cross_val_predict_classification_matches_manual_fold_fits() raises:
+    var data = _separable_dataset(18)
+    var skf = StratifiedKFold(n_splits=3)
+    var splits = skf.split(data[1])
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var preds = cross_val_predict(model, data[0], data[1], splits)
+
+    for s in range(3):
+        var X_train = take_rows(data[0], splits[s].train_indices)
+        var y_train = take_elements(data[1], splits[s].train_indices)
+        var X_val = take_rows(data[0], splits[s].val_indices)
+
+        var fold_model = LogisticRegression[DType.float64](max_iter=200)
+        fold_model.fit(X_train, y_train)
+        var fold_preds = fold_model.predict(X_val)
+
+        for i in range(len(splits[s].val_indices)):
+            assert_equal(preds[splits[s].val_indices[i]], fold_preds[i])
+
+
+def test_cross_val_predict_rejects_overlapping_validation_folds() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([2, 3])
+    val_sets.append([0, 1])
+    train_sets.append([0, 3])
+    val_sets.append([1, 2])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_uncovered_samples() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([2, 3])
+    val_sets.append([0, 1])
+    train_sets.append([0, 1])
+    val_sets.append([2])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_out_of_bounds_validation_index() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([2, 3])
+    val_sets.append([0, 99])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_empty_split_list() raises:
+    var data = _linear_dataset(6)
+    var model = LinearRegression[DType.float64]()
+    var splits = List[Split]()
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_empty_train_fold() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append(List[Int]())
+    val_sets.append([0, 1, 2, 3])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_empty_validation_fold() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([0, 1, 2, 3])
+    val_sets.append(List[Int]())
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_shuffle_split_folds() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+
+    var ss = ShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = ss.split(20)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_time_series_split_folds() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+
+    var tss = TimeSeriesSplit(n_splits=3)
+    var splits = tss.split(20)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_mismatched_x_and_y() raises:
+    var X = Matrix[DType.float64](20, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=19)
+    for i in range(19):
+        y.append(Float64(i))
+
+    var model = LinearRegression[DType.float64]()
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, X, y, cv=4)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_classifier_rejects_overlapping_folds() raises:
+    var data = _separable_dataset(20)
+    var model = LogisticRegression[DType.float64](max_iter=100)
+
+    var ss = ShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = ss.split(20)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_classifier_rejects_empty_split_list() raises:
+    var data = _separable_dataset(20)
+    var model = LogisticRegression[DType.float64](max_iter=100)
+    var splits = List[Split]()
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_leaves_estimator_unfitted() raises:
+    var data = _linear_dataset(12)
+    var model = LinearRegression[DType.float64]()
+
+    var _ = cross_val_predict(model, data[0], data[1], cv=3)
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 0)
+        var _ = model.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
 
 
 def main() raises:
