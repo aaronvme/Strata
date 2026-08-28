@@ -2,10 +2,7 @@ from ..core.matrix import Matrix
 
 
 struct Node(Copyable, Movable):
-    """Represents a single node (split or leaf) in a decision tree.
-
-    Stored in a flat contiguous array within Tree for cache locality and memory safety.
-    """
+    """A single split or leaf node in a decision tree."""
 
     var feature_idx: Int
     var threshold: Float64
@@ -19,7 +16,6 @@ struct Node(Copyable, Movable):
     var is_leaf: Bool
 
     def __init__(out self):
-        """Initializes an empty uninitialized node."""
         self.feature_idx = -1
         self.threshold = 0.0
         self.left_child = -1
@@ -37,7 +33,7 @@ struct Node(Copyable, Movable):
         impurity: Float64,
         n_node_samples: Int,
     ):
-        """Initializes a regression leaf node."""
+        """Constructs a regression leaf node."""
         self.feature_idx = -1
         self.threshold = 0.0
         self.left_child = -1
@@ -56,7 +52,7 @@ struct Node(Copyable, Movable):
         impurity: Float64,
         n_node_samples: Int,
     ):
-        """Initializes a classification leaf node."""
+        """Constructs a classification leaf node."""
         self.feature_idx = -1
         self.threshold = 0.0
         self.left_child = -1
@@ -80,7 +76,7 @@ struct Node(Copyable, Movable):
         var class_counts: List[Int] = List[Int](),
         var class_probabilities: List[Float64] = List[Float64](),
     ):
-        """Initializes an internal decision split node."""
+        """Constructs an internal decision split node."""
         self.feature_idx = feature_idx
         self.threshold = threshold
         self.left_child = left_child
@@ -93,7 +89,6 @@ struct Node(Copyable, Movable):
         self.is_leaf = False
 
     def __init__(out self, *, copy: Self):
-        """Deep copies an existing Node."""
         self.feature_idx = copy.feature_idx
         self.threshold = copy.threshold
         self.left_child = copy.left_child
@@ -107,49 +102,44 @@ struct Node(Copyable, Movable):
 
 
 struct Tree(Copyable, Movable):
-    """Flat, contiguous array-based decision tree representation."""
+    """Flat array-backed binary decision tree."""
 
     var nodes: List[Node]
     var n_classes: Int
     var classes_: List[Int]
 
     def __init__(out self):
-        """Initializes an empty decision tree."""
         self.nodes = List[Node]()
         self.n_classes = 0
         self.classes_ = List[Int]()
 
     def __init__(out self, n_classes: Int, var classes_: List[Int]):
-        """Initializes a tree with class label metadata."""
         self.nodes = List[Node]()
         self.n_classes = n_classes
         self.classes_ = classes_^
 
     def __init__(out self, *, copy: Self):
-        """Deep copies an existing Tree and all contiguous nodes."""
         self.nodes = copy.nodes.copy()
         self.n_classes = copy.n_classes
         self.classes_ = copy.classes_.copy()
 
     def node_count(self) -> Int:
-        """Returns the total number of nodes in the tree."""
+        """Returns total number of nodes in the tree."""
         return len(self.nodes)
 
     def add_node(mut self, var node: Node) -> Int:
-        """Appends a node to the contiguous array and returns its index."""
+        """Appends node to storage array and returns its index."""
         var idx = len(self.nodes)
         self.nodes.append(node^)
         return idx
 
     def max_depth(self) -> Int:
-        """Computes the maximum depth of the tree from root (edges from root to deepest leaf).
-        """
+        """Returns maximum depth (edges from root) in the tree."""
         if len(self.nodes) == 0:
             return 0
         return self._compute_depth(0)
 
     def _compute_depth(self, node_idx: Int) -> Int:
-        """Recursively calculates subtree depth."""
         if node_idx < 0 or node_idx >= len(self.nodes):
             return 0
         if self.nodes[node_idx].is_leaf:
@@ -162,7 +152,7 @@ struct Tree(Copyable, Movable):
     def predict_regression[
         in_dtype: DType, out_dtype: DType
     ](self, X: Matrix[in_dtype]) -> List[Scalar[out_dtype]]:
-        """Evaluates regression predictions for each row in matrix X."""
+        """Evaluates regression predictions for input matrix X."""
         var n_rows = X.rows
         var preds = List[Scalar[out_dtype]](capacity=n_rows)
 
@@ -175,7 +165,7 @@ struct Tree(Copyable, Movable):
             var curr = 0
             while not self.nodes[curr].is_leaf:
                 var f_idx = self.nodes[curr].feature_idx
-                var val = Float64(X[r, f_idx].cast[DType.float64]())
+                var val = X[r, f_idx].cast[DType.float64]()
                 var next_idx = (
                     self.nodes[curr].left_child
                     if val <= self.nodes[curr].threshold
@@ -191,7 +181,7 @@ struct Tree(Copyable, Movable):
     def predict_classification[
         in_dtype: DType
     ](self, X: Matrix[in_dtype]) -> List[Int]:
-        """Evaluates discrete class predictions for each row in matrix X."""
+        """Evaluates discrete class predictions for input matrix X."""
         var n_rows = X.rows
         var preds = List[Int](capacity=n_rows)
 
@@ -204,7 +194,7 @@ struct Tree(Copyable, Movable):
             var curr = 0
             while not self.nodes[curr].is_leaf:
                 var f_idx = self.nodes[curr].feature_idx
-                var val = Float64(X[r, f_idx].cast[DType.float64]())
+                var val = X[r, f_idx].cast[DType.float64]()
                 var next_idx = (
                     self.nodes[curr].left_child
                     if val <= self.nodes[curr].threshold
@@ -214,7 +204,6 @@ struct Tree(Copyable, Movable):
                     break
                 curr = next_idx
 
-            # Determine best class from class_probabilities, falling back to class_counts
             var best_c = 0
             var n_probs = len(self.nodes[curr].class_probabilities)
             if n_probs > 0:
@@ -243,7 +232,7 @@ struct Tree(Copyable, Movable):
     def predict_proba[
         in_dtype: DType, out_dtype: DType
     ](self, X: Matrix[in_dtype]) -> Matrix[out_dtype]:
-        """Evaluates class probabilities matrix (N_samples x N_classes) for X."""
+        """Evaluates class probabilities for input matrix X."""
         var n_rows = X.rows
         var n_cols = self.n_classes
         if n_cols <= 0:
@@ -261,7 +250,7 @@ struct Tree(Copyable, Movable):
             var curr = 0
             while not self.nodes[curr].is_leaf:
                 var f_idx = self.nodes[curr].feature_idx
-                var val = Float64(X[r, f_idx].cast[DType.float64]())
+                var val = X[r, f_idx].cast[DType.float64]()
                 var next_idx = (
                     self.nodes[curr].left_child
                     if val <= self.nodes[curr].threshold
@@ -275,11 +264,14 @@ struct Tree(Copyable, Movable):
             if n_probs > 0:
                 for c in range(n_cols):
                     if c < n_probs:
-                        data.append(Scalar[out_dtype](self.nodes[curr].class_probabilities[c]))
+                        data.append(
+                            Scalar[out_dtype](
+                                self.nodes[curr].class_probabilities[c]
+                            )
+                        )
                     else:
                         data.append(Scalar[out_dtype](0.0))
             else:
-                # Derive probabilities on the fly if only class_counts are stored
                 var n_cnts = len(self.nodes[curr].class_counts)
                 var total_cnt = 0
                 for c in range(n_cnts):
@@ -287,7 +279,12 @@ struct Tree(Copyable, Movable):
                 var total_f = Float64(total_cnt) if total_cnt > 0 else 1.0
                 for c in range(n_cols):
                     if c < n_cnts:
-                        data.append(Scalar[out_dtype](Float64(self.nodes[curr].class_counts[c]) / total_f))
+                        data.append(
+                            Scalar[out_dtype](
+                                Float64(self.nodes[curr].class_counts[c])
+                                / total_f
+                            )
+                        )
                     else:
                         data.append(Scalar[out_dtype](0.0))
 

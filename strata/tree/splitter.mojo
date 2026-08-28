@@ -14,7 +14,7 @@ from .criterion import (
 
 
 struct SplitResult(Movable):
-    """Holds the outcome of evaluating candidate splits on a subset of samples."""
+    """Container for split evaluation results."""
 
     var found: Bool
     var feature_idx: Int
@@ -26,7 +26,6 @@ struct SplitResult(Movable):
     var right_impurity: Float64
 
     def __init__(out self):
-        """Initializes a no-split result (for leaf nodes)."""
         self.found = False
         self.feature_idx = -1
         self.threshold = 0.0
@@ -46,7 +45,6 @@ struct SplitResult(Movable):
         left_impurity: Float64,
         right_impurity: Float64,
     ):
-        """Initializes a successful split result."""
         self.found = True
         self.feature_idx = feature_idx
         self.threshold = threshold
@@ -58,7 +56,7 @@ struct SplitResult(Movable):
 
 
 struct FeatureValuePair(Comparable, Copyable, Movable):
-    """Auxiliary pair for sorting samples along a single feature dimension."""
+    """Sample value pair for sorting along a single feature dimension."""
 
     var feat_val: Float64
     var sample_idx: Int
@@ -109,10 +107,14 @@ def select_features(
     max_features_ratio: Float64,
     mut rng: PRNG,
 ) -> List[Int]:
-    """Selects a subset of feature indices using full 63-bit integer entropy."""
+    """Selects candidate feature indices based on max_features strategy."""
     var k: Int
     if max_features_count > 0:
-        k = max_features_count if max_features_count < n_total_features else n_total_features
+        k = (
+            max_features_count
+            if max_features_count < n_total_features
+            else n_total_features
+        )
     elif max_features_ratio > 0.0:
         var computed = Int(Float64(n_total_features) * max_features_ratio)
         k = computed if computed >= 1 else 1
@@ -158,15 +160,11 @@ def find_best_split_classification[
     min_impurity_decrease: Float64,
     mut rng: PRNG,
 ) -> SplitResult:
-    """Finds the optimal decision split for classification.
-
-    y_encoded must contain normalized class indices in [0, n_classes - 1].
-    """
+    """Finds best split for classification across candidate features."""
     var n_samples = len(node_indices)
     if n_samples < min_samples_split or n_samples < 2 * min_samples_leaf:
         return SplitResult()
 
-    # Calculate parent class counts
     var parent_counts = List[Int](capacity=n_classes)
     for _ in range(n_classes):
         parent_counts.append(0)
@@ -219,8 +217,13 @@ def find_best_split_classification[
             if len(cand_positions) == 0:
                 continue
 
-            var chosen_cand_idx = cand_positions[Int(rng.next_u64() % UInt64(len(cand_positions)))]
-            var cand_threshold = (pairs[chosen_cand_idx].feat_val + pairs[chosen_cand_idx + 1].feat_val) * 0.5
+            var chosen_cand_idx = cand_positions[
+                Int(rng.next_u64() % UInt64(len(cand_positions)))
+            ]
+            var cand_threshold = (
+                pairs[chosen_cand_idx].feat_val
+                + pairs[chosen_cand_idx + 1].feat_val
+            ) * 0.5
 
             var l_counts = List[Int](capacity=n_classes)
             var r_counts = List[Int](capacity=n_classes)
@@ -244,18 +247,31 @@ def find_best_split_classification[
             if n_l < min_samples_leaf or n_r < min_samples_leaf:
                 continue
 
-            var l_imp = gini_impurity(l_counts, n_l) if criterion == "gini" else entropy_impurity(l_counts, n_l)
-            var r_imp = gini_impurity(r_counts, n_r) if criterion == "gini" else entropy_impurity(r_counts, n_r)
-            var decrease = compute_impurity_decrease(parent_impurity, n_samples, l_imp, n_l, r_imp, n_r)
+            var l_imp = (
+                gini_impurity(l_counts, n_l)
+                if criterion == "gini"
+                else entropy_impurity(l_counts, n_l)
+            )
+            var r_imp = (
+                gini_impurity(r_counts, n_r)
+                if criterion == "gini"
+                else entropy_impurity(r_counts, n_r)
+            )
+            var decrease = compute_impurity_decrease(
+                parent_impurity, n_samples, l_imp, n_l, r_imp, n_r
+            )
 
-            if decrease >= min_impurity_decrease and decrease > best_decrease and decrease > 0.0:
+            if (
+                decrease >= min_impurity_decrease
+                and decrease > best_decrease
+                and decrease > 0.0
+            ):
                 best_decrease = decrease
                 best_feature = f
                 best_threshold = cand_threshold
                 best_left_imp = l_imp
                 best_right_imp = r_imp
         else:
-            # "best" splitter with incremental O(1) count updates
             var l_counts = List[Int](capacity=n_classes)
             var r_counts = List[Int](capacity=n_classes)
             for c in range(n_classes):
@@ -278,8 +294,12 @@ def find_best_split_classification[
 
                     l_counts[cls] += 1
                     r_counts[cls] -= 1
-                    l_sum_sq_counts += (l_counts[cls] * l_counts[cls]) - (old_l_c * old_l_c)
-                    r_sum_sq_counts += (r_counts[cls] * r_counts[cls]) - (old_r_c * old_r_c)
+                    l_sum_sq_counts += (l_counts[cls] * l_counts[cls]) - (
+                        old_l_c * old_l_c
+                    )
+                    r_sum_sq_counts += (r_counts[cls] * r_counts[cls]) - (
+                        old_r_c * old_r_c
+                    )
 
                 n_l += 1
                 n_r -= 1
@@ -299,12 +319,20 @@ def find_best_split_classification[
                     l_imp = gini_from_sum_sq(l_sum_sq_counts, n_l)
                     r_imp = gini_from_sum_sq(r_sum_sq_counts, n_r)
 
-                var decrease = compute_impurity_decrease(parent_impurity, n_samples, l_imp, n_l, r_imp, n_r)
+                var decrease = compute_impurity_decrease(
+                    parent_impurity, n_samples, l_imp, n_l, r_imp, n_r
+                )
 
-                if decrease >= min_impurity_decrease and decrease > best_decrease and decrease > 0.0:
+                if (
+                    decrease >= min_impurity_decrease
+                    and decrease > best_decrease
+                    and decrease > 0.0
+                ):
                     best_decrease = decrease
                     best_feature = f
-                    best_threshold = (pairs[i].feat_val + pairs[i + 1].feat_val) * 0.5
+                    best_threshold = (
+                        pairs[i].feat_val + pairs[i + 1].feat_val
+                    ) * 0.5
                     best_left_imp = l_imp
                     best_right_imp = r_imp
 
@@ -351,7 +379,7 @@ def find_best_split_regression[
     min_impurity_decrease: Float64,
     mut rng: PRNG,
 ) -> SplitResult:
-    """Finds the optimal decision split for regression."""
+    """Finds best split for regression across candidate features."""
     var n_samples = len(node_indices)
     if n_samples < min_samples_split or n_samples < 2 * min_samples_leaf:
         return SplitResult()
@@ -407,8 +435,13 @@ def find_best_split_regression[
             if len(cand_positions) == 0:
                 continue
 
-            var chosen_cand_idx = cand_positions[Int(rng.next_u64() % UInt64(len(cand_positions)))]
-            var cand_threshold = (pairs[chosen_cand_idx].feat_val + pairs[chosen_cand_idx + 1].feat_val) * 0.5
+            var chosen_cand_idx = cand_positions[
+                Int(rng.next_u64() % UInt64(len(cand_positions)))
+            ]
+            var cand_threshold = (
+                pairs[chosen_cand_idx].feat_val
+                + pairs[chosen_cand_idx + 1].feat_val
+            ) * 0.5
 
             var l_idx = List[Int](capacity=n_samples)
             var r_idx = List[Int](capacity=n_samples)
@@ -432,8 +465,14 @@ def find_best_split_regression[
                 l_imp = squared_error_impurity(y, l_idx)
                 r_imp = squared_error_impurity(y, r_idx)
 
-            var decrease = compute_impurity_decrease(parent_impurity, n_samples, l_imp, n_l, r_imp, n_r)
-            if decrease >= min_impurity_decrease and decrease > best_decrease and decrease > 0.0:
+            var decrease = compute_impurity_decrease(
+                parent_impurity, n_samples, l_imp, n_l, r_imp, n_r
+            )
+            if (
+                decrease >= min_impurity_decrease
+                and decrease > best_decrease
+                and decrease > 0.0
+            ):
                 best_decrease = decrease
                 best_feature = f
                 best_threshold = cand_threshold
@@ -472,18 +511,27 @@ def find_best_split_regression[
                         var mean_l = sum_l / Float64(n_l)
                         var mean_r = sum_r / Float64(n_r)
                         var diff = mean_l - mean_r
-                        decrease = ((Float64(n_l) * Float64(n_r)) / Float64(n_l + n_r)) * diff * diff
+                        decrease = (
+                            (Float64(n_l) * Float64(n_r)) / Float64(n_l + n_r)
+                        ) * diff * diff
                     else:
-                        decrease = compute_impurity_decrease(parent_impurity, n_samples, l_imp, n_l, r_imp, n_r)
+                        decrease = compute_impurity_decrease(
+                            parent_impurity, n_samples, l_imp, n_l, r_imp, n_r
+                        )
 
-                    if decrease >= min_impurity_decrease and decrease > best_decrease and decrease > 0.0:
+                    if (
+                        decrease >= min_impurity_decrease
+                        and decrease > best_decrease
+                        and decrease > 0.0
+                    ):
                         best_decrease = decrease
                         best_feature = f
-                        best_threshold = (pairs[i].feat_val + pairs[i + 1].feat_val) * 0.5
+                        best_threshold = (
+                            pairs[i].feat_val + pairs[i + 1].feat_val
+                        ) * 0.5
                         best_left_imp = l_imp
                         best_right_imp = r_imp
             else:
-                # MAE criterion
                 var l_idx = List[Int](capacity=n_samples)
                 for i in range(n_samples - 1):
                     l_idx.append(pairs[i].sample_idx)
@@ -502,12 +550,20 @@ def find_best_split_regression[
 
                     var l_imp = absolute_error_impurity(y, l_idx)
                     var r_imp = absolute_error_impurity(y, r_idx)
-                    var decrease = compute_impurity_decrease(parent_impurity, n_samples, l_imp, n_l, r_imp, n_r)
+                    var decrease = compute_impurity_decrease(
+                        parent_impurity, n_samples, l_imp, n_l, r_imp, n_r
+                    )
 
-                    if decrease >= min_impurity_decrease and decrease > best_decrease and decrease > 0.0:
+                    if (
+                        decrease >= min_impurity_decrease
+                        and decrease > best_decrease
+                        and decrease > 0.0
+                    ):
                         best_decrease = decrease
                         best_feature = f
-                        best_threshold = (pairs[i].feat_val + pairs[i + 1].feat_val) * 0.5
+                        best_threshold = (
+                            pairs[i].feat_val + pairs[i + 1].feat_val
+                        ) * 0.5
                         best_left_imp = l_imp
                         best_right_imp = r_imp
 
