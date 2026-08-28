@@ -211,5 +211,10 @@ struct LinearRegression[
             )
             var preds = List[Scalar[feat_dtype]](capacity=len(preds_comp))
             for i in range(len(preds_comp)):
-                preds.append(Scalar[feat_dtype](preds_comp[i]))
+                comptime if feat_dtype.is_integral():
+                    preds.append(Scalar[feat_dtype](round(preds_comp[i])))
+                else:
+                    preds.append(Scalar[feat_dtype](preds_comp[i]))
+
             return preds^
+
