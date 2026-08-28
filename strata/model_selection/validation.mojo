@@ -522,3 +522,93 @@ struct CrossValidateResult(Movable):
                 ),
             )
         return self.train_scores[self.metric_index(metric)].copy()
+
+
+def cross_validate[
+    ModelType: Regressor,
+    feat_dtype: DType = DType.float64,
+    target_dtype: DType = DType.float64,
+](
+    estimator: ModelType,
+    X: Matrix[feat_dtype],
+    y: List[Scalar[target_dtype]],
+    splits: List[Split],
+    scoring: List[String],
+    return_train_score: Bool = False,
+) raises -> CrossValidateResult:
+    """Evaluates several regression metrics on pre-defined splits in one pass.
+
+    Args:
+        estimator: Model configuration cloned once per fold.
+        X: Feature matrix.
+        y: Target values.
+        splits: Cross-validation folds to evaluate.
+        scoring: Names of the regression metrics to record.
+        return_train_score: Whether to also score the training rows of each
+            fold.
+
+    Returns:
+        Per-fold scores for every requested metric.
+    """
+    check_X_y(X, y)
+    var n_splits = len(splits)
+    if n_splits == 0:
+        raise InvalidParameterError.error(
+            "splits", "Number of cross-validation splits must be greater than 0"
+        )
+
+    var n_metrics = len(scoring)
+    if n_metrics == 0:
+        raise InvalidParameterError.error(
+            "scoring", "At least one scoring metric must be provided"
+        )
+
+    var metric_codes = List[Int](capacity=n_metrics)
+    for m in range(n_metrics):
+        metric_codes.append(_regression_metric_code(scoring[m]))
+
+    var test_scores = List[List[Float64]]()
+    for _ in range(n_metrics):
+        test_scores.append(List[Float64](capacity=n_splits))
+
+    var train_scores = List[List[Float64]]()
+    if return_train_score:
+        for _ in range(n_metrics):
+            train_scores.append(List[Float64](capacity=n_splits))
+
+    for s in range(n_splits):
+        if len(splits[s].train_indices) == 0:
+            raise InvalidParameterError.error(
+                "splits",
+                "Fold " + String(s) + " contains empty training indices",
+            )
+        if len(splits[s].val_indices) == 0:
+            raise InvalidParameterError.error(
+                "splits",
+                "Fold " + String(s) + " contains empty validation indices",
+            )
+
+        var X_train = take_rows(X, splits[s].train_indices)
+        var y_train = take_elements(y, splits[s].train_indices)
+        var X_val = take_rows(X, splits[s].val_indices)
+        var y_val = take_elements(y, splits[s].val_indices)
+
+        var model = estimator.copy()
+        model.fit(X_train, y_train)
+        var val_preds = model.predict(X_val)
+
+        for m in range(n_metrics):
+            test_scores[m].append(
+                _apply_regression_metric(metric_codes[m], y_val, val_preds)
+            )
+
+        if return_train_score:
+            var train_preds = model.predict(X_train)
+            for m in range(n_metrics):
+                train_scores[m].append(
+                    _apply_regression_metric(
+                        metric_codes[m], y_train, train_preds
+                    )
+                )
+
+    return CrossValidateResult(scoring.copy(), test_scores^, train_scores^)
