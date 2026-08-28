@@ -440,3 +440,33 @@ struct CrossValidateResult(Movable):
             + metric
             + "' was not evaluated in this cross-validation run",
         )
+
+    def test_scores_for(self, metric: String) raises -> List[Float64]:
+        """Returns the per-fold validation scores for a named metric.
+
+        Args:
+            metric: Name of a metric evaluated during cross-validation.
+
+        Returns:
+            One score per fold, in fold order.
+        """
+        return self.test_scores[self.metric_index(metric)].copy()
+
+    def train_scores_for(self, metric: String) raises -> List[Float64]:
+        """Returns the per-fold training scores for a named metric.
+
+        Args:
+            metric: Name of a metric evaluated during cross-validation.
+
+        Returns:
+            One score per fold, in fold order.
+        """
+        if len(self.train_scores) == 0:
+            raise InvalidParameterError.error(
+                "train_scores",
+                (
+                    "Training scores were not recorded for this"
+                    " cross-validation run"
+                ),
+            )
+        return self.train_scores[self.metric_index(metric)].copy()
