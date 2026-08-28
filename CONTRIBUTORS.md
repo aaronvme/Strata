@@ -142,3 +142,39 @@ Estimators implement the relevant base trait from `strata.base`:
 - Validate input matrices at the entry point of `fit` and `transform` using `check_array` or `check_sparse`.
 - Check fitted state in `transform` and `predict` using `check_is_fitted("EstimatorName", self.is_fitted)`.
 - Raise specific error types from `strata.exceptions` (`DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`).
+
+---
+
+## Pre-PR Submission Checklist
+
+Before submitting a Pull Request, run through this step-by-step checklist to ensure CI passes cleanly on the first try.
+
+> [!TIP]
+> You can run the entire automated verification and documentation pipeline with a single command:
+> ```bash
+> pixi run pre-pr
+> ```
+
+### 1. Code Formatting
+- [ ] Run `pixi run format-check` to verify code formatting.
+- [ ] If there are formatting diffs, run `pixi run format` to auto-format all `strata/` and `tests/` files.
+
+### 2. Precompile & Docstring Check
+- [ ] Run `pixi run build` (`mojo precompile strata -o strata.mojoc`).
+- [ ] Verify there are **0 compiler warnings** regarding docstrings.
+  - Compile-time struct parameters (`[compute_dtype: DType]`) belong under `Parameters:`.
+  - Runtime constructor parameters (`n_clusters`, `fit_intercept`) belong under `Args:`.
+
+### 3. Run Unit Test Suites
+- [ ] Run `pixi run test-runner` (or `pixi run test`) to execute unit test suites.
+- [ ] Verify **100% pass rate** across all test files with zero failures.
+
+### 4. Regenerate API Documentation & Site Bundle
+- [ ] Run `pixi run generate-docs` (or `python scripts/generate_docs.py`).
+- [ ] Ensure reference pages, search index (`docs/search_index.json`), and site bundle (`docs/data.js`) are updated.
+
+### 5. Git Branch & Pull Request
+- [ ] Ensure work is on a dedicated feature branch (`git checkout -b feat/your-feature-name`).
+- [ ] Commit changes with concise, descriptive commit messages.
+- [ ] Push branch to remote: `git push -u origin <your-branch-name>`.
+- [ ] Open Pull Request against `main`.
