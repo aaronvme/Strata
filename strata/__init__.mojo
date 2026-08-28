@@ -84,6 +84,8 @@ from .model_selection import (
     Split,
     cross_val_score,
     cross_val_predict,
+    cross_validate,
+    CrossValidateResult,
     GridSearchRegressor,
     GridSearchClassifier,
 )
