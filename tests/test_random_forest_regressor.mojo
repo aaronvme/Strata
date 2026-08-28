@@ -519,5 +519,132 @@ def test_rf_regressor_pipeline_integration() raises:
     assert_equal(len(preds), 10)
 
 
+def test_rf_regressor_collinear_and_duplicate_features_stress() raises:
+    # 20 samples, 40 features where feature 0 determines target, others are duplicates/zeros
+    var X = Matrix[DType.float64](20, 40, 0.0)
+    var y = List[Scalar[DType.float64]](capacity=20)
+    for i in range(20):
+        X[i, 0] = Float64(i)
+        for j in range(1, 40):
+            X[i, j] = Float64(i * (j % 3))  # collinear combinations
+        y.append(Float64(i * 10))
+
+    var rf = RandomForestRegressor[DType.float64](
+        n_estimators=20, max_features="sqrt", random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+
+    var preds = rf.predict(X)
+    for i in range(20):
+        assert_almost_equal(preds[i], y[i], atol=15.0)
+
+
+def test_rf_regressor_extreme_dynamic_range_numeric_scale() raises:
+    # Targets of magnitude 10^8 and micro-scale features (10^-6)
+    var X = Matrix[DType.float64](10, 2, 0.0)
+    var y = List[Scalar[DType.float64]](capacity=10)
+    for i in range(10):
+        X[i, 0] = Float64(i) * 1e-6
+        X[i, 1] = Float64(i % 2) * 1e-6
+        y.append(Float64(i) * 1e8)
+
+    var rf = RandomForestRegressor[DType.float64](
+        n_estimators=10, random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+
+    var preds = rf.predict(X)
+    assert_equal(len(preds), 10)
+    for i in range(10):
+        assert_true(preds[i] >= 0.0)
+        assert_true(preds[i] <= 1e9)
+
+
+def test_rf_regressor_all_targets_identical_zero_impurity() raises:
+    # 25 samples with varying features but constant target -77.5
+    var X = Matrix[DType.float64](25, 4, 0.0)
+    var y = List[Scalar[DType.float64]](capacity=25)
+    for i in range(25):
+        for j in range(4):
+            X[i, j] = Float64(i * 4 + j)
+        y.append(-77.5)
+
+    var rf = RandomForestRegressor[DType.float64](
+        n_estimators=10, random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+
+    var preds = rf.predict(X)
+    for i in range(25):
+        assert_almost_equal(preds[i], -77.5, atol=1e-5)
+
+    var imp = rf.get_feature_importances()
+    for j in range(4):
+        assert_almost_equal(imp[j], 0.0, atol=1e-5)
+
+
+def test_rf_regressor_negative_targets_with_friedman_mse() raises:
+    var X = Matrix[DType.float64](8, 1, 0.0)
+    var y = List[Scalar[DType.float64]](capacity=8)
+    for i in range(8):
+        X[i, 0] = Float64(i)
+        y.append(Float64(i * 10 - 40))  # Range [-40, 30]
+
+    var rf = RandomForestRegressor[DType.float64](
+        n_estimators=10, criterion="friedman_mse", random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+
+    var preds = rf.predict(X)
+    assert_true(preds[0] < -20.0)
+    assert_true(preds[7] > 15.0)
+
+
+def test_rf_regressor_degenerate_single_sample_subsampling() raises:
+    # max_samples_count=1: every tree fits on a single point
+    var X = Matrix[DType.float64](10, 2, 0.0)
+    var y = List[Scalar[DType.float64]](capacity=10)
+    for i in range(10):
+        X[i, 0] = Float64(i)
+        X[i, 1] = Float64(i * 2)
+        y.append(Float64(i * 5))
+
+    var rf = RandomForestRegressor[DType.float64](
+        n_estimators=20,
+        bootstrap=True,
+        max_samples_count=1,
+        random_state=42,
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+
+    var preds = rf.predict(X)
+    assert_equal(len(preds), 10)
+    for i in range(10):
+        assert_true(preds[i] >= 0.0 and preds[i] <= 50.0)
+
+
+def test_rf_regressor_1d_feature_log2_boundary() raises:
+    # 1 feature with max_features='log2' -> log2(1) = 0 -> clamped to 1
+    var X = Matrix[DType.float64](12, 1, 0.0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i)
+        y.append(Float64(i * 3))
+
+    var rf = RandomForestRegressor[DType.float64](
+        n_estimators=10, max_features="log2", random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+
+    var preds = rf.predict(X)
+    assert_true(preds[0] < preds[11])
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

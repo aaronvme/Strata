@@ -553,9 +553,7 @@ def test_rf_classifier_float32_native() raises:
 
 def test_rf_classifier_dataset_integration() raises:
     var data = _separable_2d_dataset()
-    var ds = Dataset[DType.float64, DType.int32](
-        data[0].copy(), data[1].copy()
-    )
+    var ds = Dataset[DType.float64, DType.int32](data[0].copy(), data[1].copy())
 
     var rf = RandomForestClassifier[DType.float64](
         n_estimators=5, random_state=42
@@ -590,6 +588,231 @@ def test_rf_classifier_pipeline_integration() raises:
     assert_equal(len(preds), 12)
     for i in range(12):
         assert_equal(preds[i], Int(data[1][i]))
+
+
+def test_rf_classifier_imbalanced_classes_extreme_ratio() raises:
+    # 40 samples of Class 0, only 2 samples of Class 1
+    var X = Matrix[DType.float64](42, 2, 0.0)
+    var y = List[Scalar[DType.int32]](capacity=42)
+    for i in range(40):
+        X[i, 0] = -5.0 + Float64(i) * 0.1
+        X[i, 1] = Float64(i % 3)
+        y.append(Int32(0))
+    X[40, 0] = 10.0
+    X[40, 1] = 10.0
+    y.append(Int32(1))
+    X[41, 0] = 12.0
+    X[41, 1] = 12.0
+    y.append(Int32(1))
+
+    var rf = RandomForestClassifier[DType.float64](
+        n_estimators=20, bootstrap=True, oob_score=True, random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+    assert_equal(rf.n_classes_, 2)
+
+    var proba = rf.predict_proba(X)
+    assert_equal(proba.rows, 42)
+    assert_equal(proba.cols, 2)
+    for i in range(42):
+        var row_sum = Float64(proba[i, 0]) + Float64(proba[i, 1])
+        assert_almost_equal(row_sum, 1.0, atol=1e-5)
+
+
+def test_rf_classifier_high_cardinality_arbitrary_signed_labels() raises:
+    # 8 classes with large/negative/discontinuous labels
+    var classes_arr = List[Int]()
+    classes_arr.append(-999)
+    classes_arr.append(-50)
+    classes_arr.append(-1)
+    classes_arr.append(0)
+    classes_arr.append(7)
+    classes_arr.append(42)
+    classes_arr.append(1000)
+    classes_arr.append(99999)
+
+    var X = Matrix[DType.float64](24, 2, 0.0)
+    var y = List[Scalar[DType.int32]](capacity=24)
+    for c in range(8):
+        for rep in range(3):
+            var row = c * 3 + rep
+            X[row, 0] = Float64(c * 10) + Float64(rep)
+            X[row, 1] = Float64(rep)
+            y.append(Int32(classes_arr[c]))
+
+    var rf = RandomForestClassifier[DType.float64](
+        n_estimators=15, max_depth=6, random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+    assert_equal(rf.n_classes_, 8)
+
+    var preds = rf.predict(X)
+    for i in range(24):
+        assert_equal(preds[i], Int(y[i]))
+
+
+def test_rf_classifier_four_quadrants_multiclass_2d() raises:
+    # 4 distinct quadrants in 2D with 4 classes (16 points, 4 per quadrant)
+    var X = Matrix[DType.float64](16, 2, 0.0)
+    var y = List[Scalar[DType.int32]](capacity=16)
+
+    # Q1: (+, +) -> Class 0
+    X[0, 0] = 2.0
+    X[0, 1] = 2.0
+    y.append(0)
+    X[1, 0] = 3.0
+    X[1, 1] = 4.0
+    y.append(0)
+    X[2, 0] = 5.0
+    X[2, 1] = 1.0
+    y.append(0)
+    X[3, 0] = 4.0
+    X[3, 1] = 5.0
+    y.append(0)
+
+    # Q2: (-, +) -> Class 1
+    X[4, 0] = -2.0
+    X[4, 1] = 2.0
+    y.append(1)
+    X[5, 0] = -4.0
+    X[5, 1] = 3.0
+    y.append(1)
+    X[6, 0] = -1.0
+    X[6, 1] = 5.0
+    y.append(1)
+    X[7, 0] = -5.0
+    X[7, 1] = 1.0
+    y.append(1)
+
+    # Q3: (-, -) -> Class 2
+    X[8, 0] = -3.0
+    X[8, 1] = -3.0
+    y.append(2)
+    X[9, 0] = -2.0
+    X[9, 1] = -5.0
+    y.append(2)
+    X[10, 0] = -5.0
+    X[10, 1] = -2.0
+    y.append(2)
+    X[11, 0] = -4.0
+    X[11, 1] = -4.0
+    y.append(2)
+
+    # Q4: (+, -) -> Class 3
+    X[12, 0] = 3.0
+    X[12, 1] = -2.0
+    y.append(3)
+    X[13, 0] = 4.0
+    X[13, 1] = -5.0
+    y.append(3)
+    X[14, 0] = 2.0
+    X[14, 1] = -4.0
+    y.append(3)
+    X[15, 0] = 5.0
+    X[15, 1] = -3.0
+    y.append(3)
+
+    var rf = RandomForestClassifier[DType.float64](
+        n_estimators=15, max_depth=4, random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+    assert_equal(rf.n_classes_, 4)
+
+    var preds = rf.predict(X)
+    assert_equal(len(preds), 16)
+    for r in range(16):
+        assert_equal(preds[r], Int(y[r]))
+
+
+def test_rf_classifier_single_sample_per_tree_subsampling() raises:
+    var X = Matrix[DType.float64](8, 2, 0.0)
+    var y = List[Scalar[DType.int32]](capacity=8)
+    for i in range(4):
+        X[i, 0] = Float64(i)
+        y.append(0)
+    for i in range(4, 8):
+        X[i, 0] = Float64(i + 10)
+        y.append(1)
+
+    var rf = RandomForestClassifier[DType.float64](
+        n_estimators=20,
+        bootstrap=True,
+        max_samples_count=1,
+        random_state=42,
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+
+    var preds = rf.predict(X)
+    assert_equal(len(preds), 8)
+
+
+def test_rf_classifier_simplex_invariant_large_unseen_matrix() raises:
+    # Fit on 12 samples (3 classes), predict on 100-sample unseen matrix
+    var X_train = Matrix[DType.float64](12, 2, 0.0)
+    var y_train = List[Scalar[DType.int32]](capacity=12)
+    for i in range(4):
+        X_train[i, 0] = Float64(i)
+        y_train.append(0)
+    for i in range(4, 8):
+        X_train[i, 0] = Float64(i + 10)
+        y_train.append(1)
+    for i in range(8, 12):
+        X_train[i, 0] = Float64(i + 20)
+        y_train.append(2)
+
+    var rf = RandomForestClassifier[DType.float64](
+        n_estimators=10, random_state=42
+    )
+    rf.fit(X_train, y_train)
+
+    var X_test = Matrix[DType.float64](100, 2, 0.0)
+    for i in range(100):
+        X_test[i, 0] = Float64(i) * 0.5 - 10.0
+        X_test[i, 1] = Float64(i % 5)
+
+    var proba = rf.predict_proba(X_test)
+    assert_equal(proba.rows, 100)
+    assert_equal(proba.cols, 3)
+
+    for i in range(100):
+        var row_sum: Float64 = 0.0
+        for c in range(3):
+            var p = Float64(proba[i, c])
+            assert_true(p >= 0.0 and p <= 1.0)
+            row_sum += p
+        assert_almost_equal(row_sum, 1.0, atol=1e-5)
+
+
+def test_rf_classifier_constant_features_5_classes_mixed_distribution() raises:
+    # 10 rows with identical feature [2.0, 3.0]
+    # Distribution: 4 of Class 0, 3 of Class 1, 2 of Class 2, 1 of Class 3
+    var X = Matrix[DType.float64](10, 2, 2.0)
+    var y = List[Scalar[DType.int32]](capacity=10)
+    y.append(0)
+    y.append(0)
+    y.append(0)
+    y.append(0)
+    y.append(1)
+    y.append(1)
+    y.append(1)
+    y.append(2)
+    y.append(2)
+    y.append(3)
+
+    var rf = RandomForestClassifier[DType.float64](
+        n_estimators=20, random_state=42
+    )
+    rf.fit(X, y)
+    assert_true(rf.is_fitted)
+    assert_equal(rf.n_classes_, 4)
+
+    var preds = rf.predict(X)
+    for i in range(10):
+        assert_equal(preds[i], 0)  # Majority class is 0
 
 
 def main() raises:

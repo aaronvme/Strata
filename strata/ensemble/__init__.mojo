@@ -1,1 +1,1 @@
-from .forest import RandomForestRegressor
+from .forest import RandomForestRegressor, RandomForestClassifier

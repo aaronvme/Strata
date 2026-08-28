@@ -167,9 +167,10 @@ struct Tree(Copyable, Movable):
                 var f_idx = self.nodes[curr].feature_idx
                 var val = X[r, f_idx].cast[DType.float64]()
                 var next_idx = (
-                    self.nodes[curr].left_child
-                    if val <= self.nodes[curr].threshold
-                    else self.nodes[curr].right_child
+                    self.nodes[curr].left_child if val
+                    <= self.nodes[curr]
+                    .threshold else self.nodes[curr]
+                    .right_child
                 )
                 if next_idx < 0 or next_idx >= len(self.nodes):
                     break
@@ -196,9 +197,10 @@ struct Tree(Copyable, Movable):
                 var f_idx = self.nodes[curr].feature_idx
                 var val = X[r, f_idx].cast[DType.float64]()
                 var next_idx = (
-                    self.nodes[curr].left_child
-                    if val <= self.nodes[curr].threshold
-                    else self.nodes[curr].right_child
+                    self.nodes[curr].left_child if val
+                    <= self.nodes[curr]
+                    .threshold else self.nodes[curr]
+                    .right_child
                 )
                 if next_idx < 0 or next_idx >= len(self.nodes):
                     break
@@ -252,9 +254,10 @@ struct Tree(Copyable, Movable):
                 var f_idx = self.nodes[curr].feature_idx
                 var val = X[r, f_idx].cast[DType.float64]()
                 var next_idx = (
-                    self.nodes[curr].left_child
-                    if val <= self.nodes[curr].threshold
-                    else self.nodes[curr].right_child
+                    self.nodes[curr].left_child if val
+                    <= self.nodes[curr]
+                    .threshold else self.nodes[curr]
+                    .right_child
                 )
                 if next_idx < 0 or next_idx >= len(self.nodes):
                     break

@@ -30,7 +30,8 @@ def generate_bootstrap_indices(
 
 
 def get_oob_mask(n_samples: Int, sample_indices: List[Int]) -> List[Bool]:
-    """Returns boolean mask indicating which samples were omitted from bootstrap sample."""
+    """Returns boolean mask indicating which samples were omitted from bootstrap sample.
+    """
     var oob_mask = List[Bool](capacity=n_samples)
     for _ in range(n_samples):
         oob_mask.append(True)
@@ -46,7 +47,8 @@ def get_oob_mask(n_samples: Int, sample_indices: List[Int]) -> List[Bool]:
 def compute_tree_feature_importances(
     tree: Tree, n_features: Int, total_samples: Int
 ) -> List[Float64]:
-    """Calculates Mean Decrease in Impurity (MDI) feature importances for a single tree."""
+    """Calculates Mean Decrease in Impurity (MDI) feature importances for a single tree.
+    """
     var importances = List[Float64](capacity=n_features)
     for _ in range(n_features):
         importances.append(0.0)
@@ -87,7 +89,8 @@ def compute_tree_feature_importances(
 def normalize_feature_importances(
     importances: List[Float64], n_features: Int
 ) -> List[Float64]:
-    """Normalizes raw impurity decreases so that the importance vector sums to 1.0."""
+    """Normalizes raw impurity decreases so that the importance vector sums to 1.0.
+    """
     var normalized = List[Float64](capacity=n_features)
     var sum_imp: Float64 = 0.0
     for j in range(n_features):

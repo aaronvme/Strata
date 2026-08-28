@@ -23,12 +23,14 @@ Strata is a native machine learning library for Mojo designed around familiar sc
   - Numerically stable `softmax`, `log_sum_exp`, `sigmoid`
   - 64-bit SplitMix64 `PRNG` with unbiased Lemire rejection sampling, Fisher-Yates `permutation` & `shuffle`
   - Domain exceptions: `DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, `DataConversionError`
-- **Tree-Based Models**:
+- **Tree-Based & Ensemble Models**:
   - `DecisionTreeClassifier` (Gini impurity, Shannon entropy, log-loss, discrete probability matrices)
   - `DecisionTreeRegressor` (Squared error MSE, Friedman MSE, sample median MAE)
-  - Contiguous flat-array `Tree` / `Node` buffers with $O(1)$ streaming histogram split calculations
+  - `RandomForestClassifier` (Bootstrap aggregation, soft-voting probability averaging, batched OOB accuracy)
+  - `RandomForestRegressor` (Bootstrap aggregation, mean prediction averaging, batched OOB R² score)
+  - Mean Decrease in Impurity (MDI) feature importances and decoupled PRNG streams
 - **Test Coverage**:
-  - 19 modular test suites (560+ passing tests)
+  - 22 modular test suites (620+ passing tests)
 
 ---
 
@@ -64,8 +66,8 @@ Strata is a native machine learning library for Mojo designed around familiar sc
 ### Tree-Based & Ensemble Models
 - [x] `DecisionTreeClassifier` (Gini impurity / Entropy / Log-Loss)
 - [x] `DecisionTreeRegressor` (MSE / Friedman MSE / MAE split criteria)
-- [ ] `RandomForestClassifier` (Bagging with multithreaded tree generation)
-- [ ] `RandomForestRegressor`
+- [x] `RandomForestClassifier` (Bagging with soft voting and batched OOB score)
+- [x] `RandomForestRegressor` (Bagging with mean averaging and batched OOB score)
 - [ ] `HistGradientBoostingClassifier` (UInt8 binning + parallel histogram building)
 - [ ] `HistGradientBoostingRegressor`
 - [ ] `VotingClassifier` & `StackingClassifier`

@@ -33,7 +33,7 @@ def _binary_search_class(classes: List[Int], target: Int) -> Int:
 
 struct DecisionTreeClassifier[
     compute_dtype: DType = DType.float64,
-](Copyable, Movable, Classifier):
+](Classifier, Copyable, Movable):
     """Decision Tree Classifier."""
 
     var is_fitted: Bool
@@ -185,11 +185,7 @@ struct DecisionTreeClassifier[
 
     def fit[
         feat_dtype: DType, target_dtype: DType
-    ](
-        mut self,
-        X: Matrix[feat_dtype],
-        y: List[Scalar[target_dtype]],
-    ) raises:
+    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]],) raises:
         """Fits the decision tree classifier on (X, y)."""
         check_X_y(X, y)
         self.n_features_in_ = X.cols
@@ -263,7 +259,9 @@ struct DecisionTreeClassifier[
 
         var impurity: Float64
         if self.criterion == "entropy":
-            impurity = entropy_impurity(counts, n_samples, use_natural_log=False)
+            impurity = entropy_impurity(
+                counts, n_samples, use_natural_log=False
+            )
         elif self.criterion == "log_loss":
             impurity = entropy_impurity(counts, n_samples, use_natural_log=True)
         else:
