@@ -38,7 +38,8 @@ MODULE_METADATA = {
         "description": "StandardScaler, MinMaxScaler, RobustScaler, Normalizer, Binarizer, and OneHotEncoder with streaming SIMD statistics.",
         "files": [
             "preprocessing/scaler.mojo",
-            "preprocessing/encoder.mojo",
+            "preprocessing/binarizer.mojo",
+            "preprocessing/encoders.mojo",
         ]
     },
     "linear_model": {
@@ -258,7 +259,7 @@ def extract_mojo_symbols(filepath: Path):
     symbols = []
 
     type_pattern = re.compile(
-        r'^(struct|trait)\s+([A-Za-z0-9_]+)(?:\[([\s\S]*?)\])?(?:\s*\(([\s\S]*?)\))?\s*:\s*\n\s*"""([\s\S]*?)"""',
+        r'^(struct|trait)\s+([A-Za-z0-9_]+)(?:\[([\s\S]*?)\])?(?:\s*\(([\s\S]*?)\))?\s*:(?:\s*\n\s*"""([\s\S]*?)""")?',
         re.MULTILINE
     )
 

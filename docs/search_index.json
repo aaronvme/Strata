@@ -19,6 +19,15 @@
   },
   {
     "module": "core",
+    "name": "SparseMatrix",
+    "kind": "trait",
+    "summary": "Base interface trait for 2D sparse matrix representations.",
+    "ref_file": "reference/core/SparseMatrix",
+    "traits": "",
+    "file": "strata/core/sparse.mojo"
+  },
+  {
+    "module": "core",
     "name": "DatasetSplit",
     "kind": "struct",
     "summary": "Container holding train and test partitions of a Dataset.",
@@ -126,6 +135,24 @@
     "file": "strata/preprocessing/scaler.mojo"
   },
   {
+    "module": "preprocessing",
+    "name": "Binarizer",
+    "kind": "struct",
+    "summary": "Binarize feature values according to a threshold.",
+    "ref_file": "reference/preprocessing/Binarizer",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/preprocessing/binarizer.mojo"
+  },
+  {
+    "module": "preprocessing",
+    "name": "OneHotEncoder",
+    "kind": "struct",
+    "summary": "Encode categorical features as a one-hot numeric array.",
+    "ref_file": "reference/preprocessing/OneHotEncoder",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/preprocessing/encoders.mojo"
+  },
+  {
     "module": "linear_model",
     "name": "LinearRegression",
     "kind": "struct",
@@ -196,6 +223,15 @@
     "ref_file": "reference/cluster/KMeans",
     "traits": "Clusterer, Copyable, Movable",
     "file": "strata/cluster/kmeans.mojo"
+  },
+  {
+    "module": "cluster",
+    "name": "MiniBatchKMeans",
+    "kind": "struct",
+    "summary": "Mini-Batch K-Means clustering algorithm.",
+    "ref_file": "reference/cluster/MiniBatchKMeans",
+    "traits": "Clusterer, Copyable, Movable",
+    "file": "strata/cluster/minibatch_kmeans.mojo"
   },
   {
     "module": "decomposition",
@@ -707,6 +743,15 @@
     "kind": "struct",
     "summary": "Exception raised when an invalid hyperparameter value is supplied.",
     "ref_file": "reference/utils/InvalidParameterError",
+    "traits": "Copyable, Movable, Writable",
+    "file": "strata/exceptions/errors.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "DataConversionError",
+    "kind": "struct",
+    "summary": "Exception raised when data type conversion or matrix array formatting fails.",
+    "ref_file": "reference/utils/DataConversionError",
     "traits": "Copyable, Movable, Writable",
     "file": "strata/exceptions/errors.mojo"
   }

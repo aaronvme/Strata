@@ -30,7 +30,6 @@ from strata.utils import InvalidParameterError
 
 ```mojo
 def error(param_name: String, reason: String) -> Error
-def error(msg: String) -> Error
 ```
 
 Create a formatted InvalidParameterError message.
@@ -39,7 +38,6 @@ Create a formatted InvalidParameterError message.
 | :--- | :--- | :--- |
 | **`param_name`** | `String` | — |
 | **`reason`** | `String` | — |
-| **`msg`** | `String` | — |
 
 **Returns**: `Error`
 
@@ -48,7 +46,6 @@ Create a formatted InvalidParameterError message.
 ### `InvalidParameterError.write_to()`
 
 ```mojo
-def write_to(self, mut writer: Some[Writer])
 def write_to(self, mut writer: Some[Writer])
 ```
 

@@ -113,10 +113,14 @@ struct InvalidParameterError(Copyable, Movable, Writable):
 
 @fieldwise_init
 struct DataConversionError(Copyable, Movable, Writable):
+    """Exception raised when data type conversion or matrix array formatting fails.
+    """
+
     var message: String
 
     @staticmethod
     def error(msg: String) -> Error:
+        """Create a formatted DataConversionError message."""
         return Error("DataConversionError: " + msg)
 
     def write_to(self, mut writer: Some[Writer]):
