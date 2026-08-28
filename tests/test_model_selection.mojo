@@ -23,6 +23,8 @@ from strata.model_selection import (
     CrossValidateResult,
     GridSearchRegressor,
     GridSearchClassifier,
+    RandomizedSearchRegressor,
+    RandomizedSearchClassifier,
     take_rows,
     take_elements,
 )
@@ -3028,6 +3030,465 @@ def test_cross_validate_classification_rejects_empty_scoring() raises:
     except:
         caught = True
     assert_true(caught)
+
+
+def _ridge_pool() raises -> List[Ridge[DType.float64]]:
+    var candidates = List[Ridge[DType.float64]]()
+    candidates.append(Ridge[DType.float64](alpha=1000.0))
+    candidates.append(Ridge[DType.float64](alpha=0.001))
+    candidates.append(Ridge[DType.float64](alpha=500.0))
+    candidates.append(Ridge[DType.float64](alpha=100.0))
+    candidates.append(Ridge[DType.float64](alpha=250.0))
+    candidates.append(Ridge[DType.float64](alpha=750.0))
+    return candidates^
+
+
+def _ridge_dataset() -> (
+    Tuple[Matrix[DType.float64], List[Scalar[DType.float64]]]
+):
+    var X = Matrix[DType.float64](12, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i + 1)
+        y.append(Float64(2 * (i + 1)))
+    return (X^, y^)
+
+
+def _logreg_pool() raises -> List[LogisticRegression[DType.float64]]:
+    var candidates = List[LogisticRegression[DType.float64]]()
+    candidates.append(LogisticRegression[DType.float64](C=0.001, max_iter=60))
+    candidates.append(LogisticRegression[DType.float64](C=10.0, max_iter=200))
+    candidates.append(LogisticRegression[DType.float64](C=0.01, max_iter=60))
+    candidates.append(LogisticRegression[DType.float64](C=1.0, max_iter=200))
+    return candidates^
+
+
+def test_randomized_search_regressor_full_budget_matches_grid_search() raises:
+    var data = _ridge_dataset()
+
+    var grid = GridSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), cv=3, scoring="r2", refit=True
+    )
+    grid.fit(data[0], data[1])
+
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3, scoring="r2", refit=True
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(rnd.best_index_, grid.best_index_)
+    assert_equal(rnd.best_score_, grid.best_score_)
+
+
+def test_randomized_search_regressor_finds_best_candidate() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3, scoring="r2"
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_true(rnd.is_fitted)
+    assert_equal(rnd.best_index_, 1)
+    assert_true(rnd.best_score_ > 0.99)
+
+
+def test_randomized_search_regressor_best_matches_recorded_results() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3, scoring="r2", random_state=11
+    )
+    rnd.fit(data[0], data[1])
+
+    var best_pos = 0
+    for i in range(len(rnd.cv_results_mean_)):
+        if rnd.cv_results_mean_[i] > rnd.cv_results_mean_[best_pos]:
+            best_pos = i
+
+    assert_equal(rnd.best_score_, rnd.cv_results_mean_[best_pos])
+    assert_equal(rnd.best_index_, rnd.sampled_indices_[best_pos])
+
+
+def test_randomized_search_regressor_respects_n_iter_budget() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=2, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 2)
+    assert_equal(len(rnd.cv_results_mean_), 2)
+    assert_equal(len(rnd.cv_results_std_), 2)
+
+
+def test_randomized_search_regressor_clamps_n_iter_to_pool_size() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=50, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 6)
+    assert_equal(len(rnd.cv_results_mean_), 6)
+
+    var seen = List[Bool](capacity=6)
+    for _ in range(6):
+        seen.append(False)
+    for i in range(6):
+        seen[rnd.sampled_indices_[i]] = True
+    for i in range(6):
+        assert_true(seen[i])
+
+
+def test_randomized_search_regressor_samples_without_replacement() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    for i in range(4):
+        assert_true(rnd.sampled_indices_[i] >= 0)
+        assert_true(rnd.sampled_indices_[i] < 6)
+        for j in range(i + 1, 4):
+            assert_true(rnd.sampled_indices_[i] != rnd.sampled_indices_[j])
+
+
+def test_randomized_search_regressor_reproducible_with_same_seed() raises:
+    var data = _ridge_dataset()
+
+    var a = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=3, cv=3, random_state=7
+    )
+    var b = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=3, cv=3, random_state=7
+    )
+    a.fit(data[0], data[1])
+    b.fit(data[0], data[1])
+
+    assert_equal(a.best_index_, b.best_index_)
+    assert_equal(a.best_score_, b.best_score_)
+    for i in range(3):
+        assert_equal(a.sampled_indices_[i], b.sampled_indices_[i])
+        assert_equal(a.cv_results_mean_[i], b.cv_results_mean_[i])
+
+
+def test_randomized_search_regressor_different_seeds_sample_differently() raises:
+    var data = _ridge_dataset()
+
+    var a = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3, random_state=1
+    )
+    var b = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3, random_state=999
+    )
+    a.fit(data[0], data[1])
+    b.fit(data[0], data[1])
+
+    var differs = False
+    for i in range(4):
+        if a.sampled_indices_[i] != b.sampled_indices_[i]:
+            differs = True
+    assert_true(differs)
+
+
+def test_randomized_search_regressor_std_is_non_negative() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    for i in range(4):
+        assert_true(rnd.cv_results_std_[i] >= 0.0)
+
+
+def test_randomized_search_regressor_candidate_isolation() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 1.0)
+        var _ = rnd.candidates[0].predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_randomized_search_regressor_predict_uses_best_estimator() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3, refit=True
+    )
+    rnd.fit(data[0], data[1])
+
+    var probe = Matrix[DType.float64](3, 1, 0)
+    probe[0, 0] = 20.0
+    probe[1, 0] = 30.0
+    probe[2, 0] = 40.0
+
+    var preds = rnd.predict(probe)
+    assert_equal(len(preds), 3)
+    assert_true(abs(preds[0] - 40.0) < 1.0)
+    assert_true(abs(preds[1] - 60.0) < 1.0)
+    assert_true(abs(preds[2] - 80.0) < 1.0)
+
+
+def test_randomized_search_regressor_predict_dtype_flexibility() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    var probe = Matrix[DType.float32](2, 1, 0)
+    probe[0, 0] = 20.0
+    probe[1, 0] = 30.0
+
+    var preds = rnd.predict(probe)
+    assert_equal(len(preds), 2)
+    assert_true(abs(preds[0] - 40.0) < 1.0)
+
+
+def test_randomized_search_regressor_predict_before_fit_raises() raises:
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=2, cv=3
+    )
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 1.0)
+        var _ = rnd.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_randomized_search_regressor_refit_false_blocks_predict() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=3, cv=3, refit=False
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_true(rnd.is_fitted)
+    assert_true(rnd.best_index_ >= 0)
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 1.0)
+        var _ = rnd.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_randomized_search_regressor_alternate_scoring_metric() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3, scoring="neg_mean_squared_error"
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(rnd.best_index_, 1)
+    assert_true(rnd.best_score_ <= 0.0)
+
+
+def test_randomized_search_regressor_constructor_error_handling() raises:
+    var caught_empty = False
+    try:
+        var empty = List[Ridge[DType.float64]]()
+        var _ = RandomizedSearchRegressor[Ridge[DType.float64]](empty^)
+    except:
+        caught_empty = True
+    assert_true(caught_empty)
+
+    var caught_iter = False
+    try:
+        var _ = RandomizedSearchRegressor[Ridge[DType.float64]](
+            _ridge_pool(), n_iter=0
+        )
+    except:
+        caught_iter = True
+    assert_true(caught_iter)
+
+    var caught_neg_iter = False
+    try:
+        var _ = RandomizedSearchRegressor[Ridge[DType.float64]](
+            _ridge_pool(), n_iter=-3
+        )
+    except:
+        caught_neg_iter = True
+    assert_true(caught_neg_iter)
+
+    var caught_cv = False
+    try:
+        var _ = RandomizedSearchRegressor[Ridge[DType.float64]](
+            _ridge_pool(), n_iter=2, cv=1
+        )
+    except:
+        caught_cv = True
+    assert_true(caught_cv)
+
+
+def test_randomized_search_classifier_full_budget_matches_grid_search() raises:
+    var data = _separable_dataset(24)
+
+    var grid = GridSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), cv=3, scoring="accuracy", refit=True
+    )
+    grid.fit(data[0], data[1])
+
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=4, cv=3, scoring="accuracy", refit=True
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 4)
+    assert_equal(rnd.best_score_, grid.best_score_)
+
+    var grid_pos = 0
+    for i in range(len(rnd.sampled_indices_)):
+        if rnd.sampled_indices_[i] == grid.best_index_:
+            grid_pos = i
+    assert_equal(rnd.cv_results_mean_[grid_pos], grid.best_score_)
+
+
+def test_randomized_search_classifier_best_matches_recorded_results() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=3, cv=3, random_state=5
+    )
+    rnd.fit(data[0], data[1])
+
+    var best_pos = 0
+    for i in range(len(rnd.cv_results_mean_)):
+        if rnd.cv_results_mean_[i] > rnd.cv_results_mean_[best_pos]:
+            best_pos = i
+
+    assert_equal(rnd.best_score_, rnd.cv_results_mean_[best_pos])
+    assert_equal(rnd.best_index_, rnd.sampled_indices_[best_pos])
+
+
+def test_randomized_search_classifier_respects_n_iter_budget() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=2, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 2)
+    assert_equal(len(rnd.cv_results_mean_), 2)
+    assert_true(rnd.sampled_indices_[0] != rnd.sampled_indices_[1])
+
+
+def test_randomized_search_classifier_predict_and_proba() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=4, cv=3, refit=True
+    )
+    rnd.fit(data[0], data[1])
+
+    var preds = rnd.predict(data[0])
+    assert_equal(len(preds), 24)
+    for i in range(24):
+        assert_true(preds[i] == 0 or preds[i] == 1)
+
+    var proba = rnd.predict_proba(data[0])
+    assert_equal(proba.rows, 24)
+    assert_equal(proba.cols, 2)
+    for i in range(24):
+        var total = proba[i, 0] + proba[i, 1]
+        assert_true(abs(total - 1.0) < 1e-6)
+
+
+def test_randomized_search_classifier_reproducible_with_same_seed() raises:
+    var data = _separable_dataset(24)
+
+    var a = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=3, cv=3, random_state=13
+    )
+    var b = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=3, cv=3, random_state=13
+    )
+    a.fit(data[0], data[1])
+    b.fit(data[0], data[1])
+
+    assert_equal(a.best_index_, b.best_index_)
+    for i in range(3):
+        assert_equal(a.sampled_indices_[i], b.sampled_indices_[i])
+        assert_equal(a.cv_results_mean_[i], b.cv_results_mean_[i])
+
+
+def test_randomized_search_classifier_refit_false_blocks_predict() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=2, cv=3, refit=False
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_true(rnd.is_fitted)
+
+    var caught_predict = False
+    try:
+        var _ = rnd.predict(data[0])
+    except:
+        caught_predict = True
+    assert_true(caught_predict)
+
+    var caught_proba = False
+    try:
+        var _ = rnd.predict_proba(data[0])
+    except:
+        caught_proba = True
+    assert_true(caught_proba)
+
+
+def test_randomized_search_classifier_predict_before_fit_raises() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=2, cv=3
+    )
+
+    var caught = False
+    try:
+        var _ = rnd.predict(data[0])
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_randomized_search_classifier_constructor_error_handling() raises:
+    var caught_empty = False
+    try:
+        var empty = List[LogisticRegression[DType.float64]]()
+        var _ = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+            empty^
+        )
+    except:
+        caught_empty = True
+    assert_true(caught_empty)
+
+    var caught_iter = False
+    try:
+        var _ = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+            _logreg_pool(), n_iter=0
+        )
+    except:
+        caught_iter = True
+    assert_true(caught_iter)
+
+    var caught_cv = False
+    try:
+        var _ = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+            _logreg_pool(), n_iter=2, cv=1
+        )
+    except:
+        caught_cv = True
+    assert_true(caught_cv)
 
 
 def main() raises:
