@@ -14,7 +14,7 @@ struct RandomizedSearchRegressor[
     ModelType: Regressor,
     feat_dtype: DType = DType.float64,
     target_dtype: DType = DType.float64,
-](Copyable, Movable):
+](Copyable, Movable, Regressor):
     """Randomized hyperparameter search for regression models.
 
     Evaluates a random subset of the supplied candidate configurations rather
@@ -176,3 +176,21 @@ struct RandomizedSearchRegressor[
             self.best_estimator_.fit(X_cast, y_cast)
 
         self.is_fitted = True
+
+    def predict[
+        in_feat_dtype: DType
+    ](self, X: Matrix[in_feat_dtype]) raises -> List[Scalar[in_feat_dtype]]:
+        """Predicts targets using the best discovered model configuration."""
+        check_is_fitted("RandomizedSearchRegressor", self.is_fitted)
+        if not self.refit:
+            raise NotFittedError.error(
+                "This RandomizedSearchRegressor instance was initialized with"
+                " refit=False. "
+                + "Predictions are unavailable without refit."
+            )
+        var X_cast = X.cast[Self.feat_dtype]()
+        var preds_comp = self.best_estimator_.predict(X_cast)
+        var preds = List[Scalar[in_feat_dtype]](capacity=len(preds_comp))
+        for i in range(len(preds_comp)):
+            preds.append(Scalar[in_feat_dtype](preds_comp[i]))
+        return preds^
