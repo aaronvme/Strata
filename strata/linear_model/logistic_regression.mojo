@@ -24,6 +24,9 @@ struct LogisticRegression[
 
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         penalty: Regularization norm ('l2' or 'none'). Default 'l2'.
         C: Inverse regularization strength ($C > 0$). Smaller values specify stronger regularization. Default 1.0.
         fit_intercept: Whether to calculate the intercept bias vector. Default True.

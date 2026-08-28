@@ -40,6 +40,9 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
     'one-of-K' or 'dummy') encoding scheme.
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         drop: Category dropping strategy ('none', 'first', 'if_binary'). Default 'none'.
         handle_unknown: Behavior for unseen categories during transform ('error', 'ignore'). Default 'error'.
 

@@ -29,6 +29,9 @@ struct DecisionTreeRegressor[
     $$
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         criterion: The function to measure split quality ('squared_error', 'friedman_mse', 'absolute_error'). Default 'squared_error'.
         splitter: Strategy used to choose the split at each node ('best', 'random'). Default 'best'.
         max_depth: Maximum tree depth. -1 indicates unlimited depth. Default -1.

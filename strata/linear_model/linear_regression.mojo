@@ -31,6 +31,9 @@ struct LinearRegression[
 
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         fit_intercept: Whether to calculate the intercept bias term. Default True.
         solver: Solver algorithm to use ('lstsq', 'qr', 'cholesky', 'solve'). Default 'lstsq'.
 

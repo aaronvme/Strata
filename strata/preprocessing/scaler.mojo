@@ -30,6 +30,9 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
 
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         with_mean: If True, center the data before scaling. Default True.
         with_std: If True, scale the data to unit variance (unit standard deviation). Default True.
 
@@ -186,6 +189,9 @@ struct MinMaxScaler[compute_dtype: DType = DType.float64](
     $$
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         feature_range_min: Lower bound of the desired transformed range. Default 0.0.
         feature_range_max: Upper bound of the desired transformed range. Default 1.0.
         clip: Whether to clip transformed values to the feature range. Default False.
@@ -445,6 +451,9 @@ struct RobustScaler[compute_dtype: DType = DType.float64](
     where $\\text{IQR} = Q_3 - Q_1$ (by default 75th percentile minus 25th percentile).
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         with_centering: If True, center the data before scaling by subtracting the median. Default True.
         with_scaling: If True, scale the data to interquartile range. Default True.
         quantile_min: Lower quantile percentage of the scaling range ($0 <= q_{\\min} < q_{\\max} <= 100$). Default 25.0.

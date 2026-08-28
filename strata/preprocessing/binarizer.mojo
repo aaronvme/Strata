@@ -27,6 +27,9 @@ struct Binarizer[compute_dtype: DType = DType.float64](
 
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         threshold: Feature values greater than this are mapped to 1. Default 0.0.
 
     Attributes:
