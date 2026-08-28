@@ -106,3 +106,4 @@ from .metrics import (
     confusion_matrix,
 )
 from .tree import DecisionTreeRegressor, DecisionTreeClassifier
+from .ensemble import RandomForestRegressor, RandomForestClassifier

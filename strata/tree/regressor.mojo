@@ -164,11 +164,7 @@ struct DecisionTreeRegressor[
 
     def fit[
         feat_dtype: DType, target_dtype: DType
-    ](
-        mut self,
-        X: Matrix[feat_dtype],
-        y: List[Scalar[target_dtype]],
-    ) raises:
+    ](mut self, X: Matrix[feat_dtype], y: List[Scalar[target_dtype]],) raises:
         """Fits the decision tree regressor on (X, y)."""
         check_X_y(X, y)
         self.n_features_in_ = X.cols

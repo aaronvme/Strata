@@ -111,9 +111,8 @@ def select_features(
     var k: Int
     if max_features_count > 0:
         k = (
-            max_features_count
-            if max_features_count < n_total_features
-            else n_total_features
+            max_features_count if max_features_count
+            < n_total_features else n_total_features
         )
     elif max_features_ratio > 0.0:
         var computed = Int(Float64(n_total_features) * max_features_ratio)
@@ -250,19 +249,15 @@ def find_best_split_classification[
             if n_l < min_samples_leaf or n_r < min_samples_leaf:
                 continue
 
-            var l_imp = (
-                gini_impurity(l_counts, n_l)
-                if criterion == "gini"
-                else entropy_impurity(
-                    l_counts, n_l, use_natural_log=use_nat_log
-                )
+            var l_imp = gini_impurity(
+                l_counts, n_l
+            ) if criterion == "gini" else entropy_impurity(
+                l_counts, n_l, use_natural_log=use_nat_log
             )
-            var r_imp = (
-                gini_impurity(r_counts, n_r)
-                if criterion == "gini"
-                else entropy_impurity(
-                    r_counts, n_r, use_natural_log=use_nat_log
-                )
+            var r_imp = gini_impurity(
+                r_counts, n_r
+            ) if criterion == "gini" else entropy_impurity(
+                r_counts, n_r, use_natural_log=use_nat_log
             )
             var decrease = compute_impurity_decrease(
                 parent_impurity, n_samples, l_imp, n_l, r_imp, n_r
@@ -523,8 +518,10 @@ def find_best_split_regression[
                         var mean_r = sum_r / Float64(n_r)
                         var diff = mean_l - mean_r
                         decrease = (
-                            (Float64(n_l) * Float64(n_r)) / Float64(n_l + n_r)
-                        ) * diff * diff
+                            ((Float64(n_l) * Float64(n_r)) / Float64(n_l + n_r))
+                            * diff
+                            * diff
+                        )
                     else:
                         decrease = compute_impurity_decrease(
                             parent_impurity, n_samples, l_imp, n_l, r_imp, n_r
