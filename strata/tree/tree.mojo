@@ -216,19 +216,21 @@ struct Tree(Copyable, Movable):
 
             # Determine best class from class_probabilities, falling back to class_counts
             var best_c = 0
-            var probs = self.nodes[curr].class_probabilities
-            if len(probs) > 0:
+            var n_probs = len(self.nodes[curr].class_probabilities)
+            if n_probs > 0:
                 var best_prob: Float64 = -1.0
-                for c in range(len(probs)):
-                    if probs[c] > best_prob:
-                        best_prob = probs[c]
+                for c in range(n_probs):
+                    var p = self.nodes[curr].class_probabilities[c]
+                    if p > best_prob:
+                        best_prob = p
                         best_c = c
             else:
-                var counts = self.nodes[curr].class_counts
+                var n_cnts = len(self.nodes[curr].class_counts)
                 var best_cnt = -1
-                for c in range(len(counts)):
-                    if counts[c] > best_cnt:
-                        best_cnt = counts[c]
+                for c in range(n_cnts):
+                    var cnt = self.nodes[curr].class_counts[c]
+                    if cnt > best_cnt:
+                        best_cnt = cnt
                         best_c = c
 
             if len(self.classes_) > best_c:
@@ -269,23 +271,23 @@ struct Tree(Copyable, Movable):
                     break
                 curr = next_idx
 
-            var probs = self.nodes[curr].class_probabilities
-            if len(probs) > 0:
+            var n_probs = len(self.nodes[curr].class_probabilities)
+            if n_probs > 0:
                 for c in range(n_cols):
-                    if c < len(probs):
-                        data.append(Scalar[out_dtype](probs[c]))
+                    if c < n_probs:
+                        data.append(Scalar[out_dtype](self.nodes[curr].class_probabilities[c]))
                     else:
                         data.append(Scalar[out_dtype](0.0))
             else:
                 # Derive probabilities on the fly if only class_counts are stored
-                var counts = self.nodes[curr].class_counts
+                var n_cnts = len(self.nodes[curr].class_counts)
                 var total_cnt = 0
-                for c in range(len(counts)):
-                    total_cnt += counts[c]
+                for c in range(n_cnts):
+                    total_cnt += self.nodes[curr].class_counts[c]
                 var total_f = Float64(total_cnt) if total_cnt > 0 else 1.0
                 for c in range(n_cols):
-                    if c < len(counts):
-                        data.append(Scalar[out_dtype](Float64(counts[c]) / total_f))
+                    if c < n_cnts:
+                        data.append(Scalar[out_dtype](Float64(self.nodes[curr].class_counts[c]) / total_f))
                     else:
                         data.append(Scalar[out_dtype](0.0))
 

@@ -153,7 +153,7 @@ def compute_impurity_decrease(
     right_impurity: Float64,
     n_right: Int,
 ) -> Float64:
-    """Computes the weighted impurity decrease for a candidate split:
+    """Computes the weighted impurity decrease for a candidate split.
 
     Decrease = parent_impurity - (n_left / n_parent) * left_impurity - (n_right / n_parent) * right_impurity
     """
