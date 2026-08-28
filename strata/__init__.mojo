@@ -80,10 +80,16 @@ from .model_selection import (
     StratifiedKFold,
     TimeSeriesSplit,
     ShuffleSplit,
+    StratifiedShuffleSplit,
     Split,
     cross_val_score,
+    cross_val_predict,
+    cross_validate,
+    CrossValidateResult,
     GridSearchRegressor,
     GridSearchClassifier,
+    RandomizedSearchRegressor,
+    RandomizedSearchClassifier,
 )
 from .linear_model import LinearRegression, Ridge, LogisticRegression
 from .decomposition import PCA, TruncatedSVD

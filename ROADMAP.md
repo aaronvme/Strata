@@ -87,13 +87,14 @@ Strata is a native machine learning library for Mojo designed around familiar sc
 ### Model Selection & Validation
 - [x] `train_test_split` (with deterministic RNG seed)
 - [x] `KFold` & `StratifiedKFold` cross-validation splitters
+- [x] `cross_val_score` (Single-metric cross-validated scoring)
 - [x] `TimeSeriesSplit` (Rolling / expanding temporal cross-validation with gap embargo)
 - [x] `ShuffleSplit` (Monte Carlo random train/test splits)
-- [ ] `StratifiedShuffleSplit` (Class-balanced Monte Carlo splits)
+- [x] `StratifiedShuffleSplit` (Class-balanced Monte Carlo splits)
 - [x] `GridSearchRegressor` & `GridSearchClassifier` (Exhaustive hyperparameter grid search)
-- [ ] `RandomizedSearchRegressor` & `RandomizedSearchClassifier`
-- [ ] `cross_val_predict` (Out-of-fold prediction matrices)
-- [ ] `cross_validate` (Multi-metric evaluation)
+- [x] `RandomizedSearchRegressor` & `RandomizedSearchClassifier` (Sampled hyperparameter search)
+- [x] `cross_val_predict` (Out-of-fold prediction matrices)
+- [x] `cross_validate` (Multi-metric evaluation)
 
 ### Evaluation Metrics
 - [x] `accuracy_score`
