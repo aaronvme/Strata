@@ -280,6 +280,3 @@ def test_distance_computation_with_negative_and_zero_values() raises:
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
-
-
-

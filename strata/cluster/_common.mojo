@@ -6,12 +6,7 @@ from ..exceptions.errors import InvalidParameterError, DimensionMismatchError
 
 def _squared_euclidean_distance[
     dtype: DType
-](
-    X: Matrix[dtype],
-    row_x: Int,
-    C: Matrix[dtype],
-    row_c: Int,
-) -> Scalar[dtype]:
+](X: Matrix[dtype], row_x: Int, C: Matrix[dtype], row_c: Int,) -> Scalar[dtype]:
     var d = X.cols
     var sum_sq: Scalar[dtype] = 0
     for j in range(d):
@@ -22,12 +17,7 @@ def _squared_euclidean_distance[
 
 def _euclidean_distance[
     dtype: DType
-](
-    X: Matrix[dtype],
-    row_x: Int,
-    C: Matrix[dtype],
-    row_c: Int,
-) -> Scalar[dtype]:
+](X: Matrix[dtype], row_x: Int, C: Matrix[dtype], row_c: Int,) -> Scalar[dtype]:
     return sqrt(_squared_euclidean_distance(X, row_x, C, row_c))
 
 

@@ -167,9 +167,7 @@ def test_minibatch_kmeans_dataset_integration() raises:
     t_names.append("c0")
     t_names.append("c1")
 
-    var ds = Dataset[DType.float64, DType.int32](
-        X^, y^, f_names^, t_names^
-    )
+    var ds = Dataset[DType.float64, DType.int32](X^, y^, f_names^, t_names^)
 
     var mbk = MiniBatchKMeans[DType.float64](n_clusters=2, random_state=42)
     fit_ds(mbk, ds)
@@ -196,7 +194,9 @@ def test_minibatch_kmeans_copy_constructor() raises:
     var mbk2 = mbk1.copy()
     assert_true(mbk2.is_fitted)
     assert_equal(mbk2.cluster_centers_.rows, 2)
-    assert_almost_equal(Float64(mbk1.inertia_), Float64(mbk2.inertia_), atol=1e-7)
+    assert_almost_equal(
+        Float64(mbk1.inertia_), Float64(mbk2.inertia_), atol=1e-7
+    )
 
     # Mutate mbk1
     var X_new = Matrix[DType.float64](2, 2, 100.0)
@@ -218,7 +218,9 @@ def test_minibatch_kmeans_reproducibility() raises:
     var mbk2 = MiniBatchKMeans[DType.float64](n_clusters=3, random_state=999)
     mbk2.fit(X)
 
-    assert_almost_equal(Float64(mbk1.inertia_), Float64(mbk2.inertia_), atol=1e-7)
+    assert_almost_equal(
+        Float64(mbk1.inertia_), Float64(mbk2.inertia_), atol=1e-7
+    )
     for r in range(3):
         for c in range(2):
             assert_almost_equal(
@@ -317,9 +319,7 @@ def test_minibatch_kmeans_error_handling() raises:
         mbk_too_many_k.fit(X)
 
     # Invalid parameter: batch_size <= 0
-    var mbk_bad_bs = MiniBatchKMeans[DType.float64](
-        n_clusters=2, batch_size=0
-    )
+    var mbk_bad_bs = MiniBatchKMeans[DType.float64](n_clusters=2, batch_size=0)
     with assert_raises():
         mbk_bad_bs.fit(X)
 
@@ -538,5 +538,3 @@ def test_minibatch_kmeans_batch_size_sweeps() raises:
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
-
-

@@ -97,9 +97,7 @@ def test_kmeans_random_init() raises:
     X[3, 0] = 8.2
     X[3, 1] = 7.9
 
-    var km = KMeans[DType.float64](
-        n_clusters=2, init="random", random_state=42
-    )
+    var km = KMeans[DType.float64](n_clusters=2, init="random", random_state=42)
     km.fit(X)
     assert_true(km.is_fitted)
     assert_equal(km.cluster_centers_.rows, 2)
@@ -170,9 +168,7 @@ def test_kmeans_dataset_overload() raises:
     t_names.append("c0")
     t_names.append("c1")
 
-    var ds = Dataset[DType.float64, DType.int32](
-        X^, y^, f_names^, t_names^
-    )
+    var ds = Dataset[DType.float64, DType.int32](X^, y^, f_names^, t_names^)
 
     var km = KMeans[DType.float64](n_clusters=2, random_state=42)
     fit_ds(km, ds)
@@ -210,9 +206,7 @@ def test_kmeans_copy_constructor() raises:
     km1.fit(X_new)
 
     # km2 should remain isolated
-    assert_almost_equal(
-        Float64(km2.cluster_centers_[0, 0]), 1.0, atol=0.5
-    )
+    assert_almost_equal(Float64(km2.cluster_centers_[0, 0]), 1.0, atol=0.5)
 
 
 def test_kmeans_reproducibility() raises:
@@ -617,6 +611,3 @@ def test_kmeans_transform_exact_distance_geometry() raises:
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
-
-
-

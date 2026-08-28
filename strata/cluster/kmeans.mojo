@@ -23,7 +23,7 @@ from ._common import (
 
 
 struct KMeans[compute_dtype: DType = DType.float64](
-    Copyable, Movable, Clusterer
+    Clusterer, Copyable, Movable
 ):
     var is_fitted: Bool
     var n_clusters: Int
@@ -241,9 +241,7 @@ struct KMeans[compute_dtype: DType = DType.float64](
         self.n_features_in_ = d
         self.is_fitted = True
 
-    def predict[
-        in_dtype: DType
-    ](self, X: Matrix[in_dtype]) raises -> List[Int]:
+    def predict[in_dtype: DType](self, X: Matrix[in_dtype]) raises -> List[Int]:
         check_is_fitted("KMeans", self.is_fitted)
         check_array[in_dtype](X)
         if X.cols != self.n_features_in_:
