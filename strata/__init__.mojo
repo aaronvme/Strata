@@ -88,6 +88,8 @@ from .model_selection import (
     CrossValidateResult,
     GridSearchRegressor,
     GridSearchClassifier,
+    RandomizedSearchRegressor,
+    RandomizedSearchClassifier,
 )
 from .linear_model import LinearRegression, Ridge, LogisticRegression
 from .decomposition import PCA, TruncatedSVD

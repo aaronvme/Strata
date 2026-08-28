@@ -12,3 +12,7 @@ from .validation import (
     CrossValidateResult,
 )
 from .grid_search import GridSearchRegressor, GridSearchClassifier
+from .randomized_search import (
+    RandomizedSearchRegressor,
+    RandomizedSearchClassifier,
+)
