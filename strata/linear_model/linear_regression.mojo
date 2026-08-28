@@ -217,4 +217,3 @@ struct LinearRegression[
                     preds.append(Scalar[feat_dtype](preds_comp[i]))
 
             return preds^
-
