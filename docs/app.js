@@ -193,7 +193,10 @@
   function resolveMarkdownLink(href) {
     if (!href) return '#';
     if (href.startsWith('http://') || href.startsWith('https://')) return href;
-    if (href.startsWith('#')) return `#${currentDocId}${href}`;
+    if (href.startsWith('#')) {
+      if (href.includes('/')) return href;
+      return `#${currentDocId}${href}`;
+    }
     if (href.startsWith('file:///')) {
       const parts = href.split('/');
       return parts[parts.length - 1];

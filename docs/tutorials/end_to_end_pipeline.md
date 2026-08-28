@@ -1,13 +1,12 @@
 # Composing End-to-End ML Pipelines
 
-In this guide, you will build an end-to-end Machine Learning pipeline that chains data standardization (`StandardScaler`) with a regularized linear model (`Ridge`) using Strata's `PipelineRegressor`.
-
+Strata provides pipeline wrappers like `PipelineRegressor` and `PipelineClassifier` to chain data transformers (such as `StandardScaler`) and estimators into a single object.
 
 ---
 
-## 1. Why Pipelines in Mojo?
+## How Pipelines Work in Mojo
 
-In Python, pipelines rely on dynamic dispatch (`getattr`, `**kwargs`) and boxed memory objects. In Mojo, Strata pipelines use compile-time generic specialization:
+In Python libraries like scikit-learn, pipelines use dynamic runtime dispatch to pass data between steps. In Mojo, Strata pipelines use compile-time generic types:
 
 ```mojo
 PipelineRegressor[
@@ -17,13 +16,11 @@ PipelineRegressor[
 ]
 ```
 
-This guarantees:
-- **Zero dynamic dispatch**: Method calls inline directly into hardware SIMD loops.
-- **Strict memory safety**: Intermediate feature matrices are passed efficiently without dangling references.
+Because concrete types are known at compile time, calls to `transform()` and `predict()` are inlined directly without virtual table lookup overhead.
 
 ---
 
-## 2. Step-by-Step Implementation
+## Step-by-Step Example
 
 Create `pipeline_demo.mojo`:
 
@@ -35,42 +32,42 @@ from strata.base.pipeline import PipelineRegressor
 from strata.metrics.regression import mean_squared_error, r2_score
 
 def main() raises:
-    # Generate 10 samples with 3 unscaled features
+    # 10 samples with 3 features on different scales
     var X = Matrix[DType.float64](10, 3)
-    var y = List[Scalar[DType.float64]](capacity=10)
+    var y = List[Scalar[DType.float64]]()
 
     for i in range(10):
         X[i, 0] = Float64(i * 1000)      # High-scale feature
-        X[i, 1] = Float64(i) * 0.01      # Micro-scale feature
-        X[i, 2] = Float64(i % 2)         # Binary indicator
-        y.append(Float64(i * 5 + 2))     # Target: linear relation
+        X[i, 1] = Float64(i) * 0.01      # Low-scale feature
+        X[i, 2] = Float64(i % 2)         # Binary feature
+        y.append(Float64(i * 5 + 2))     # Linear target
 
-    # 1. Instantiate the individual components
+    # Instantiate the scaler and regressor
     var scaler = StandardScaler[DType.float64]()
     var ridge = Ridge[DType.float64](alpha=1.0)
 
-    # 2. Compose into a unified pipeline
+    # Compose into a pipeline. Note the transfer operator (^) passing ownership
     var pipe = PipelineRegressor[
         StandardScaler[DType.float64],
         Ridge[DType.float64],
         DType.float64
     ](scaler^, ridge^)
 
-    # 3. Fit the pipeline (Standardizes X, then trains Ridge)
+    # Fit the pipeline: standardizes X, then fits Ridge on scaled features
     pipe.fit(X, y)
-    print("Pipeline successfully fitted!")
 
-    # 4. Predict on new data (Automatically scales input before inference)
+    # Predict: automatically scales input features before running inference
     var preds = pipe.predict(X)
 
-    # 5. Evaluate regression performance
+    # Calculate metrics
     var mse = mean_squared_error(y, preds)
     var r2 = r2_score(y, preds)
-    print("Mean Squared Error:", mse)
-    print("R² Score:", r2)
+
+    print("MSE:", mse)
+    print("R²:", r2)
 ```
 
-Run with:
+Run the script:
 
 ```bash
 pixi run mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack pipeline_demo.mojo
@@ -78,7 +75,8 @@ pixi run mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack pipeline_d
 
 ---
 
-## 3. Key Takeaways
+## Ownership and Transfer Operator (`^`)
 
-- `PipelineRegressor` takes ownership of its components using Mojo's transfer operator (`^`).
-- When calling `pipe.predict(X)`, features are automatically transformed through all preprocessing steps before reaching the final estimator.
+In Mojo, passing an object into a struct constructor requires explicit ownership handling:
+- `scaler^` uses Mojo's transfer operator `^` to move ownership of `scaler` into `PipelineRegressor`.
+- Once moved, the original `scaler` variable can no longer be accessed, preventing unintended mutations or double-free errors.
