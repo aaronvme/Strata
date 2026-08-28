@@ -655,6 +655,39 @@ def cross_validate[
     estimator: ModelType,
     X: Matrix[feat_dtype],
     y: List[Scalar[target_dtype]],
+    scoring: List[String],
+    cv: Int = 5,
+    return_train_score: Bool = False,
+) raises -> CrossValidateResult:
+    """Evaluates several classification metrics across K stratified folds.
+
+    Args:
+        estimator: Model configuration cloned once per fold.
+        X: Feature matrix.
+        y: Discrete class labels.
+        scoring: Names of the classification metrics to record.
+        cv: Number of stratified cross-validation folds.
+        return_train_score: Whether to also score the training rows of each
+            fold.
+
+    Returns:
+        Per-fold scores for every requested metric.
+    """
+    var skf = StratifiedKFold(n_splits=cv)
+    var splits = skf.split[feat_dtype, target_dtype](X, y)
+    return cross_validate[ModelType, feat_dtype, target_dtype](
+        estimator, X, y, splits, scoring, return_train_score
+    )
+
+
+def cross_validate[
+    ModelType: Classifier,
+    feat_dtype: DType = DType.float64,
+    target_dtype: DType = DType.int32,
+](
+    estimator: ModelType,
+    X: Matrix[feat_dtype],
+    y: List[Scalar[target_dtype]],
     splits: List[Split],
     scoring: List[String],
     return_train_score: Bool = False,
