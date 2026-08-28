@@ -32,7 +32,7 @@ def _step_1d_dataset() -> (
         X[i, 0] = Float64(i)
         y.append(0.0)
     for i in range(5, 10):
-        X[i, 0] = Float64(i)
+        X[i, 0] = Float64(i + 10)
         y.append(10.0)
     return (X^, y^)
 
@@ -185,7 +185,7 @@ def test_rf_regressor_feature_importances_sum_to_one() raises:
     )
     rf.fit(X, y)
 
-    var importances = rf.feature_importances_
+    var importances = rf.get_feature_importances()
     assert_equal(len(importances), 3)
 
     var sum_imp: Float64 = 0.0
@@ -314,12 +314,24 @@ def test_rf_regressor_constant_features_varying_target() raises:
     var X = Matrix[DType.float64](6, 2, 1.0)
     var y: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
 
-    var rf = RandomForestRegressor[DType.float64](n_estimators=5)
+    # Without bootstrap, mean of identical features is exact target mean 3.5
+    var rf = RandomForestRegressor[DType.float64](
+        n_estimators=5, bootstrap=False
+    )
     rf.fit(X, y)
 
     var preds = rf.predict(X)
     for i in range(6):
         assert_almost_equal(preds[i], 3.5, atol=1e-4)
+
+    # With bootstrap, all identical feature rows produce the exact same prediction
+    var rf_boot = RandomForestRegressor[DType.float64](
+        n_estimators=10, random_state=42
+    )
+    rf_boot.fit(X, y)
+    var boot_preds = rf_boot.predict(X)
+    for i in range(1, 6):
+        assert_almost_equal(boot_preds[i], boot_preds[0], atol=1e-5)
 
 
 def test_rf_regressor_constant_target_varying_features() raises:

@@ -243,7 +243,7 @@ def test_rf_classifier_feature_importances_sum_to_one() raises:
     )
     rf.fit(X, y)
 
-    var importances = rf.feature_importances_
+    var importances = rf.get_feature_importances()
     assert_equal(len(importances), 3)
 
     var sum_imp: Float64 = 0.0
