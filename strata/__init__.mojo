@@ -104,5 +104,6 @@ from .metrics import (
     recall_score,
     f1_score,
     confusion_matrix,
+    log_loss,
 )
 from .tree import DecisionTreeRegressor, DecisionTreeClassifier

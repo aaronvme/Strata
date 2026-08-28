@@ -1,7 +1,11 @@
-from std.math import isnan
+from std.math import isnan, log
 from ..core.matrix import Matrix
-from ..utils.validation import check_consistent_length, check_finite
-from ..exceptions.errors import InvalidParameterError
+from ..utils.validation import (
+    check_array,
+    check_consistent_length,
+    check_finite,
+)
+from ..exceptions.errors import DimensionMismatchError, InvalidParameterError
 
 
 def _insertion_point(labels: List[Float64], value: Float64) -> Int:
@@ -261,3 +265,75 @@ def f1_score[
     return _averaged_score(
         y_true, y_pred, average, pos_label, zero_division, 2, "f1_score"
     )
+
+
+def log_loss[
+    true_dtype: DType = DType.float64, pred_dtype: DType = DType.float64
+](
+    y_true: List[Scalar[true_dtype]],
+    y_pred: Matrix[pred_dtype],
+    normalize: Bool = True,
+) raises -> Float64:
+    """Log loss, the negative log-likelihood of the true labels under y_pred.
+
+    Args:
+        y_true: Ground truth labels, one per sample.
+        y_pred: Predicted probabilities, one row per sample and one column per
+            class ordered by the sorted distinct labels of y_true. A single
+            column is read as the probability of the larger of two labels.
+        normalize: Return the mean loss per sample, otherwise the total.
+
+    Returns:
+        The mean (or total) cross-entropy between y_true and y_pred.
+    """
+    check_consistent_length(y_pred, y_true)
+    if len(y_true) == 0:
+        raise InvalidParameterError.error(
+            "y_true", "log_loss requires at least one sample"
+        )
+    check_finite(y_true, "y_true", "log_loss")
+    check_array(y_pred)
+
+    var labels = unique_labels(y_true, y_true)
+    var k = len(labels)
+    if k == 1:
+        raise InvalidParameterError.error(
+            "y_true",
+            "log_loss requires at least 2 distinct labels in y_true, but only "
+            + String(labels[0])
+            + " was found",
+        )
+
+    var binarized = y_pred.cols == 1
+    var n_cols = 2 if binarized else y_pred.cols
+    if n_cols != k:
+        raise DimensionMismatchError.error(
+            "y_pred with " + String(k) + " columns",
+            "y_pred with " + String(y_pred.cols) + " columns",
+            "log_loss",
+        )
+
+    var eps = 2.220446049250313e-16
+    var probs = List[Float64](length=n_cols, fill=0.0)
+    var total: Float64 = 0.0
+
+    for i in range(len(y_true)):
+        var row_sum: Float64 = 0.0
+        for j in range(n_cols):
+            var p = Float64(y_pred[i, 0]) if binarized else Float64(
+                y_pred[i, j]
+            )
+            if binarized and j == 0:
+                p = 1.0 - p
+            if p < eps:
+                p = eps
+            elif p > 1.0 - eps:
+                p = 1.0 - eps
+            probs[j] = p
+            row_sum += p
+        var col = _search_sorted(labels, Float64(y_true[i]))
+        total -= log(probs[col] / row_sum)
+
+    if not normalize:
+        return total
+    return total / Float64(len(y_true))

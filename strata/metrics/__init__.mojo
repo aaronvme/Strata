@@ -10,5 +10,6 @@ from .classification import (
     recall_score,
     f1_score,
     confusion_matrix,
+    log_loss,
     unique_labels,
 )
