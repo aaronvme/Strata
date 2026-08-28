@@ -313,4 +313,3 @@ def f1_score[
     return _averaged_score(
         y_true, y_pred, average, pos_label, zero_division, 2, "f1_score"
     )
-

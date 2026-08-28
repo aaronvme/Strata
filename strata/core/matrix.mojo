@@ -84,7 +84,6 @@ struct Matrix[dtype: DType = DType.float64](
             res[i, i] = 1
         return res^
 
-
     @staticmethod
     def from_numpy(np_arr: PythonObject) raises -> Self:
         from .interop import matrix_from_numpy

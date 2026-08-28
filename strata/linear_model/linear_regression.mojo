@@ -96,7 +96,6 @@ struct LinearRegression[
         """
         check_X_y(X, y)
 
-
         var N = X.rows
         var D = X.cols
 

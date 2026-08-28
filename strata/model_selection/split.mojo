@@ -59,4 +59,3 @@ def train_test_split[
     """
     var ds = Dataset[dtype, dtype](X.copy(), y.copy())
     return ds.split_with_ratio(test_size, shuffle=shuffle, seed=seed)
-

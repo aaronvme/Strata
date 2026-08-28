@@ -56,7 +56,6 @@ struct EigResult[dtype: DType = DType.float64](Copyable, Movable):
         eigenvectors: Eigenvector matrix of shape $(N, N)$ with columns representing eigenvectors.
     """
 
-
     var eigenvalues: List[Scalar[Self.dtype]]
     var eigenvectors: Matrix[Self.dtype]
 

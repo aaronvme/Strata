@@ -75,7 +75,6 @@ struct RandomForestRegressor[
         ```
     """
 
-
     var is_fitted: Bool
     var n_estimators: Int
     var criterion: String
@@ -496,7 +495,6 @@ struct RandomForestClassifier[
         var preds = rf.predict(X_test)
         ```
     """
-
 
     var is_fitted: Bool
     var n_estimators: Int

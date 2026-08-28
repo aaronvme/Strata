@@ -71,7 +71,6 @@ struct DecisionTreeRegressor[
     var tree_: Tree
     var rng: PRNG
 
-
     def __init__(
         out self,
         criterion: String = "squared_error",

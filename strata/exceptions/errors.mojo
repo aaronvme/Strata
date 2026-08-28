@@ -25,7 +25,8 @@ struct NotFittedError(Copyable, Movable, Writable):
 
 @fieldwise_init
 struct DimensionMismatchError(Copyable, Movable, Writable):
-    """Exception raised when input matrix/vector dimensions do not match requirements."""
+    """Exception raised when input matrix/vector dimensions do not match requirements.
+    """
 
     var expected: String
     var actual: String
@@ -55,7 +56,8 @@ struct DimensionMismatchError(Copyable, Movable, Writable):
 
 @fieldwise_init
 struct ConvergenceError(Copyable, Movable, Writable):
-    """Exception raised when iterative optimization fails to converge within max iterations."""
+    """Exception raised when iterative optimization fails to converge within max iterations.
+    """
 
     var estimator_name: String
     var max_iter: Int
@@ -102,7 +104,6 @@ struct InvalidParameterError(Copyable, Movable, Writable):
             + "' is invalid: "
             + reason
         )
-
 
     def write_to(self, mut writer: Some[Writer]):
         writer.write(

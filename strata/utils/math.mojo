@@ -74,7 +74,6 @@ def log_sum_exp[
         Scalar[dtype]: Evaluated log-sum-exp scalar value.
     """
 
-
     from std.math import log
 
     var n = len(x)

@@ -149,4 +149,3 @@ def r2_score[
     if ss_tot == 0.0:
         return 1.0 if ss_res == 0.0 else 0.0
     return 1.0 - ss_res / ss_tot
-

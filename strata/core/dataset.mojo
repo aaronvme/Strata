@@ -84,8 +84,6 @@ struct Dataset[
         self.feature_names = List[String]()
         self.target_names = List[String]()
 
-
-
     def __init__(
         out self,
         var records: Matrix[Self.feat_dtype],

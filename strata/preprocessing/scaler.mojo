@@ -70,7 +70,6 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
         self.mean_ = List[Scalar[Self.compute_dtype]]()
         self.scale_ = List[Scalar[Self.compute_dtype]]()
 
-
     def __init__(out self, *, copy: Self):
         """Copies an existing StandardScaler instance."""
         self.is_fitted = copy.is_fitted
