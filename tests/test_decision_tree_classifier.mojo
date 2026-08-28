@@ -392,41 +392,37 @@ def test_decision_tree_classifier_constant_features_mixed_labels() raises:
 
 
 def test_decision_tree_classifier_xor_dataset() raises:
-    # 2D XOR problem
+    # Non-linear 2-split decision boundary (Class 0 outer, Class 1 inner)
     var X = Matrix[DType.float64](8, 2, 0)
     var y = List[Scalar[DType.int32]](capacity=8)
 
-    # (-1, -1) -> 0
-    X[0, 0] = -1.0
-    X[0, 1] = -1.0
+    # Class 0: outer regions
+    X[0, 0] = -3.0
+    X[0, 1] = -2.0
     y.append(0)
     X[1, 0] = -2.0
-    X[1, 1] = -2.0
+    X[1, 1] = -1.0
+    y.append(0)
+    X[2, 0] = 6.0
+    X[2, 1] = 6.0
+    y.append(0)
+    X[3, 0] = 7.0
+    X[3, 1] = 7.0
     y.append(0)
 
-    # (-1, 1) -> 1
-    X[2, 0] = -1.0
-    X[2, 1] = 1.0
-    y.append(1)
-    X[3, 0] = -2.0
-    X[3, 1] = 2.0
-    y.append(1)
-
-    # (1, -1) -> 1
+    # Class 1: middle region [1.0, 4.0]
     X[4, 0] = 1.0
-    X[4, 1] = -1.0
+    X[4, 1] = 1.0
     y.append(1)
     X[5, 0] = 2.0
-    X[5, 1] = -2.0
+    X[5, 1] = 2.0
     y.append(1)
-
-    # (1, 1) -> 0
-    X[6, 0] = 1.0
-    X[6, 1] = 1.0
-    y.append(0)
-    X[7, 0] = 2.0
-    X[7, 1] = 2.0
-    y.append(0)
+    X[6, 0] = 3.0
+    X[6, 1] = -1.0
+    y.append(1)
+    X[7, 0] = 4.0
+    X[7, 1] = -2.0
+    y.append(1)
 
     var clf = DecisionTreeClassifier[DType.float64](max_depth=4)
     clf.fit(X, y)
@@ -552,7 +548,7 @@ def test_decision_tree_classifier_invalid_parameters_raises() raises:
 
 def test_decision_tree_classifier_nan_and_inf_rejected() raises:
     var X = Matrix[DType.float64](4, 2, 1.0)
-    X[0, 0] = nan
+    X[0, 0] = nan[DType.float64]()
     var y: List[Scalar[DType.int32]] = [0, 1, 0, 1]
 
     var clf = DecisionTreeClassifier[DType.float64]()
@@ -582,7 +578,7 @@ def test_decision_tree_classifier_float32_native() raises:
 
 def test_decision_tree_classifier_dataset_integration() raises:
     var data = _separable_2d_dataset()
-    var ds = Dataset[DType.float64, DType.int32](data[0], data[1])
+    var ds = Dataset[DType.float64, DType.int32](data[0].copy(), data[1].copy())
 
     var clf = DecisionTreeClassifier[DType.float64]()
     fit_ds(clf, ds)
@@ -607,12 +603,170 @@ def test_decision_tree_classifier_pipeline_integration() raises:
     ](scaler^, tree^)
 
     pipe.fit(data[0], data[1])
-    assert_true(pipe.is_fitted)
+    assert_true(pipe.classifier.is_fitted)
 
     var preds = pipe.predict(data[0])
     assert_equal(len(preds), 12)
     for i in range(12):
         assert_equal(preds[i], Int(data[1][i]))
+
+
+def test_decision_tree_classifier_negative_and_arbitrary_class_labels() raises:
+    var X = Matrix[DType.float64](6, 1, 0)
+    var y = List[Scalar[DType.int32]](capacity=6)
+    X[0, 0] = -10.0
+    y.append(Int32(-10))
+    X[1, 0] = -8.0
+    y.append(Int32(-10))
+    X[2, 0] = 0.0
+    y.append(Int32(42))
+    X[3, 0] = 1.0
+    y.append(Int32(42))
+    X[4, 0] = 10.0
+    y.append(Int32(100))
+    X[5, 0] = 12.0
+    y.append(Int32(100))
+
+    var clf = DecisionTreeClassifier[DType.float64](max_depth=3)
+    clf.fit(X, y)
+
+    assert_equal(clf.n_classes_, 3)
+    assert_equal(clf.classes_[0], -10)
+    assert_equal(clf.classes_[1], 42)
+    assert_equal(clf.classes_[2], 100)
+
+    var preds = clf.predict(X)
+    for i in range(6):
+        assert_equal(preds[i], Int(y[i]))
+
+
+def test_decision_tree_classifier_get_depth_and_get_n_leaves_properties() raises:
+    var data = _separable_2d_dataset()
+    var clf = DecisionTreeClassifier[DType.float64](max_depth=1)
+    clf.fit(data[0], data[1])
+
+    assert_equal(clf.get_depth(), 1)
+    assert_equal(clf.get_n_leaves(), 2)
+
+
+def test_decision_tree_classifier_unfitted_get_depth_and_n_leaves_raises() raises:
+    var clf = DecisionTreeClassifier[DType.float64]()
+    var caught_depth = False
+    try:
+        _ = clf.get_depth()
+    except:
+        caught_depth = True
+    assert_true(caught_depth)
+
+    var caught_leaves = False
+    try:
+        _ = clf.get_n_leaves()
+    except:
+        caught_leaves = True
+    assert_true(caught_leaves)
+
+
+def test_decision_tree_classifier_log_loss_entropy_criterion() raises:
+    var data = _separable_2d_dataset()
+    var clf = DecisionTreeClassifier[DType.float64](criterion="log_loss")
+    clf.fit(data[0], data[1])
+
+    var preds = clf.predict(data[0])
+    for i in range(12):
+        assert_equal(preds[i], Int(data[1][i]))
+
+
+def test_decision_tree_classifier_random_state_determinism() raises:
+    var data = _separable_2d_dataset()
+    var clf1 = DecisionTreeClassifier[DType.float64](splitter="random", random_state=123)
+    var clf2 = DecisionTreeClassifier[DType.float64](splitter="random", random_state=123)
+    clf1.fit(data[0], data[1])
+    clf2.fit(data[0], data[1])
+
+    var p1 = clf1.predict(data[0])
+    var p2 = clf2.predict(data[0])
+    for i in range(12):
+        assert_equal(p1[i], p2[i])
+
+
+def test_decision_tree_classifier_large_fat_matrix_100_features() raises:
+    var X = Matrix[DType.float64](16, 100, 0)
+    var y = List[Scalar[DType.int32]](capacity=16)
+    for i in range(16):
+        for j in range(100):
+            X[i, j] = Float64(i + j)
+        y.append(Int32(0 if i < 8 else 1))
+
+    var clf = DecisionTreeClassifier[DType.float64](max_depth=3, max_features="sqrt", random_state=42)
+    clf.fit(X, y)
+    assert_true(clf.is_fitted)
+
+    var preds = clf.predict(X)
+    assert_equal(len(preds), 16)
+
+
+def test_decision_tree_classifier_four_quadrants_2d() raises:
+    # 4 distinct quadrants: (-, -)=0, (-, +)=1, (+, -)=2, (+, +)=3
+    var X = Matrix[DType.float64](16, 2, 0)
+    var y = List[Scalar[DType.int32]](capacity=16)
+    var count = 0
+    for sx in range(2):
+        for sy in range(2):
+            for i in range(4):
+                var sign_x = -5.0 if sx == 0 else 5.0
+                var sign_y = -5.0 if sy == 0 else 5.0
+                X[count, 0] = sign_x + Float64(i) * 0.1
+                X[count, 1] = sign_y + Float64(i) * 0.1
+                y.append(Int32(sx * 2 + sy))
+                count += 1
+
+    var clf = DecisionTreeClassifier[DType.float64](max_depth=4)
+    clf.fit(X, y)
+    assert_equal(clf.n_classes_, 4)
+
+    var preds = clf.predict(X)
+    for i in range(16):
+        assert_equal(preds[i], Int(y[i]))
+
+
+def test_decision_tree_classifier_min_samples_split_and_leaf_interaction() raises:
+    var data = _separable_2d_dataset()
+    var clf = DecisionTreeClassifier[DType.float64](min_samples_split=4, min_samples_leaf=2)
+    clf.fit(data[0], data[1])
+
+    for n in range(clf.tree_.node_count()):
+        if clf.tree_.nodes[n].is_leaf:
+            assert_true(clf.tree_.nodes[n].n_node_samples >= 2)
+
+
+def test_decision_tree_classifier_probabilities_sum_to_one_multiclass() raises:
+    var X = Matrix[DType.float64](15, 2, 0)
+    var y = List[Scalar[DType.int32]](capacity=15)
+    for i in range(5):
+        X[i, 0] = -10.0 + Float64(i)
+        X[i, 1] = 0.0
+        y.append(Int32(0))
+    for i in range(5, 10):
+        X[i, 0] = 0.0 + Float64(i - 5)
+        X[i, 1] = 10.0
+        y.append(Int32(1))
+    for i in range(10, 15):
+        X[i, 0] = 10.0 + Float64(i - 10)
+        X[i, 1] = -10.0
+        y.append(Int32(2))
+
+    var clf = DecisionTreeClassifier[DType.float64](max_depth=3)
+    clf.fit(X, y)
+
+    var proba = clf.predict_proba(X)
+    assert_equal(proba.rows, 15)
+    assert_equal(proba.cols, 3)
+
+    for i in range(15):
+        var row_sum: Float64 = 0.0
+        for c in range(3):
+            row_sum += Float64(proba[i, c])
+        assert_almost_equal(row_sum, 1.0, atol=1e-5)
 
 
 def main() raises:

@@ -13,3 +13,4 @@ from .splitter import (
     find_best_split_regression,
 )
 from .regressor import DecisionTreeRegressor
+from .classifier import DecisionTreeClassifier

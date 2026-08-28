@@ -173,9 +173,12 @@ def find_best_split_classification[
         if c >= 0 and c < n_classes:
             parent_counts[c] += 1
 
+    var use_nat_log = criterion == "log_loss"
     var parent_impurity: Float64
     if criterion == "entropy" or criterion == "log_loss":
-        parent_impurity = entropy_impurity(parent_counts, n_samples)
+        parent_impurity = entropy_impurity(
+            parent_counts, n_samples, use_natural_log=use_nat_log
+        )
     else:
         parent_impurity = gini_impurity(parent_counts, n_samples)
 
@@ -250,12 +253,16 @@ def find_best_split_classification[
             var l_imp = (
                 gini_impurity(l_counts, n_l)
                 if criterion == "gini"
-                else entropy_impurity(l_counts, n_l)
+                else entropy_impurity(
+                    l_counts, n_l, use_natural_log=use_nat_log
+                )
             )
             var r_imp = (
                 gini_impurity(r_counts, n_r)
                 if criterion == "gini"
-                else entropy_impurity(r_counts, n_r)
+                else entropy_impurity(
+                    r_counts, n_r, use_natural_log=use_nat_log
+                )
             )
             var decrease = compute_impurity_decrease(
                 parent_impurity, n_samples, l_imp, n_l, r_imp, n_r
@@ -313,8 +320,12 @@ def find_best_split_classification[
                 var l_imp: Float64
                 var r_imp: Float64
                 if criterion == "entropy" or criterion == "log_loss":
-                    l_imp = entropy_impurity(l_counts, n_l)
-                    r_imp = entropy_impurity(r_counts, n_r)
+                    l_imp = entropy_impurity(
+                        l_counts, n_l, use_natural_log=use_nat_log
+                    )
+                    r_imp = entropy_impurity(
+                        r_counts, n_r, use_natural_log=use_nat_log
+                    )
                 else:
                     l_imp = gini_from_sum_sq(l_sum_sq_counts, n_l)
                     r_imp = gini_from_sum_sq(r_sum_sq_counts, n_r)

@@ -1,4 +1,4 @@
-from std.math import log2, sqrt
+from std.math import log2, log, sqrt
 
 from ..exceptions.errors import InvalidParameterError
 
@@ -25,8 +25,10 @@ def gini_from_sum_sq(sum_sq_counts: Int, total: Int) -> Float64:
     return 1.0 - (Float64(sum_sq_counts) / (total_f * total_f))
 
 
-def entropy_impurity(counts: List[Int], total: Int) -> Float64:
-    """Calculates Shannon entropy (base 2) from class counts."""
+def entropy_impurity(
+    counts: List[Int], total: Int, use_natural_log: Bool = False
+) -> Float64:
+    """Calculates Shannon entropy (base 2 or natural log) from class counts."""
     if total <= 0:
         return 0.0
     var total_f = Float64(total)
@@ -35,8 +37,13 @@ def entropy_impurity(counts: List[Int], total: Int) -> Float64:
         var cnt = counts[c]
         if cnt > 0:
             var cnt_f = Float64(cnt)
-            sum_n_log_n += cnt_f * log2(cnt_f)
+            if use_natural_log:
+                sum_n_log_n += cnt_f * log(cnt_f)
+            else:
+                sum_n_log_n += cnt_f * log2(cnt_f)
 
+    if use_natural_log:
+        return log(total_f) - (sum_n_log_n / total_f)
     return log2(total_f) - (sum_n_log_n / total_f)
 
 
