@@ -1,4 +1,10 @@
-from std.testing import TestSuite, assert_equal, assert_true, assert_false
+from std.testing import (
+    TestSuite,
+    assert_equal,
+    assert_true,
+    assert_false,
+    assert_almost_equal,
+)
 from strata import (
     Matrix,
     Dataset,
@@ -15,10 +21,16 @@ from strata.model_selection import (
     StratifiedKFold,
     TimeSeriesSplit,
     ShuffleSplit,
+    StratifiedShuffleSplit,
     Split,
     cross_val_score,
+    cross_val_predict,
+    cross_validate,
+    CrossValidateResult,
     GridSearchRegressor,
     GridSearchClassifier,
+    RandomizedSearchRegressor,
+    RandomizedSearchClassifier,
     take_rows,
     take_elements,
 )
@@ -911,7 +923,6 @@ def _assert_split_shape(
             seen[v] = True
 
 
-
 def test_time_series_split_expanding_window_defaults() raises:
     var tss = TimeSeriesSplit(n_splits=3)
     var splits = tss.split(10)
@@ -1328,7 +1339,6 @@ def test_time_series_split_cross_val_score_integration() raises:
         assert_true(scores[f] > 0.99)
 
 
-
 def test_shuffle_split_default_parameters() raises:
     var ss = ShuffleSplit()
     assert_equal(ss.get_n_splits(), 10)
@@ -1681,6 +1691,2250 @@ def test_shuffle_split_cross_val_score_integration() raises:
         assert_true(scores[f] > 0.99)
 
 
+def _count_label[
+    target_dtype: DType
+](
+    y: List[Scalar[target_dtype]],
+    indices: List[Int],
+    label: Scalar[target_dtype],
+) -> Int:
+    var total = 0
+    for i in range(len(indices)):
+        if y[indices[i]] == label:
+            total += 1
+    return total
+
+
+def _assert_sorted_unique(indices: List[Int]) raises:
+    for i in range(1, len(indices)):
+        assert_true(indices[i - 1] < indices[i])
+
+
+def _binary_labels(n: Int, n_first: Int) -> List[Scalar[DType.int32]]:
+    var y = List[Scalar[DType.int32]](capacity=n)
+    for i in range(n):
+        y.append(Int32(1 if i < n_first else 0))
+    return y^
+
+
+def test_stratified_shuffle_split_default_parameters() raises:
+    var sss = StratifiedShuffleSplit()
+    assert_equal(sss.get_n_splits(), 10)
+
+    var y = _binary_labels(100, 30)
+    var splits = sss.split(y)
+
+    assert_equal(len(splits), 10)
+    _assert_split_shape(splits, 100, 90, 10)
+
+    for s in range(10):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 3)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(0)), 7)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 27)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(0)), 63)
+
+
+def test_stratified_shuffle_split_preserves_class_ratio() raises:
+    var y = _binary_labels(20, 4)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = sss.split(y)
+
+    assert_equal(len(splits), 3)
+    _assert_split_shape(splits, 20, 15, 5)
+
+    for s in range(3):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 1)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(0)), 4)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 3)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(0)), 12)
+
+
+def test_stratified_shuffle_split_balanced_two_class() raises:
+    var y = _binary_labels(100, 50)
+    var sss = StratifiedShuffleSplit(n_splits=4, test_size=0.2)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 100, 80, 20)
+    for s in range(4):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 10)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(0)), 10)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 40)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(0)), 40)
+
+
+def test_stratified_shuffle_split_three_classes_one_per_draw() raises:
+    var y = List[Scalar[DType.int32]](capacity=12)
+    for i in range(12):
+        y.append(Int32(i % 3))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.25)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 12, 9, 3)
+    for s in range(2):
+        for c in range(3):
+            assert_equal(_count_label(y, splits[s].val_indices, Int32(c)), 1)
+            assert_equal(_count_label(y, splits[s].train_indices, Int32(c)), 3)
+
+
+def test_stratified_shuffle_split_severe_class_imbalance() raises:
+    var y = _binary_labels(100, 10)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.1)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 100, 90, 10)
+    for s in range(3):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 1)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 9)
+
+
+def test_stratified_shuffle_split_indices_sorted_and_disjoint() raises:
+    var y = _binary_labels(30, 12)
+    var sss = StratifiedShuffleSplit(n_splits=4, test_size=0.3)
+    var splits = sss.split(y)
+
+    for s in range(4):
+        _assert_sorted_unique(splits[s].train_indices)
+        _assert_sorted_unique(splits[s].val_indices)
+
+    _assert_split_shape(splits, 30, 21, 9)
+
+
+def test_stratified_shuffle_split_no_class_overflow_when_sizes_fill_data() raises:
+    var y = _binary_labels(10, 3)
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.5, train_size=0.5)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 10, 5, 5)
+    for s in range(2):
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 2)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 1)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(0)), 3)
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(0)), 4)
+
+
+def test_stratified_shuffle_split_covers_all_samples_when_train_size_unset() raises:
+    var y = _binary_labels(20, 8)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = sss.split(y)
+
+    for s in range(3):
+        assert_equal(
+            len(splits[s].train_indices) + len(splits[s].val_indices), 20
+        )
+
+        var seen = List[Bool](capacity=20)
+        for _ in range(20):
+            seen.append(False)
+        for i in range(len(splits[s].train_indices)):
+            seen[splits[s].train_indices[i]] = True
+        for i in range(len(splits[s].val_indices)):
+            seen[splits[s].val_indices[i]] = True
+        for i in range(20):
+            assert_true(seen[i])
+
+
+def test_stratified_shuffle_split_train_size_leaves_samples_unused() raises:
+    var y = _binary_labels(10, 5)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.2, train_size=0.35)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 10, 3, 2)
+    for s in range(3):
+        assert_true(
+            len(splits[s].train_indices) + len(splits[s].val_indices) < 10
+        )
+
+
+def test_stratified_shuffle_split_ceil_rounding_for_test_size() raises:
+    var y12 = _binary_labels(12, 6)
+    var tenth = StratifiedShuffleSplit(n_splits=1, test_size=0.1)
+    assert_equal(len(tenth.split(y12)[0].val_indices), 2)
+
+    var y10 = _binary_labels(10, 5)
+    var quarter = StratifiedShuffleSplit(n_splits=1, test_size=0.25)
+    assert_equal(len(quarter.split(y10)[0].val_indices), 3)
+
+    var exact = StratifiedShuffleSplit(n_splits=1, test_size=0.2)
+    assert_equal(len(exact.split(y10)[0].val_indices), 2)
+
+    var y20 = _binary_labels(20, 10)
+    var odd = StratifiedShuffleSplit(n_splits=1, test_size=0.11)
+    assert_equal(len(odd.split(y20)[0].val_indices), 3)
+
+
+def test_stratified_shuffle_split_floor_rounding_for_train_size() raises:
+    var y = _binary_labels(10, 5)
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2, train_size=0.35)
+    var splits = sss.split(y)
+
+    assert_equal(len(splits), 2)
+    for s in range(2):
+        assert_equal(len(splits[s].val_indices), 2)
+        assert_equal(len(splits[s].train_indices), 3)
+
+
+def test_stratified_shuffle_split_test_sets_may_overlap_across_draws() raises:
+    var y = _binary_labels(40, 20)
+    var sss = StratifiedShuffleSplit(n_splits=5, test_size=0.5)
+    var splits = sss.split(y)
+
+    var counts = List[Int](capacity=40)
+    for _ in range(40):
+        counts.append(0)
+
+    for s in range(5):
+        for i in range(len(splits[s].val_indices)):
+            counts[splits[s].val_indices[i]] += 1
+
+    var overlapping = 0
+    for i in range(40):
+        if counts[i] > 1:
+            overlapping += 1
+    assert_true(overlapping > 0)
+
+
+def test_stratified_shuffle_split_draws_are_independent() raises:
+    var y = _binary_labels(40, 16)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = sss.split(y)
+
+    var differs = False
+    for i in range(len(splits[0].val_indices)):
+        if splits[0].val_indices[i] != splits[1].val_indices[i]:
+            differs = True
+    assert_true(differs)
+
+
+def test_stratified_shuffle_split_reproducible_with_same_seed() raises:
+    var y = _binary_labels(24, 8)
+    var a = StratifiedShuffleSplit(n_splits=4, test_size=0.25, random_state=7)
+    var b = StratifiedShuffleSplit(n_splits=4, test_size=0.25, random_state=7)
+
+    var sa = a.split(y)
+    var sb = b.split(y)
+
+    for s in range(4):
+        assert_equal(len(sa[s].val_indices), len(sb[s].val_indices))
+        for i in range(len(sa[s].val_indices)):
+            assert_equal(sa[s].val_indices[i], sb[s].val_indices[i])
+        for i in range(len(sa[s].train_indices)):
+            assert_equal(sa[s].train_indices[i], sb[s].train_indices[i])
+
+
+def test_stratified_shuffle_split_different_seeds_produce_different_splits() raises:
+    var y = _binary_labels(30, 12)
+    var a = StratifiedShuffleSplit(n_splits=3, test_size=0.3, random_state=1)
+    var b = StratifiedShuffleSplit(n_splits=3, test_size=0.3, random_state=999)
+
+    var sa = a.split(y)
+    var sb = b.split(y)
+
+    var differs = False
+    for s in range(3):
+        for i in range(len(sa[s].val_indices)):
+            if sa[s].val_indices[i] != sb[s].val_indices[i]:
+                differs = True
+    assert_true(differs)
+
+
+def test_stratified_shuffle_split_single_split_allowed() raises:
+    var y = _binary_labels(10, 4)
+    var sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2)
+    assert_equal(sss.get_n_splits(), 1)
+
+    var splits = sss.split(y)
+    assert_equal(len(splits), 1)
+    _assert_split_shape(splits, 10, 8, 2)
+
+
+def test_stratified_shuffle_split_single_class_dataset() raises:
+    var y = List[Scalar[DType.int32]](capacity=10)
+    for _ in range(10):
+        y.append(Int32(7))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 10, 8, 2)
+    for s in range(2):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(7)), 2)
+
+
+def test_stratified_shuffle_split_float_labels() raises:
+    var y = List[Scalar[DType.float64]](capacity=20)
+    for i in range(20):
+        y.append(1.0 if i < 8 else 0.0)
+
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = sss.split(y)
+
+    _assert_split_shape(splits, 20, 15, 5)
+    for s in range(3):
+        assert_equal(_count_label(y, splits[s].val_indices, Float64(1.0)), 2)
+        assert_equal(_count_label(y, splits[s].val_indices, Float64(0.0)), 3)
+
+
+def test_stratified_shuffle_split_is_stateless_across_calls() raises:
+    var y20 = _binary_labels(20, 8)
+    var y40 = _binary_labels(40, 16)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+
+    var first = sss.split(y20)
+    var other = sss.split(y40)
+    var again = sss.split(y20)
+
+    assert_equal(len(other[0].val_indices), 10)
+    for s in range(3):
+        assert_equal(len(first[s].val_indices), len(again[s].val_indices))
+        for i in range(len(first[s].val_indices)):
+            assert_equal(first[s].val_indices[i], again[s].val_indices[i])
+
+    assert_equal(sss.test_size, 0.25)
+    assert_equal(sss.train_size, 0.0)
+    assert_equal(sss.n_splits, 3)
+
+
+def test_stratified_shuffle_split_large_scale_invariants() raises:
+    var y = _binary_labels(1000, 200)
+    var sss = StratifiedShuffleSplit(n_splits=5, test_size=0.2)
+    var splits = sss.split(y)
+
+    assert_equal(len(splits), 5)
+    _assert_split_shape(splits, 1000, 800, 200)
+    for s in range(5):
+        assert_equal(_count_label(y, splits[s].val_indices, Int32(1)), 40)
+        assert_equal(_count_label(y, splits[s].train_indices, Int32(1)), 160)
+
+
+def test_stratified_shuffle_split_constructor_error_handling() raises:
+    var caught_zero_splits = False
+    try:
+        var _ = StratifiedShuffleSplit(n_splits=0)
+    except:
+        caught_zero_splits = True
+    assert_true(caught_zero_splits)
+
+    var caught_neg_splits = False
+    try:
+        var _ = StratifiedShuffleSplit(n_splits=-2)
+    except:
+        caught_neg_splits = True
+    assert_true(caught_neg_splits)
+
+    var caught_test_zero = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.0)
+    except:
+        caught_test_zero = True
+    assert_true(caught_test_zero)
+
+    var caught_test_one = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=1.0)
+    except:
+        caught_test_one = True
+    assert_true(caught_test_one)
+
+    var caught_test_neg = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=-0.1)
+    except:
+        caught_test_neg = True
+    assert_true(caught_test_neg)
+
+    var caught_train_neg = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.2, train_size=-0.1)
+    except:
+        caught_train_neg = True
+    assert_true(caught_train_neg)
+
+    var caught_train_one = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.2, train_size=1.0)
+    except:
+        caught_train_one = True
+    assert_true(caught_train_one)
+
+    var caught_sum = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.6, train_size=0.7)
+    except:
+        caught_sum = True
+    assert_true(caught_sum)
+
+    var ok = StratifiedShuffleSplit(n_splits=1, test_size=0.5, train_size=0.5)
+    assert_equal(ok.get_n_splits(), 1)
+
+
+def test_stratified_shuffle_split_rejects_empty_labels() raises:
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.25)
+    var empty = List[Scalar[DType.int32]]()
+
+    var caught = False
+    try:
+        var _ = sss.split(empty)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_rejects_test_smaller_than_class_count() raises:
+    var y = List[Scalar[DType.int32]](capacity=10)
+    for i in range(10):
+        y.append(Int32(i % 4))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.1)
+    var caught = False
+    try:
+        var _ = sss.split(y)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_rejects_train_smaller_than_class_count() raises:
+    var y = List[Scalar[DType.int32]](capacity=10)
+    for i in range(10):
+        y.append(Int32(i % 4))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.7, train_size=0.2)
+    var caught = False
+    try:
+        var _ = sss.split(y)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_rejects_empty_train_set() raises:
+    var y = _binary_labels(5, 2)
+    var sss = StratifiedShuffleSplit(n_splits=1, test_size=0.9)
+
+    var caught = False
+    try:
+        var _ = sss.split(y)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_rejects_rounded_total_exceeding_samples() raises:
+    var sss = StratifiedShuffleSplit(
+        n_splits=1, test_size=0.28, train_size=0.72
+    )
+
+    var y25 = _binary_labels(25, 10)
+    var caught = False
+    try:
+        var _ = sss.split(y25)
+    except:
+        caught = True
+    assert_true(caught)
+
+    var y10 = _binary_labels(10, 5)
+    var splits = sss.split(y10)
+    assert_equal(len(splits[0].val_indices), 3)
+    assert_equal(len(splits[0].train_indices), 7)
+
+
+def test_stratified_shuffle_split_matrix_overload_matches_labels_only() raises:
+    var X = Matrix[DType.float64](20, 3, 1.0)
+    var y = _binary_labels(20, 8)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+
+    var from_matrix = sss.split(X, y)
+    var from_labels = sss.split(y)
+
+    assert_equal(len(from_matrix), len(from_labels))
+    for s in range(len(from_matrix)):
+        for i in range(len(from_labels[s].val_indices)):
+            assert_equal(
+                from_matrix[s].val_indices[i], from_labels[s].val_indices[i]
+            )
+        for i in range(len(from_labels[s].train_indices)):
+            assert_equal(
+                from_matrix[s].train_indices[i],
+                from_labels[s].train_indices[i],
+            )
+
+
+def test_stratified_shuffle_split_matrix_overload_dtype_flexibility() raises:
+    var y = _binary_labels(20, 8)
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+
+    var X32 = Matrix[DType.float32](20, 2, 1.0)
+    var Xi = Matrix[DType.int32](20, 2, 1)
+
+    assert_equal(len(sss.split(X32, y)), 3)
+    assert_equal(len(sss.split(Xi, y)), 3)
+
+
+def test_stratified_shuffle_split_matrix_overload_rejects_length_mismatch() raises:
+    var X = Matrix[DType.float64](20, 3, 1.0)
+    var y = _binary_labels(19, 8)
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.25)
+
+    var caught = False
+    try:
+        var _ = sss.split(X, y)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_stratified_shuffle_split_matrix_overload_rejects_empty() raises:
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.25)
+
+    var caught_rows = False
+    try:
+        var empty_X = Matrix[DType.float64](0, 3, 0)
+        var empty_y = List[Scalar[DType.int32]]()
+        var _ = sss.split(empty_X, empty_y)
+    except:
+        caught_rows = True
+    assert_true(caught_rows)
+
+    var caught_cols = False
+    try:
+        var no_cols = Matrix[DType.float64](20, 0, 0)
+        var y = _binary_labels(20, 8)
+        var _ = sss.split(no_cols, y)
+    except:
+        caught_cols = True
+    assert_true(caught_cols)
+
+
+def test_stratified_shuffle_split_cross_val_score_integration() raises:
+    var X = Matrix[DType.float64](40, 1, 0)
+    var y = List[Scalar[DType.int32]](capacity=40)
+    for i in range(40):
+        X[i, 0] = (Float64(i) - 19.5) * 0.2
+        y.append(Int32(0 if i < 20 else 1))
+
+    var sss = StratifiedShuffleSplit(n_splits=3, test_size=0.25)
+    var splits = sss.split(X, y)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var scores = cross_val_score(model, X, y, splits, scoring="accuracy")
+    assert_equal(len(scores), 3)
+    for s in range(3):
+        assert_true(scores[s] > 0.9)
+
+
+def _linear_dataset(
+    n: Int,
+) -> Tuple[Matrix[DType.float64], List[Scalar[DType.float64]]]:
+    var X = Matrix[DType.float64](n, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=n)
+    for i in range(n):
+        X[i, 0] = Float64(i)
+        y.append(Float64(3 * i - 4))
+    return (X^, y^)
+
+
+def _separable_dataset(
+    n: Int,
+) -> Tuple[Matrix[DType.float64], List[Scalar[DType.int32]]]:
+    var X = Matrix[DType.float64](n, 1, 0)
+    var y = List[Scalar[DType.int32]](capacity=n)
+    var half = n // 2
+    for i in range(n):
+        if i < half:
+            X[i, 0] = -2.0 + Float64(i) * 0.05
+            y.append(Int32(0))
+        else:
+            X[i, 0] = 2.0 + Float64(i - half) * 0.05
+            y.append(Int32(1))
+    return (X^, y^)
+
+
+def _manual_splits(
+    train_sets: List[List[Int]], val_sets: List[List[Int]]
+) -> List[Split]:
+    var splits = List[Split]()
+    for s in range(len(train_sets)):
+        splits.append(Split(train_sets[s].copy(), val_sets[s].copy()))
+    return splits^
+
+
+def test_cross_val_predict_regression_one_prediction_per_row() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+
+    var preds = cross_val_predict(model, data[0], data[1], cv=5)
+
+    assert_equal(len(preds), 20)
+    for i in range(20):
+        assert_true(abs(preds[i] - data[1][i]) < 1e-6)
+
+
+def test_cross_val_predict_regression_matches_manual_fold_fits() raises:
+    var X = Matrix[DType.float64](12, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i)
+        y.append(Float64(i * i))
+
+    var kf = KFold(n_splits=3)
+    var splits = kf.split(12)
+    var model = LinearRegression[DType.float64]()
+
+    var preds = cross_val_predict(model, X, y, splits)
+    assert_equal(len(preds), 12)
+
+    for s in range(3):
+        var X_train = take_rows(X, splits[s].train_indices)
+        var y_train = take_elements(y, splits[s].train_indices)
+        var X_val = take_rows(X, splits[s].val_indices)
+
+        var fold_model = LinearRegression[DType.float64]()
+        fold_model.fit(X_train, y_train)
+        var fold_preds = fold_model.predict(X_val)
+
+        for i in range(len(splits[s].val_indices)):
+            assert_equal(preds[splits[s].val_indices[i]], fold_preds[i])
+
+
+def test_cross_val_predict_regression_preserves_row_order() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+
+    var preds = cross_val_predict(model, data[0], data[1], cv=5)
+
+    for i in range(19):
+        assert_true(preds[i] < preds[i + 1])
+
+
+def test_cross_val_predict_regression_cv_overload_matches_kfold() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+
+    var kf = KFold(n_splits=4)
+    var splits = kf.split(16)
+
+    var from_cv = cross_val_predict(model, data[0], data[1], cv=4)
+    var from_splits = cross_val_predict(model, data[0], data[1], splits)
+
+    assert_equal(len(from_cv), len(from_splits))
+    for i in range(16):
+        assert_equal(from_cv[i], from_splits[i])
+
+
+def test_cross_val_predict_regression_accepts_stratified_kfold_splits() raises:
+    var X = Matrix[DType.float64](20, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=20)
+    var labels = List[Scalar[DType.int32]](capacity=20)
+    for i in range(20):
+        X[i, 0] = Float64(i)
+        y.append(Float64(2 * i + 1))
+        labels.append(Int32(i % 2))
+
+    var skf = StratifiedKFold(n_splits=4)
+    var splits = skf.split(labels)
+    var model = LinearRegression[DType.float64]()
+
+    var preds = cross_val_predict(model, X, y, splits)
+    assert_equal(len(preds), 20)
+    for i in range(20):
+        assert_true(abs(preds[i] - y[i]) < 1e-6)
+
+
+def test_cross_val_predict_regression_dtype_flexibility() raises:
+    var X = Matrix[DType.float32](12, 1, 0)
+    var y = List[Scalar[DType.float32]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float32(i)
+        y.append(Float32(2 * i + 3))
+
+    var model = LinearRegression[DType.float32]()
+    var preds = cross_val_predict(model, X, y, cv=3)
+
+    assert_equal(len(preds), 12)
+    for i in range(12):
+        assert_true(abs(preds[i] - y[i]) < 1e-2)
+
+
+def test_cross_val_predict_classification_one_label_per_row() raises:
+    var data = _separable_dataset(20)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var preds = cross_val_predict(model, data[0], data[1], cv=4)
+
+    assert_equal(len(preds), 20)
+    for i in range(20):
+        assert_true(preds[i] == 0 or preds[i] == 1)
+
+
+def test_cross_val_predict_classification_accurate_on_separable_data() raises:
+    var data = _separable_dataset(40)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var preds = cross_val_predict(model, data[0], data[1], cv=4)
+
+    var correct = 0
+    for i in range(40):
+        if preds[i] == Int(data[1][i]):
+            correct += 1
+    assert_true(Float64(correct) / 40.0 > 0.9)
+
+
+def test_cross_val_predict_classification_cv_overload_matches_stratified() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var skf = StratifiedKFold(n_splits=3)
+    var splits = skf.split(data[0], data[1])
+
+    var from_cv = cross_val_predict(model, data[0], data[1], cv=3)
+    var from_splits = cross_val_predict(model, data[0], data[1], splits)
+
+    assert_equal(len(from_cv), len(from_splits))
+    for i in range(24):
+        assert_equal(from_cv[i], from_splits[i])
+
+
+def test_cross_val_predict_classification_matches_manual_fold_fits() raises:
+    var data = _separable_dataset(18)
+    var skf = StratifiedKFold(n_splits=3)
+    var splits = skf.split(data[1])
+    var model = LogisticRegression[DType.float64](max_iter=200)
+
+    var preds = cross_val_predict(model, data[0], data[1], splits)
+
+    for s in range(3):
+        var X_train = take_rows(data[0], splits[s].train_indices)
+        var y_train = take_elements(data[1], splits[s].train_indices)
+        var X_val = take_rows(data[0], splits[s].val_indices)
+
+        var fold_model = LogisticRegression[DType.float64](max_iter=200)
+        fold_model.fit(X_train, y_train)
+        var fold_preds = fold_model.predict(X_val)
+
+        for i in range(len(splits[s].val_indices)):
+            assert_equal(preds[splits[s].val_indices[i]], fold_preds[i])
+
+
+def test_cross_val_predict_rejects_overlapping_validation_folds() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([2, 3])
+    val_sets.append([0, 1])
+    train_sets.append([0, 3])
+    val_sets.append([1, 2])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_uncovered_samples() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([2, 3])
+    val_sets.append([0, 1])
+    train_sets.append([0, 1])
+    val_sets.append([2])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_out_of_bounds_validation_index() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([2, 3])
+    val_sets.append([0, 99])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_empty_split_list() raises:
+    var data = _linear_dataset(6)
+    var model = LinearRegression[DType.float64]()
+    var splits = List[Split]()
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_empty_train_fold() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append(List[Int]())
+    val_sets.append([0, 1, 2, 3])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_empty_validation_fold() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([0, 1, 2, 3])
+    val_sets.append(List[Int]())
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_shuffle_split_folds() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+
+    var ss = ShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = ss.split(20)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_time_series_split_folds() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+
+    var tss = TimeSeriesSplit(n_splits=3)
+    var splits = tss.split(20)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_rejects_mismatched_x_and_y() raises:
+    var X = Matrix[DType.float64](20, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=19)
+    for i in range(19):
+        y.append(Float64(i))
+
+    var model = LinearRegression[DType.float64]()
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, X, y, cv=4)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_classifier_rejects_overlapping_folds() raises:
+    var data = _separable_dataset(20)
+    var model = LogisticRegression[DType.float64](max_iter=100)
+
+    var ss = ShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = ss.split(20)
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_classifier_rejects_empty_split_list() raises:
+    var data = _separable_dataset(20)
+    var model = LogisticRegression[DType.float64](max_iter=100)
+    var splits = List[Split]()
+
+    var caught = False
+    try:
+        var _ = cross_val_predict(model, data[0], data[1], splits)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_val_predict_leaves_estimator_unfitted() raises:
+    var data = _linear_dataset(12)
+    var model = LinearRegression[DType.float64]()
+
+    var _ = cross_val_predict(model, data[0], data[1], cv=3)
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 0)
+        var _ = model.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def _curved_dataset(
+    n: Int,
+) -> Tuple[Matrix[DType.float64], List[Scalar[DType.float64]]]:
+    var X = Matrix[DType.float64](n, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=n)
+    for i in range(n):
+        X[i, 0] = Float64(i)
+        y.append(Float64(i * i))
+    return (X^, y^)
+
+
+def test_cross_validate_regression_single_metric_matches_cross_val_score() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var expected = cross_val_score(model, data[0], data[1], cv=5, scoring="r2")
+    var result = cross_validate(model, data[0], data[1], scoring, cv=5)
+    var actual = result.test_scores_for("r2")
+
+    assert_equal(len(actual), len(expected))
+    for f in range(len(expected)):
+        assert_equal(actual[f], expected[f])
+
+
+def test_cross_validate_regression_multiple_metrics_in_one_pass() raises:
+    var data = _curved_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2", "mae"]
+
+    var r2_alone = cross_val_score(model, data[0], data[1], cv=4, scoring="r2")
+    var mae_alone = cross_val_score(
+        model, data[0], data[1], cv=4, scoring="mae"
+    )
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    assert_equal(len(result.metrics), 2)
+    assert_equal(len(result.test_scores), 2)
+    for f in range(4):
+        assert_equal(result.test_scores_for("r2")[f], r2_alone[f])
+        assert_equal(result.test_scores_for("mae")[f], mae_alone[f])
+
+
+def test_cross_validate_metric_index_maps_names_to_rows() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["mae", "r2", "mse"]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    assert_equal(result.metric_index("mae"), 0)
+    assert_equal(result.metric_index("r2"), 1)
+    assert_equal(result.metric_index("mse"), 2)
+
+    for f in range(4):
+        assert_equal(result.test_scores_for("r2")[f], result.test_scores[1][f])
+
+
+def test_cross_validate_metric_index_rejects_unknown_name() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    var caught = False
+    try:
+        var _ = result.metric_index("mae")
+    except:
+        caught = True
+    assert_true(caught)
+
+    var caught_scores = False
+    try:
+        var _ = result.test_scores_for("mae")
+    except:
+        caught_scores = True
+    assert_true(caught_scores)
+
+
+def test_cross_validate_regression_negated_metrics_mirror_positives() raises:
+    var data = _curved_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = [
+        "mse",
+        "neg_mean_squared_error",
+        "rmse",
+        "neg_root_mean_squared_error",
+        "mae",
+        "neg_mean_absolute_error",
+    ]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    for f in range(4):
+        assert_equal(
+            result.test_scores_for("neg_mean_squared_error")[f],
+            -result.test_scores_for("mse")[f],
+        )
+        assert_equal(
+            result.test_scores_for("neg_root_mean_squared_error")[f],
+            -result.test_scores_for("rmse")[f],
+        )
+        assert_equal(
+            result.test_scores_for("neg_mean_absolute_error")[f],
+            -result.test_scores_for("mae")[f],
+        )
+
+
+def test_cross_validate_regression_all_supported_metrics() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = [
+        "r2",
+        "mse",
+        "neg_mean_squared_error",
+        "rmse",
+        "neg_root_mean_squared_error",
+        "mae",
+        "neg_mean_absolute_error",
+    ]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=5)
+
+    assert_equal(len(result.metrics), 7)
+    for m in range(7):
+        assert_equal(len(result.test_scores[m]), 5)
+
+
+def test_cross_validate_train_scores_absent_by_default() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    assert_equal(len(result.train_scores), 0)
+
+    var caught = False
+    try:
+        var _ = result.train_scores_for("r2")
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_train_scores_recorded_when_requested() raises:
+    var data = _curved_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2", "mae"]
+
+    var result = cross_validate(
+        model, data[0], data[1], scoring, cv=4, return_train_score=True
+    )
+
+    assert_equal(len(result.train_scores), 2)
+    assert_equal(len(result.train_scores_for("r2")), 4)
+    assert_equal(len(result.train_scores_for("mae")), 4)
+
+    var differs = False
+    for f in range(4):
+        if result.train_scores_for("r2")[f] != result.test_scores_for("r2")[f]:
+            differs = True
+    assert_true(differs)
+
+
+def test_cross_validate_train_scores_beat_test_scores_on_curved_data() raises:
+    var data = _curved_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var result = cross_validate(
+        model, data[0], data[1], scoring, cv=4, return_train_score=True
+    )
+
+    for f in range(4):
+        assert_true(
+            result.train_scores_for("r2")[f] >= result.test_scores_for("r2")[f]
+        )
+
+
+def test_cross_validate_regression_cv_overload_matches_kfold_splits() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2", "mae"]
+
+    var kf = KFold(n_splits=4)
+    var splits = kf.split(16)
+
+    var from_cv = cross_validate(model, data[0], data[1], scoring, cv=4)
+    var from_splits = cross_validate(model, data[0], data[1], splits, scoring)
+
+    for m in range(2):
+        for f in range(4):
+            assert_equal(
+                from_cv.test_scores[m][f], from_splits.test_scores[m][f]
+            )
+
+
+def test_cross_validate_accepts_overlapping_shuffle_split_folds() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var ss = ShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = ss.split(20)
+
+    var result = cross_validate(model, data[0], data[1], splits, scoring)
+    assert_equal(len(result.test_scores_for("r2")), 3)
+
+
+def test_cross_validate_accepts_time_series_split_folds() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var tss = TimeSeriesSplit(n_splits=3)
+    var splits = tss.split(20)
+
+    var result = cross_validate(model, data[0], data[1], splits, scoring)
+    assert_equal(len(result.test_scores_for("r2")), 3)
+
+
+def test_cross_validate_regression_rejects_unknown_metric() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2", "not_a_metric"]
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], scoring, cv=4)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_empty_scoring_list() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring = List[String]()
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], scoring, cv=4)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_empty_split_list() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+    var splits = List[Split]()
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], splits, scoring)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_empty_train_fold() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append(List[Int]())
+    val_sets.append([0, 1, 2, 3])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], splits, scoring)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_empty_validation_fold() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([0, 1, 2, 3])
+    val_sets.append(List[Int]())
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], splits, scoring)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_mismatched_x_and_y() raises:
+    var X = Matrix[DType.float64](20, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=19)
+    for i in range(19):
+        y.append(Float64(i))
+
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, X, y, scoring, cv=4)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_leaves_estimator_unfitted() raises:
+    var data = _linear_dataset(12)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var _ = cross_validate(model, data[0], data[1], scoring, cv=3)
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 0)
+        var _ = model.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_classification_matches_cross_val_score() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+    var scoring: List[String] = ["accuracy"]
+
+    var expected = cross_val_score(
+        model, data[0], data[1], cv=3, scoring="accuracy"
+    )
+    var result = cross_validate(model, data[0], data[1], scoring, cv=3)
+    var actual = result.test_scores_for("accuracy")
+
+    assert_equal(len(actual), len(expected))
+    for f in range(len(expected)):
+        assert_equal(actual[f], expected[f])
+
+
+def test_cross_validate_classification_all_supported_metrics() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+    var scoring: List[String] = ["accuracy", "f1", "precision", "recall"]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=3)
+
+    assert_equal(len(result.metrics), 4)
+    for m in range(4):
+        assert_equal(len(result.test_scores[m]), 3)
+        for f in range(3):
+            assert_true(
+                result.test_scores[m][f] >= 0.0
+                and result.test_scores[m][f] <= 1.0
+            )
+
+
+def test_cross_validate_classification_cv_overload_matches_stratified() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+    var scoring: List[String] = ["accuracy", "f1"]
+
+    var skf = StratifiedKFold(n_splits=3)
+    var splits = skf.split(data[0], data[1])
+
+    var from_cv = cross_validate(model, data[0], data[1], scoring, cv=3)
+    var from_splits = cross_validate(model, data[0], data[1], splits, scoring)
+
+    for m in range(2):
+        for f in range(3):
+            assert_equal(
+                from_cv.test_scores[m][f], from_splits.test_scores[m][f]
+            )
+
+
+def test_cross_validate_classification_train_scores() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+    var scoring: List[String] = ["accuracy"]
+
+    var result = cross_validate(
+        model, data[0], data[1], scoring, cv=3, return_train_score=True
+    )
+
+    assert_equal(len(result.train_scores), 1)
+    assert_equal(len(result.train_scores_for("accuracy")), 3)
+    for f in range(3):
+        assert_true(result.train_scores_for("accuracy")[f] > 0.9)
+
+
+def test_cross_validate_classification_rejects_regression_metric() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=100)
+    var scoring: List[String] = ["r2"]
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], scoring, cv=3)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_classification_rejects_empty_scoring() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=100)
+    var scoring = List[String]()
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], scoring, cv=3)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def _ridge_pool() raises -> List[Ridge[DType.float64]]:
+    var candidates = List[Ridge[DType.float64]]()
+    candidates.append(Ridge[DType.float64](alpha=1000.0))
+    candidates.append(Ridge[DType.float64](alpha=0.001))
+    candidates.append(Ridge[DType.float64](alpha=500.0))
+    candidates.append(Ridge[DType.float64](alpha=100.0))
+    candidates.append(Ridge[DType.float64](alpha=250.0))
+    candidates.append(Ridge[DType.float64](alpha=750.0))
+    return candidates^
+
+
+def _ridge_dataset() -> (
+    Tuple[Matrix[DType.float64], List[Scalar[DType.float64]]]
+):
+    var X = Matrix[DType.float64](12, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i + 1)
+        y.append(Float64(2 * (i + 1)))
+    return (X^, y^)
+
+
+def _logreg_pool() raises -> List[LogisticRegression[DType.float64]]:
+    var candidates = List[LogisticRegression[DType.float64]]()
+    candidates.append(LogisticRegression[DType.float64](C=0.001, max_iter=60))
+    candidates.append(LogisticRegression[DType.float64](C=10.0, max_iter=200))
+    candidates.append(LogisticRegression[DType.float64](C=0.01, max_iter=60))
+    candidates.append(LogisticRegression[DType.float64](C=1.0, max_iter=200))
+    return candidates^
+
+
+def test_randomized_search_regressor_full_budget_matches_grid_search() raises:
+    var data = _ridge_dataset()
+
+    var grid = GridSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), cv=3, scoring="r2", refit=True
+    )
+    grid.fit(data[0], data[1])
+
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3, scoring="r2", refit=True
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(rnd.best_index_, grid.best_index_)
+    assert_equal(rnd.best_score_, grid.best_score_)
+
+
+def test_randomized_search_regressor_finds_best_candidate() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3, scoring="r2"
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_true(rnd.is_fitted)
+    assert_equal(rnd.best_index_, 1)
+    assert_true(rnd.best_score_ > 0.99)
+
+
+def test_randomized_search_regressor_best_matches_recorded_results() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3, scoring="r2", random_state=11
+    )
+    rnd.fit(data[0], data[1])
+
+    var best_pos = 0
+    for i in range(len(rnd.cv_results_mean_)):
+        if rnd.cv_results_mean_[i] > rnd.cv_results_mean_[best_pos]:
+            best_pos = i
+
+    assert_equal(rnd.best_score_, rnd.cv_results_mean_[best_pos])
+    assert_equal(rnd.best_index_, rnd.sampled_indices_[best_pos])
+
+
+def test_randomized_search_regressor_respects_n_iter_budget() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=2, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 2)
+    assert_equal(len(rnd.cv_results_mean_), 2)
+    assert_equal(len(rnd.cv_results_std_), 2)
+
+
+def test_randomized_search_regressor_clamps_n_iter_to_pool_size() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=50, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 6)
+    assert_equal(len(rnd.cv_results_mean_), 6)
+
+    var seen = List[Bool](capacity=6)
+    for _ in range(6):
+        seen.append(False)
+    for i in range(6):
+        seen[rnd.sampled_indices_[i]] = True
+    for i in range(6):
+        assert_true(seen[i])
+
+
+def test_randomized_search_regressor_samples_without_replacement() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    for i in range(4):
+        assert_true(rnd.sampled_indices_[i] >= 0)
+        assert_true(rnd.sampled_indices_[i] < 6)
+        for j in range(i + 1, 4):
+            assert_true(rnd.sampled_indices_[i] != rnd.sampled_indices_[j])
+
+
+def test_randomized_search_regressor_reproducible_with_same_seed() raises:
+    var data = _ridge_dataset()
+
+    var a = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=3, cv=3, random_state=7
+    )
+    var b = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=3, cv=3, random_state=7
+    )
+    a.fit(data[0], data[1])
+    b.fit(data[0], data[1])
+
+    assert_equal(a.best_index_, b.best_index_)
+    assert_equal(a.best_score_, b.best_score_)
+    for i in range(3):
+        assert_equal(a.sampled_indices_[i], b.sampled_indices_[i])
+        assert_equal(a.cv_results_mean_[i], b.cv_results_mean_[i])
+
+
+def test_randomized_search_regressor_different_seeds_sample_differently() raises:
+    var data = _ridge_dataset()
+
+    var a = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3, random_state=1
+    )
+    var b = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3, random_state=999
+    )
+    a.fit(data[0], data[1])
+    b.fit(data[0], data[1])
+
+    var differs = False
+    for i in range(4):
+        if a.sampled_indices_[i] != b.sampled_indices_[i]:
+            differs = True
+    assert_true(differs)
+
+
+def test_randomized_search_regressor_std_is_non_negative() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=4, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    for i in range(4):
+        assert_true(rnd.cv_results_std_[i] >= 0.0)
+
+
+def test_randomized_search_regressor_candidate_isolation() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 1.0)
+        var _ = rnd.candidates[0].predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_randomized_search_regressor_predict_uses_best_estimator() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3, refit=True
+    )
+    rnd.fit(data[0], data[1])
+
+    var probe = Matrix[DType.float64](3, 1, 0)
+    probe[0, 0] = 20.0
+    probe[1, 0] = 30.0
+    probe[2, 0] = 40.0
+
+    var preds = rnd.predict(probe)
+    assert_equal(len(preds), 3)
+    assert_true(abs(preds[0] - 40.0) < 1.0)
+    assert_true(abs(preds[1] - 60.0) < 1.0)
+    assert_true(abs(preds[2] - 80.0) < 1.0)
+
+
+def test_randomized_search_regressor_predict_dtype_flexibility() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    var probe = Matrix[DType.float32](2, 1, 0)
+    probe[0, 0] = 20.0
+    probe[1, 0] = 30.0
+
+    var preds = rnd.predict(probe)
+    assert_equal(len(preds), 2)
+    assert_true(abs(preds[0] - 40.0) < 1.0)
+
+
+def test_randomized_search_regressor_predict_before_fit_raises() raises:
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=2, cv=3
+    )
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 1.0)
+        var _ = rnd.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_randomized_search_regressor_refit_false_blocks_predict() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=3, cv=3, refit=False
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_true(rnd.is_fitted)
+    assert_true(rnd.best_index_ >= 0)
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 1.0)
+        var _ = rnd.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_randomized_search_regressor_alternate_scoring_metric() raises:
+    var data = _ridge_dataset()
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=6, cv=3, scoring="neg_mean_squared_error"
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(rnd.best_index_, 1)
+    assert_true(rnd.best_score_ <= 0.0)
+
+
+def test_randomized_search_regressor_constructor_error_handling() raises:
+    var caught_empty = False
+    try:
+        var empty = List[Ridge[DType.float64]]()
+        var _ = RandomizedSearchRegressor[Ridge[DType.float64]](empty^)
+    except:
+        caught_empty = True
+    assert_true(caught_empty)
+
+    var caught_iter = False
+    try:
+        var _ = RandomizedSearchRegressor[Ridge[DType.float64]](
+            _ridge_pool(), n_iter=0
+        )
+    except:
+        caught_iter = True
+    assert_true(caught_iter)
+
+    var caught_neg_iter = False
+    try:
+        var _ = RandomizedSearchRegressor[Ridge[DType.float64]](
+            _ridge_pool(), n_iter=-3
+        )
+    except:
+        caught_neg_iter = True
+    assert_true(caught_neg_iter)
+
+    var caught_cv = False
+    try:
+        var _ = RandomizedSearchRegressor[Ridge[DType.float64]](
+            _ridge_pool(), n_iter=2, cv=1
+        )
+    except:
+        caught_cv = True
+    assert_true(caught_cv)
+
+
+def test_randomized_search_classifier_full_budget_matches_grid_search() raises:
+    var data = _separable_dataset(24)
+
+    var grid = GridSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), cv=3, scoring="accuracy", refit=True
+    )
+    grid.fit(data[0], data[1])
+
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=4, cv=3, scoring="accuracy", refit=True
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 4)
+    assert_equal(rnd.best_score_, grid.best_score_)
+
+    var grid_pos = 0
+    for i in range(len(rnd.sampled_indices_)):
+        if rnd.sampled_indices_[i] == grid.best_index_:
+            grid_pos = i
+    assert_equal(rnd.cv_results_mean_[grid_pos], grid.best_score_)
+
+
+def test_randomized_search_classifier_best_matches_recorded_results() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=3, cv=3, random_state=5
+    )
+    rnd.fit(data[0], data[1])
+
+    var best_pos = 0
+    for i in range(len(rnd.cv_results_mean_)):
+        if rnd.cv_results_mean_[i] > rnd.cv_results_mean_[best_pos]:
+            best_pos = i
+
+    assert_equal(rnd.best_score_, rnd.cv_results_mean_[best_pos])
+    assert_equal(rnd.best_index_, rnd.sampled_indices_[best_pos])
+
+
+def test_randomized_search_classifier_respects_n_iter_budget() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=2, cv=3
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 2)
+    assert_equal(len(rnd.cv_results_mean_), 2)
+    assert_true(rnd.sampled_indices_[0] != rnd.sampled_indices_[1])
+
+
+def test_randomized_search_classifier_predict_and_proba() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=4, cv=3, refit=True
+    )
+    rnd.fit(data[0], data[1])
+
+    var preds = rnd.predict(data[0])
+    assert_equal(len(preds), 24)
+    for i in range(24):
+        assert_true(preds[i] == 0 or preds[i] == 1)
+
+    var proba = rnd.predict_proba(data[0])
+    assert_equal(proba.rows, 24)
+    assert_equal(proba.cols, 2)
+    for i in range(24):
+        var total = proba[i, 0] + proba[i, 1]
+        assert_true(abs(total - 1.0) < 1e-6)
+
+
+def test_randomized_search_classifier_reproducible_with_same_seed() raises:
+    var data = _separable_dataset(24)
+
+    var a = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=3, cv=3, random_state=13
+    )
+    var b = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=3, cv=3, random_state=13
+    )
+    a.fit(data[0], data[1])
+    b.fit(data[0], data[1])
+
+    assert_equal(a.best_index_, b.best_index_)
+    for i in range(3):
+        assert_equal(a.sampled_indices_[i], b.sampled_indices_[i])
+        assert_equal(a.cv_results_mean_[i], b.cv_results_mean_[i])
+
+
+def test_randomized_search_classifier_refit_false_blocks_predict() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=2, cv=3, refit=False
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_true(rnd.is_fitted)
+
+    var caught_predict = False
+    try:
+        var _ = rnd.predict(data[0])
+    except:
+        caught_predict = True
+    assert_true(caught_predict)
+
+    var caught_proba = False
+    try:
+        var _ = rnd.predict_proba(data[0])
+    except:
+        caught_proba = True
+    assert_true(caught_proba)
+
+
+def test_randomized_search_classifier_predict_before_fit_raises() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=2, cv=3
+    )
+
+    var caught = False
+    try:
+        var _ = rnd.predict(data[0])
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_randomized_search_classifier_constructor_error_handling() raises:
+    var caught_empty = False
+    try:
+        var empty = List[LogisticRegression[DType.float64]]()
+        var _ = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+            empty^
+        )
+    except:
+        caught_empty = True
+    assert_true(caught_empty)
+
+    var caught_iter = False
+    try:
+        var _ = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+            _logreg_pool(), n_iter=0
+        )
+    except:
+        caught_iter = True
+    assert_true(caught_iter)
+
+    var caught_cv = False
+    try:
+        var _ = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+            _logreg_pool(), n_iter=2, cv=1
+        )
+    except:
+        caught_cv = True
+    assert_true(caught_cv)
+
+
+def test_randomized_search_pipeline_regression_integration() raises:
+    var X = Matrix[DType.float64](10, 2, 0)
+    var y = List[Scalar[DType.float64]](capacity=10)
+    for i in range(10):
+        X[i, 0] = Float64(i * 10)
+        X[i, 1] = Float64(i * 5)
+        y.append(Float64(i + 1))
+
+    var candidates = List[
+        PipelineRegressor[
+            StandardScaler[DType.float64],
+            Ridge[DType.float64],
+            DType.float64,
+        ]
+    ]()
+
+    var s1 = StandardScaler[DType.float64](with_mean=True, with_std=True)
+    var r1 = Ridge[DType.float64](alpha=0.01)
+    candidates.append(PipelineRegressor(s1^, r1^))
+
+    var s2 = StandardScaler[DType.float64](with_mean=False, with_std=False)
+    var r2 = Ridge[DType.float64](alpha=100.0)
+    candidates.append(PipelineRegressor(s2^, r2^))
+
+    var rnd = RandomizedSearchRegressor[
+        PipelineRegressor[
+            StandardScaler[DType.float64],
+            Ridge[DType.float64],
+            DType.float64,
+        ]
+    ](candidates^, n_iter=2, cv=3, scoring="r2", refit=True)
+
+    rnd.fit(X, y)
+    assert_true(rnd.is_fitted)
+    assert_equal(rnd.best_index_, 0)
+    assert_true(rnd.best_score_ > 0.95)
+
+    var preds = rnd.predict(X)
+    assert_equal(len(preds), 10)
+
+
+def test_randomized_search_pipeline_classification_integration() raises:
+    var X = Matrix[DType.float64](12, 2, 0)
+    var y = List[Scalar[DType.int32]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i * 10)
+        X[i, 1] = Float64(i * 2)
+        y.append(Int32(0 if i < 6 else 1))
+
+    var candidates = List[
+        PipelineClassifier[
+            StandardScaler[DType.float64],
+            LogisticRegression[DType.float64],
+            DType.int32,
+        ]
+    ]()
+
+    var s1 = StandardScaler[DType.float64](with_mean=True, with_std=True)
+    var c1 = LogisticRegression[DType.float64](C=10.0, max_iter=150)
+    candidates.append(PipelineClassifier(s1^, c1^))
+
+    var s2 = StandardScaler[DType.float64](with_mean=False, with_std=False)
+    var c2 = LogisticRegression[DType.float64](C=0.001, max_iter=50)
+    candidates.append(PipelineClassifier(s2^, c2^))
+
+    var rnd = RandomizedSearchClassifier[
+        PipelineClassifier[
+            StandardScaler[DType.float64],
+            LogisticRegression[DType.float64],
+            DType.int32,
+        ]
+    ](candidates^, n_iter=2, cv=3, scoring="accuracy", refit=True)
+
+    rnd.fit(X, y)
+    assert_true(rnd.is_fitted)
+    assert_equal(rnd.best_index_, 0)
+    assert_true(rnd.best_score_ > 0.8)
+
+    var preds = rnd.predict(X)
+    assert_equal(len(preds), 12)
+
+
+def test_stratified_shuffle_split_explicit_train_and_test_sizes() raises:
+    var labels = List[Scalar[DType.int32]]()
+    for i in range(30):
+        labels.append(Int32(0 if i < 15 else 1))
+
+    var sss = StratifiedShuffleSplit(
+        n_splits=3, test_size=0.2, train_size=0.6, random_state=42
+    )
+    assert_equal(sss.get_n_splits(), 3)
+
+    var splits = sss.split(labels)
+    assert_equal(len(splits), 3)
+
+    for s in range(3):
+        assert_equal(len(splits[s].train_indices), 18)
+        assert_equal(len(splits[s].val_indices), 6)
+
+
+def test_cross_validate_all_regression_metrics_simultaneous() raises:
+    var X = Matrix[DType.float64](12, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i + 1)
+        y.append(Float64(2 * (i + 1)))
+
+    var metrics = List[String]()
+    metrics.append("r2")
+    metrics.append("mse")
+    metrics.append("neg_mean_squared_error")
+    metrics.append("rmse")
+    metrics.append("neg_root_mean_squared_error")
+    metrics.append("mae")
+    metrics.append("neg_mean_absolute_error")
+
+    var model = LinearRegression[DType.float64]()
+    var res = cross_validate[LinearRegression[DType.float64]](
+        model, X, y, scoring=metrics, cv=3, return_train_score=True
+    )
+
+    assert_equal(len(res.metrics), 7)
+    var r2_scores = res.test_scores_for("r2")
+    assert_equal(len(r2_scores), 3)
+    for s in range(3):
+        assert_true(r2_scores[s] > 0.99)
+
+    var mse_scores = res.test_scores_for("mse")
+    var neg_mse_scores = res.test_scores_for("neg_mean_squared_error")
+    for s in range(3):
+        assert_true(abs(mse_scores[s] + neg_mse_scores[s]) < 1e-6)
+
+    var train_mae = res.train_scores_for("mae")
+    assert_equal(len(train_mae), 3)
+
+
+def test_audit_stratified_shuffle_split_four_classes_with_rare_class() raises:
+    var labels = List[Scalar[DType.int32]]()
+    for _ in range(20):
+        labels.append(Int32(0))
+    for _ in range(15):
+        labels.append(Int32(1))
+    for _ in range(10):
+        labels.append(Int32(2))
+    for _ in range(3):
+        labels.append(Int32(3))
+
+    var sss = StratifiedShuffleSplit(n_splits=5, test_size=0.25, random_state=7)
+    var splits = sss.split(labels)
+    assert_equal(len(splits), 5)
+
+    for s in range(5):
+        var train_counts = List[Int]()
+        for _ in range(4):
+            train_counts.append(0)
+        for i in range(len(splits[s].train_indices)):
+            var c = Int(labels[splits[s].train_indices[i]])
+            train_counts[c] += 1
+
+        var test_counts = List[Int]()
+        for _ in range(4):
+            test_counts.append(0)
+        for i in range(len(splits[s].val_indices)):
+            var c = Int(labels[splits[s].val_indices[i]])
+            test_counts[c] += 1
+
+        for c in range(4):
+            assert_true(train_counts[c] >= 1)
+            assert_true(test_counts[c] >= 1)
+
+
+def test_audit_stratified_shuffle_split_pairwise_disjoint_train_val() raises:
+    var labels = List[Scalar[DType.int32]]()
+    for i in range(40):
+        labels.append(Int32(i % 3))
+
+    var sss = StratifiedShuffleSplit(
+        n_splits=10, test_size=0.2, random_state=99
+    )
+    var splits = sss.split(labels)
+
+    for s in range(10):
+        for t in range(len(splits[s].train_indices)):
+            var tr = splits[s].train_indices[t]
+            for v in range(len(splits[s].val_indices)):
+                assert_true(tr != splits[s].val_indices[v])
+
+
+def test_audit_stratified_shuffle_split_matrix_overload_and_cast() raises:
+    var X = Matrix[DType.float32](20, 3, 1.5)
+    var y = List[Scalar[DType.int64]]()
+    for i in range(20):
+        y.append(Int64(0 if i < 10 else 1))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.3, random_state=1)
+    var splits = sss.split[DType.float32, DType.int64](X, y)
+    assert_equal(len(splits), 2)
+    assert_equal(len(splits[0].train_indices), 14)
+    assert_equal(len(splits[0].val_indices), 6)
+
+
+def test_audit_stratified_shuffle_split_invalid_train_size_bounds() raises:
+    var caught_neg = False
+    try:
+        var _ = StratifiedShuffleSplit(train_size=-0.1)
+    except:
+        caught_neg = True
+    assert_true(caught_neg)
+
+    var caught_one = False
+    try:
+        var _ = StratifiedShuffleSplit(train_size=1.0)
+    except:
+        caught_one = True
+    assert_true(caught_one)
+
+
+def test_audit_stratified_shuffle_split_invalid_sum_exceeds_one() raises:
+    var caught = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.6, train_size=0.5)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_cross_val_predict_regressor_linear_exact_fit() raises:
+    var X = Matrix[DType.float64](15, 2, 0)
+    var y = List[Scalar[DType.float64]](capacity=15)
+    for i in range(15):
+        var x0 = Float64(i + 1)
+        var x1 = Float64((i + 1) * 2)
+        X[i, 0] = x0
+        X[i, 1] = x1
+        y.append(5.0 * x0 - 3.0 * x1 + 2.0)
+
+    var model = LinearRegression[DType.float64]()
+    var preds = cross_val_predict[LinearRegression[DType.float64]](
+        model, X, y, cv=3
+    )
+
+    assert_equal(len(preds), 15)
+    for i in range(15):
+        assert_true(abs(preds[i] - y[i]) < 1e-4)
+
+
+def test_audit_cross_val_predict_classifier_multiclass_separable() raises:
+    var X = Matrix[DType.float64](18, 2, 0)
+    var y = List[Scalar[DType.int32]](capacity=18)
+    for i in range(6):
+        X[i, 0] = -10.0 + Float64(i)
+        X[i, 1] = -10.0
+        y.append(Int32(0))
+    for i in range(6, 12):
+        X[i, 0] = 0.0 + Float64(i - 6)
+        X[i, 1] = 10.0
+        y.append(Int32(1))
+    for i in range(12, 18):
+        X[i, 0] = 20.0 + Float64(i - 12)
+        X[i, 1] = -10.0
+        y.append(Int32(2))
+
+    var model = LogisticRegression[DType.float64](C=10.0, max_iter=200)
+    var preds = cross_val_predict[LogisticRegression[DType.float64]](
+        model, X, y, cv=3
+    )
+
+    assert_equal(len(preds), 18)
+    for i in range(18):
+        assert_equal(preds[i], Int(y[i]))
+
+
+def test_audit_cross_val_predict_regressor_explicit_splits_matches_cv() raises:
+    var X = Matrix[DType.float64](12, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i + 1)
+        y.append(Float64(3 * (i + 1) + 1))
+
+    var model = LinearRegression[DType.float64]()
+    var preds_cv = cross_val_predict[LinearRegression[DType.float64]](
+        model, X, y, cv=4
+    )
+
+    var kf = KFold(n_splits=4)
+    var splits = kf.split(12)
+    var preds_splits = cross_val_predict[LinearRegression[DType.float64]](
+        model, X, y, splits
+    )
+
+    assert_equal(len(preds_cv), len(preds_splits))
+    for i in range(12):
+        assert_almost_equal(preds_cv[i], preds_splits[i], atol=1e-8)
+
+
+def test_audit_cross_val_predict_partition_rejects_duplicate_index() raises:
+    var X = Matrix[DType.float64](6, 1, 1.0)
+    var y: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+
+    var bad_splits = List[Split]()
+    var t1: List[Int] = [3, 4, 5]
+    var v1: List[Int] = [0, 1, 2]
+    var t2: List[Int] = [0, 1, 2]
+    var v2: List[Int] = [2, 3, 4, 5]
+    bad_splits.append(Split(t1^, v1^))
+    bad_splits.append(Split(t2^, v2^))
+
+    var model = LinearRegression[DType.float64]()
+    var caught = False
+    try:
+        var _ = cross_val_predict[LinearRegression[DType.float64]](
+            model, X, y, bad_splits
+        )
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_cross_val_predict_partition_rejects_missing_sample() raises:
+    var X = Matrix[DType.float64](6, 1, 1.0)
+    var y: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+
+    var bad_splits = List[Split]()
+    var t1: List[Int] = [3, 4, 5]
+    var v1: List[Int] = [0, 1]
+    var t2: List[Int] = [0, 1, 2]
+    var v2: List[Int] = [3, 4, 5]
+    bad_splits.append(Split(t1^, v1^))
+    bad_splits.append(Split(t2^, v2^))
+
+    var model = LinearRegression[DType.float64]()
+    var caught = False
+    try:
+        var _ = cross_val_predict[LinearRegression[DType.float64]](
+            model, X, y, bad_splits
+        )
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_cross_validate_classifier_all_four_metrics_simultaneous() raises:
+    var data = _separable_dataset(24)
+    var metrics = List[String]()
+    metrics.append("accuracy")
+    metrics.append("f1")
+    metrics.append("precision")
+    metrics.append("recall")
+
+    var model = LogisticRegression[DType.float64](C=10.0, max_iter=150)
+    var res = cross_validate[LogisticRegression[DType.float64]](
+        model, data[0], data[1], scoring=metrics, cv=3, return_train_score=True
+    )
+
+    assert_equal(len(res.metrics), 4)
+    for m in range(4):
+        var test_sc = res.test_scores_for(metrics[m])
+        var train_sc = res.train_scores_for(metrics[m])
+        assert_equal(len(test_sc), 3)
+        assert_equal(len(train_sc), 3)
+        for s in range(3):
+            assert_true(test_sc[s] > 0.8)
+            assert_true(train_sc[s] > 0.8)
+
+
+def test_audit_cross_validate_unrequested_train_scores_raises() raises:
+    var data = _separable_dataset(24)
+    var metrics = List[String]()
+    metrics.append("accuracy")
+
+    var model = LogisticRegression[DType.float64]()
+    var res = cross_validate[LogisticRegression[DType.float64]](
+        model, data[0], data[1], scoring=metrics, cv=3, return_train_score=False
+    )
+
+    var caught = False
+    try:
+        var _ = res.train_scores_for("accuracy")
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_cross_validate_unknown_metric_raises() raises:
+    var data = _separable_dataset(24)
+    var metrics = List[String]()
+    metrics.append("accuracy")
+
+    var model = LogisticRegression[DType.float64]()
+    var res = cross_validate[LogisticRegression[DType.float64]](
+        model, data[0], data[1], scoring=metrics, cv=3
+    )
+
+    var caught = False
+    try:
+        var _ = res.test_scores_for("nonexistent_metric")
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_randomized_search_classifier_sampled_indices_uniqueness() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=4, cv=3, random_state=42
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 4)
+    for i in range(4):
+        assert_true(
+            rnd.sampled_indices_[i] >= 0 and rnd.sampled_indices_[i] < 4
+        )
+        for j in range(i + 1, 4):
+            assert_true(rnd.sampled_indices_[i] != rnd.sampled_indices_[j])
+
+
+def test_audit_randomized_search_regressor_high_dimensional_refit() raises:
+    var X = Matrix[DType.float64](20, 25, 0)
+    var y = List[Scalar[DType.float64]](capacity=20)
+    for i in range(20):
+        for j in range(25):
+            X[i, j] = Float64((i + 1) * (j + 1)) * 0.01
+        y.append(Float64(i + 1))
+
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=3, cv=3, scoring="r2", refit=True, random_state=11
+    )
+    rnd.fit(X, y)
+
+    assert_true(rnd.is_fitted)
+    assert_true(rnd.best_index_ >= 0)
+    assert_true(rnd.best_score_ > -1e10)
+
+    var probe = Matrix[DType.float64](2, 25, 0.5)
+    var preds = rnd.predict(probe)
+    assert_equal(len(preds), 2)
+
+
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()
-
