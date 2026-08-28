@@ -1,0 +1,78 @@
+# `LinearRegression`
+
+**Module**: [`strata.linear_model`](index.md) &bull; **Kind**: `struct` &bull; **Traits**: `Copyable, Movable, Regressor`  
+**Source**: [`strata/linear_model/linear_regression.mojo`](file:////home/ewu/Code/Strata/strata/linear_model/linear_regression.mojo)
+
+```mojo
+struct LinearRegression[compute_dtype: DType = DType.float64](Copyable, Movable, Regressor)
+```
+
+```mojo
+from strata.linear_model import LinearRegression
+```
+
+**Ordinary Least Squares Linear Regression.**
+
+Fits a linear model with coefficients $w = (w_1, \dots, w_D)$ and intercept $b$
+to minimize the residual sum of squares between observed targets and predictions:
+$$
+\min_{w, b} \frac{1}{2N} \|y - (Xw + b)\|_2^2
+$$
+
+---
+
+## Methods Overview
+
+| Method | Description |
+| :--- | :--- |
+| [`LinearRegression.fit()`](#fit) | Fit the linear model from training data. |
+| [`LinearRegression.predict()`](#predict) | Predict continuous target values using the fitted linear model. |
+
+---
+
+## Method Details
+
+### `LinearRegression.fit()`
+
+```mojo
+def fit[feat_dtype: DType, in_target_dtype: DType](mut self, X: Matrix[feat_dtype], y: List[Scalar[in_target_dtype]])
+def fit[feat_dtype: DType, target_dtype: DType](mut self, dataset: Dataset[feat_dtype, target_dtype])
+```
+
+Fit the linear model from training data.
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| **`X`** | `Matrix[feat_dtype]` | Feature matrix. |
+| **`y`** | `List[Scalar[in_target_dtype]]` | Target vector / class labels. |
+| **`dataset`** | `Dataset[feat_dtype, target_dtype]` | Dataset container holding feature matrix and targets. |
+
+---
+
+### `LinearRegression.predict()`
+
+```mojo
+def predict[feat_dtype: DType](self, X: Matrix[feat_dtype]) -> List[Scalar[feat_dtype]]
+def predict[feat_dtype: DType, target_dtype: DType](self, dataset: Dataset[feat_dtype, target_dtype]) -> List[Scalar[feat_dtype]]
+```
+
+Predict continuous target values using the fitted linear model.
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| **`X`** | `Matrix[feat_dtype]` | Feature matrix. |
+| **`dataset`** | `Dataset[feat_dtype, target_dtype]` | Dataset container holding feature records. |
+
+**Returns**: `List[Scalar[feat_dtype]]` — List[Scalar[feat_dtype]]: Predicted target vector of length $N$.
+---
+
+## Example
+
+```mojo
+from strata.linear_model import LinearRegression
+from strata.core import Matrix
+
+var reg = LinearRegression[DType.float64](solver="cholesky")
+reg.fit(X_train, y_train)
+var preds = reg.predict(X_test)
+```

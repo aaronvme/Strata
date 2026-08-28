@@ -25,8 +25,23 @@ struct Split(Movable):
 struct KFold(Movable):
     """K-Fold cross-validator.
 
-    Provides train/test indices to split data into train/test sets.
-    Splits dataset into k consecutive folds (with optional shuffling).
+    Provides train/validation indices to split data into $K$ consecutive or shuffled folds.
+    Each fold is used once as a validation set while the remaining $K-1$ folds form the
+    training set.
+
+    Parameters:
+        n_splits: Number of folds ($K >= 2$). Default 5.
+        shuffle: Whether to shuffle the data before splitting into batches. Default False.
+        random_state: PRNG seed when shuffle=True. Default 42.
+
+
+    Examples:
+        ```mojo
+        from strata.model_selection import KFold
+
+        var kf = KFold(n_splits=5, shuffle=True, random_state=42)
+        var folds = kf.split(n_samples=100)
+        ```
     """
 
     var n_splits: Int
@@ -39,13 +54,17 @@ struct KFold(Movable):
         shuffle: Bool = False,
         random_state: Int = 42,
     ) raises:
-        """Initializes the KFold splitter.
+        """Initialize the KFold splitter.
 
         Args:
-            n_splits: Number of folds (must be at least 2).
-            shuffle: Whether to shuffle the data before splitting into batches.
-            random_state: Random state seed when shuffle is True.
+            n_splits: Number of folds (must be at least 2). Default 5.
+            shuffle: Whether to shuffle the data before splitting. Default False.
+            random_state: PRNG seed when shuffle is True. Default 42.
+
+        Raises:
+            InvalidParameterError: If n_splits < 2.
         """
+
         if n_splits < 2:
             raise InvalidParameterError.error(
                 "n_splits",

@@ -21,11 +21,32 @@ struct Ridge[
 ](Copyable, Movable, Regressor):
     """Ridge regression with L2 regularization.
 
-    Minimizes the penalized objective:
-        ||y - Xw||^2_2 + alpha * ||w||^2_2
+    Minimizes the penalized objective function:
+
+    $$
+    \\min_{w} \\|y - Xw\\|_2^2 + \\alpha \\|w\\|_2^2
+    $$
 
     Parameters:
-        compute_dtype: Floating point precision for internal computations (default: Float64).
+        alpha: Regularization strength ($\\alpha \\ge 0$). Larger values enforce stronger shrinkage. Default 1.0.
+        fit_intercept: Whether to calculate the intercept bias term. Default True.
+        solver: Solver algorithm to use ('auto', 'cholesky', 'svd', 'solve'). Default 'auto'.
+
+
+    Attributes:
+        coef_: Weight vector coefficients of length $D$.
+        intercept_: Independent bias intercept term.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.linear_model import Ridge
+        from strata.core import Matrix
+
+        var model = Ridge[DType.float64](alpha=0.5)
+        model.fit(X_train, y_train)
+        var preds = model.predict(X_test)
+        ```
     """
 
     var is_fitted: Bool
@@ -41,13 +62,17 @@ struct Ridge[
         fit_intercept: Bool = True,
         solver: String = "auto",
     ) raises:
-        """Initializes the Ridge regression estimator.
+        """Initialize the Ridge regression estimator.
 
         Args:
-            alpha: Regularization strength (must be non-negative).
-            fit_intercept: Whether to calculate the intercept for this model.
-            solver: Solver algorithm ('auto', 'cholesky', 'svd', 'solve').
+            alpha: Regularization strength (must be non-negative). Default 1.0.
+            fit_intercept: Whether to calculate the intercept bias term. Default True.
+            solver: Solver algorithm ('auto', 'cholesky', 'svd', 'solve'). Default 'auto'.
+
+        Raises:
+            InvalidParameterError: If alpha is negative.
         """
+
         check_floating_dtype[Self.compute_dtype, "Ridge"]()
         if alpha < 0:
             raise InvalidParameterError.error(
@@ -73,13 +98,17 @@ struct Ridge[
     def fit[
         feat_dtype: DType, in_target_dtype: DType
     ](mut self, X: Matrix[feat_dtype], y: List[Scalar[in_target_dtype]]) raises:
-        """Fits the Ridge regression model from training data (X, y).
+        """Fit the Ridge regression model from training data.
 
         Args:
-            X: Training feature matrix (N x D).
-            y: Target values (length N).
+            X: Training feature matrix of shape $(N, D)$.
+            y: Target values vector of length $N$.
+
+        Raises:
+            DimensionMismatchError: If $X$ rows do not match length of $y$.
         """
         check_X_y(X, y)
+
 
         var N = X.rows
         var D = X.cols
@@ -183,15 +212,20 @@ struct Ridge[
     def predict[
         feat_dtype: DType
     ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[feat_dtype]]:
-        """Predicts continuous target values using the fitted Ridge model.
+        """Predict continuous target values using the fitted linear model.
 
         Args:
-            X: Feature matrix of shape (N x D) to predict on.
+            X: Feature matrix of shape $(N, D)$ to predict on.
 
         Returns:
-            List of predictions matching the input feature precision.
+            List[Scalar[feat_dtype]]: Predicted target vector of length $N$.
+
+        Raises:
+            NotFittedError: If the estimator has not been fitted.
+            DimensionMismatchError: If the number of columns in $X$ does not match `n_features_in_`.
         """
         check_is_fitted("Ridge", self.is_fitted)
+
         check_array[feat_dtype](X)
         if X.cols != len(self.coef_):
             raise DimensionMismatchError.error(

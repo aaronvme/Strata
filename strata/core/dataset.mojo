@@ -18,6 +18,12 @@ struct DatasetSplit[
         var train: Dataset[Self.feat_dtype, Self.target_dtype],
         var test: Dataset[Self.feat_dtype, Self.target_dtype],
     ):
+        """Initialize a DatasetSplit container.
+
+        Args:
+            train: Training partition Dataset.
+            test: Testing partition Dataset.
+        """
         self.train = train^
         self.test = test^
 
@@ -27,6 +33,29 @@ struct Dataset[
     target_dtype: DType = DType.float64,
 ](Copyable, Movable):
     """Machine learning dataset container pairing a feature matrix with targets.
+
+    Encapsulates 2D feature observations, 1D target labels/values, and optional
+    feature/target name metadata.
+
+    Parameters:
+        feat_dtype: Data type of the feature matrix (default: Float64).
+        target_dtype: Data type of the target values (default: Float64).
+
+    Attributes:
+        records: Feature matrix of shape $(N, D)$.
+        targets: Target label/value vector of length $N$.
+        feature_names: List of feature names of length $D$.
+        target_names: List of class or target variable names.
+
+    Examples:
+        ```mojo
+        from strata.core import Matrix, Dataset
+
+        var X = Matrix[DType.float64](100, 4, fill=1.0)
+        var y = List[Scalar[DType.float64]](capacity=100)
+        var ds = Dataset(X^, y^)
+        var split = ds.split_with_ratio(ratio=0.2)
+        ```
     """
 
     var records: Matrix[Self.feat_dtype]
@@ -39,12 +68,23 @@ struct Dataset[
         var records: Matrix[Self.feat_dtype],
         var targets: List[Scalar[Self.target_dtype]],
     ) raises:
+        """Initialize a Dataset from records and targets.
+
+        Args:
+            records: Feature matrix of shape $(N, D)$.
+            targets: Target vector of length $N$.
+
+        Raises:
+            DimensionMismatchError: If records.rows != len(targets).
+        """
         check_consistent_length(records, targets)
         check_array[Self.feat_dtype](records)
         self.records = records^
         self.targets = targets^
         self.feature_names = List[String]()
         self.target_names = List[String]()
+
+
 
     def __init__(
         out self,

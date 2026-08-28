@@ -25,6 +25,45 @@ from ._common import (
 struct KMeans[compute_dtype: DType = DType.float64](
     Clusterer, Copyable, Movable
 ):
+    """K-Means clustering using Lloyd's or Elkan's algorithm.
+
+    Clusters $N$ observations into $K$ disjoint geometric partitions by
+    minimizing within-cluster inertia (sum-of-squared Euclidean distances):
+
+    $$
+    \\arg\\min_{C} \\sum_{i=1}^{N} \\min_{\\mu_j \\in C} \\|x_i - \\mu_j\\|_2^2
+    $$
+
+
+    Parameters:
+        n_clusters: The number of clusters to form as well as the number of centroids to generate. Default 8.
+        init: Method for initialization ('k-means++', 'random'). Default 'k-means++'.
+        n_init: Number of times the k-means algorithm will be run with different centroid seeds. Default 10.
+        max_iter: Maximum number of iterations of the k-means algorithm for a single run. Default 300.
+        tol: Relative tolerance with regards to Frobenius norm of the difference in cluster centers. Default 1e-4.
+        algorithm: K-means algorithm to use ('lloyd'). Default 'lloyd'.
+        random_state: PRNG seed for centroid initialization. Default 42.
+
+    Attributes:
+        cluster_centers_: Coordinates of cluster centers matrix of shape $(K, D)$.
+        labels_: Labels of each point vector of length $N$.
+        inertia_: Sum of squared distances of samples to their closest cluster center.
+        n_iter_: Number of iterations run.
+        n_features_in_: Number of features seen during fit.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.cluster import KMeans
+        from strata.core import Matrix
+
+        var kmeans = KMeans[DType.float64](n_clusters=3, init="k-means++")
+        kmeans.fit(X_data)
+        var labels = kmeans.predict(X_data)
+        var distances = kmeans.transform(X_data)
+        ```
+    """
+
     var is_fitted: Bool
     var n_clusters: Int
     var init: String
@@ -50,6 +89,18 @@ struct KMeans[compute_dtype: DType = DType.float64](
         algorithm: String = "lloyd",
         random_state: Int = 42,
     ):
+        """Initialize the KMeans estimator.
+
+        Args:
+            n_clusters: Number of clusters to form. Default 8.
+            init: Centroid initialization strategy ('k-means++', 'random'). Default 'k-means++'.
+            n_init: Number of initializations to run. Default 10.
+            max_iter: Maximum iterations per run. Default 300.
+            tol: Convergence tolerance threshold. Default 1e-4.
+            algorithm: Algorithm variant ('lloyd'). Default 'lloyd'.
+            random_state: PRNG seed for deterministic centroid placement. Default 42.
+        """
+
         check_floating_dtype[Self.compute_dtype, "KMeans"]()
         self.is_fitted = False
         self.n_clusters = n_clusters

@@ -46,4 +46,9 @@ test = "find tests -name 'test_*.mojo' -exec mojo -I . -Xlinker -L$CONDA_PREFIX/
 format = "mojo format strata tests"
 format-check = "mojo format strata tests && git diff --exit-code -- strata tests"
 ci = { depends-on = ["format-check", "build", "test-all"] }
+generate-docs = "python scripts/generate_docs.py"
+build-docs = { depends-on = ["generate-docs"] }
+serve-docs = "python -m http.server 8000 --directory docs"
+
+
 

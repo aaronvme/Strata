@@ -36,51 +36,45 @@ def _find_class_index(classes: List[Int], target: Int) -> Int:
 struct RandomForestRegressor[
     compute_dtype: DType = DType.float64,
 ](Copyable, Movable, Regressor):
-    """Random Forest Regressor.
+    """Random Forest Regressor ensemble estimator.
 
     An ensemble of decision trees trained via bootstrap aggregation (bagging).
     Predictions are computed as the arithmetic mean of individual tree predictions.
 
-    Parameters
-    ----------
-    n_estimators : Int
-        Number of trees in the forest. Default 100.
-    criterion : String
-        Impurity criterion for each tree: 'squared_error', 'friedman_mse',
-        or 'absolute_error'. Default 'squared_error'.
-    max_depth : Int
-        Maximum tree depth. -1 means unlimited. Default -1.
-    min_samples_split : Int
-        Minimum samples required to split an internal node. Default 2.
-    min_samples_leaf : Int
-        Minimum samples required to be a leaf. Default 1.
-    min_impurity_decrease : Float64
-        A node is split only if the impurity decrease is >= this value.
-        Default 0.0.
-    max_features : String
-        Number of features to consider per split: 'all', 'sqrt', 'log2'.
-        Default 'sqrt'.
-    max_features_count : Int
-        Exact number of features per split. Overrides max_features when > 0.
-        Default -1 (disabled).
-    max_features_ratio : Float64
-        Fraction of features per split. Overrides max_features when > 0.0.
-        Default 0.0 (disabled).
-    bootstrap : Bool
-        Whether to use bootstrap sampling. If False, each tree trains on
-        the full dataset. Default True.
-    max_samples_ratio : Float64
-        Fraction of samples drawn per tree (with replacement). Only used when
-        bootstrap=True and max_samples_count <= 0. Default 1.0.
-    max_samples_count : Int
-        Exact number of samples drawn per tree. Overrides max_samples_ratio
-        when > 0. Default -1 (disabled).
-    oob_score : Bool
-        Whether to estimate out-of-bag R² score after fitting.
-        Only valid when bootstrap=True. Default False.
-    random_state : Int
-        Seed for the PRNG. Default 42.
+    Parameters:
+        n_estimators: Number of trees in the forest. Default 100.
+        criterion: Impurity split criterion ('squared_error', 'friedman_mse', 'absolute_error'). Default 'squared_error'.
+        max_depth: Maximum tree depth. -1 means unlimited. Default -1.
+        min_samples_split: Minimum samples required to split an internal node. Default 2.
+        min_samples_leaf: Minimum samples required to be a leaf node. Default 1.
+        min_impurity_decrease: Split threshold if impurity decrease >= this value. Default 0.0.
+
+        max_features: Number of features to consider per split ('all', 'sqrt', 'log2'). Default 'sqrt'.
+        max_features_count: Exact number of features per split. Default -1 (disabled).
+        max_features_ratio: Proportion of features per split. Default 0.0 (disabled).
+        bootstrap: Whether to use bootstrap sampling. Default True.
+        max_samples_ratio: Proportion of samples drawn per tree when bootstrap=True. Default 1.0.
+        max_samples_count: Exact number of samples drawn per tree. Default -1 (disabled).
+        oob_score: Whether to compute out-of-bag $R^2$ score after fitting. Default False.
+        random_state: PRNG seed for deterministic tree builds. Default 42.
+
+    Attributes:
+        n_features_in_: Number of features seen during fit.
+        feature_importances_: Normalized impurity feature importance vector.
+        oob_score_: Out-of-bag $R^2$ score (available when oob_score=True).
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.ensemble import RandomForestRegressor
+        from strata.core import Matrix
+
+        var rf = RandomForestRegressor[DType.float64](n_estimators=50, max_depth=6)
+        rf.fit(X_train, y_train)
+        var preds = rf.predict(X_test)
+        ```
     """
+
 
     var is_fitted: Bool
     var n_estimators: Int
@@ -462,52 +456,47 @@ struct RandomForestRegressor[
 struct RandomForestClassifier[
     compute_dtype: DType = DType.float64,
 ](Classifier, Copyable, Movable):
-    """Random Forest Classifier.
+    """Random Forest Classifier ensemble estimator.
 
     An ensemble of decision trees trained via bootstrap aggregation (bagging).
     Predictions are computed via soft voting (averaging predicted class probabilities
     across all trees and selecting the argmax class).
 
-    Parameters
-    ----------
-    n_estimators : Int
-        Number of trees in the forest. Default 100.
-    criterion : String
-        Impurity criterion for each tree: 'gini', 'entropy', or 'log_loss'.
-        Default 'gini'.
-    max_depth : Int
-        Maximum tree depth. -1 means unlimited. Default -1.
-    min_samples_split : Int
-        Minimum samples required to split an internal node. Default 2.
-    min_samples_leaf : Int
-        Minimum samples required to be a leaf. Default 1.
-    min_impurity_decrease : Float64
-        A node is split only if the impurity decrease is >= this value.
-        Default 0.0.
-    max_features : String
-        Number of features to consider per split: 'all', 'sqrt', 'log2'.
-        Default 'sqrt'.
-    max_features_count : Int
-        Exact number of features per split. Overrides max_features when > 0.
-        Default -1 (disabled).
-    max_features_ratio : Float64
-        Fraction of features per split. Overrides max_features when > 0.0.
-        Default 0.0 (disabled).
-    bootstrap : Bool
-        Whether to use bootstrap sampling. If False, each tree trains on
-        the full dataset. Default True.
-    max_samples_ratio : Float64
-        Fraction of samples drawn per tree (with replacement). Only used when
-        bootstrap=True and max_samples_count <= 0. Default 1.0.
-    max_samples_count : Int
-        Exact number of samples drawn per tree. Overrides max_samples_ratio
-        when > 0. Default -1 (disabled).
-    oob_score : Bool
-        Whether to estimate out-of-bag accuracy score after fitting.
-        Only valid when bootstrap=True. Default False.
-    random_state : Int
-        Seed for the PRNG. Default 42.
+    Parameters:
+        n_estimators: Number of trees in the forest. Default 100.
+        criterion: Impurity split criterion ('gini', 'entropy', 'log_loss'). Default 'gini'.
+        max_depth: Maximum tree depth. -1 means unlimited. Default -1.
+        min_samples_split: Minimum samples required to split an internal node. Default 2.
+        min_samples_leaf: Minimum samples required to be a leaf node. Default 1.
+        min_impurity_decrease: Split threshold if impurity decrease >= this value. Default 0.0.
+
+        max_features: Number of features to consider per split ('all', 'sqrt', 'log2'). Default 'sqrt'.
+        max_features_count: Exact number of features per split. Default -1 (disabled).
+        max_features_ratio: Proportion of features per split. Default 0.0 (disabled).
+        bootstrap: Whether to use bootstrap sampling. Default True.
+        max_samples_ratio: Proportion of samples drawn per tree when bootstrap=True. Default 1.0.
+        max_samples_count: Exact number of samples drawn per tree. Default -1 (disabled).
+        oob_score: Whether to compute out-of-bag accuracy score after fitting. Default False.
+        random_state: PRNG seed for deterministic tree builds. Default 42.
+
+    Attributes:
+        classes_: Sorted list of unique class labels seen during fit.
+        n_features_in_: Number of features seen during fit.
+        feature_importances_: Normalized impurity feature importance vector.
+        oob_score_: Out-of-bag accuracy score (available when oob_score=True).
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.ensemble import RandomForestClassifier
+        from strata.core import Matrix
+
+        var rf = RandomForestClassifier[DType.float64](n_estimators=50, max_depth=6)
+        rf.fit(X_train, y_train)
+        var preds = rf.predict(X_test)
+        ```
     """
+
 
     var is_fitted: Bool
     var n_estimators: Int

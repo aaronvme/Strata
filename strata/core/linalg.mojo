@@ -5,7 +5,13 @@ from ..exceptions.errors import DimensionMismatchError, InvalidParameterError
 
 
 struct SVDResult[dtype: DType = DType.float64](Copyable, Movable):
-    """Result of Singular Value Decomposition: A = U * diag(S) * Vt."""
+    """Result of Singular Value Decomposition ($A = U \\Sigma V^T$).
+
+    Attributes:
+        U: Left singular vectors matrix of shape $(M, K)$.
+        S: Singular values vector of length $K$ in descending order.
+        Vt: Right singular vectors transposed matrix of shape $(K, N)$.
+    """
 
     var U: Matrix[Self.dtype]
     var S: List[Scalar[Self.dtype]]
@@ -17,13 +23,19 @@ struct SVDResult[dtype: DType = DType.float64](Copyable, Movable):
         var S: List[Scalar[Self.dtype]],
         var Vt: Matrix[Self.dtype],
     ):
+        """Initialize an SVDResult container."""
         self.U = U^
         self.S = S^
         self.Vt = Vt^
 
 
 struct QRResult[dtype: DType = DType.float64](Copyable, Movable):
-    """Result of QR Decomposition: A = Q * R."""
+    """Result of QR Decomposition ($A = Q R$).
+
+    Attributes:
+        Q: Orthogonal matrix of shape $(M, K)$.
+        R: Upper triangular matrix of shape $(K, N)$.
+    """
 
     var Q: Matrix[Self.dtype]
     var R: Matrix[Self.dtype]
@@ -31,13 +43,19 @@ struct QRResult[dtype: DType = DType.float64](Copyable, Movable):
     def __init__(
         out self, var Q: Matrix[Self.dtype], var R: Matrix[Self.dtype]
     ):
+        """Initialize a QRResult container."""
         self.Q = Q^
         self.R = R^
 
 
 struct EigResult[dtype: DType = DType.float64](Copyable, Movable):
-    """Result of Symmetric Eigenvalue Decomposition: A * V = V * diag(eigenvalues).
+    """Result of Symmetric Eigenvalue Decomposition ($A V = V \\Lambda$).
+
+    Attributes:
+        eigenvalues: Real eigenvalues vector of length $N$ in ascending order.
+        eigenvectors: Eigenvector matrix of shape $(N, N)$ with columns representing eigenvectors.
     """
+
 
     var eigenvalues: List[Scalar[Self.dtype]]
     var eigenvectors: Matrix[Self.dtype]
@@ -47,6 +65,7 @@ struct EigResult[dtype: DType = DType.float64](Copyable, Movable):
         var eigenvalues: List[Scalar[Self.dtype]],
         var eigenvectors: Matrix[Self.dtype],
     ):
+        """Initialize an EigResult container."""
         self.eigenvalues = eigenvalues^
         self.eigenvectors = eigenvectors^
 
@@ -54,11 +73,22 @@ struct EigResult[dtype: DType = DType.float64](Copyable, Movable):
 def gemm[
     dtype: DType = DType.float64
 ](A: Matrix[dtype], B: Matrix[dtype]) raises -> Matrix[dtype]:
-    """Dense matrix multiplication: C = A @ B.
+    """Compute dense matrix product $C = A B$.
 
     Hardware-vectorized with SIMD registers and scalar tail handling, supporting
-    arbitrary matrix dimensions and numeric types with zero external C dependencies.
+    arbitrary matrix dimensions and numeric types with zero external dependencies.
+
+    Args:
+        A: Left matrix of shape $(M, K)$.
+        B: Right matrix of shape $(K, N)$.
+
+    Returns:
+        Matrix[dtype]: Output matrix product $C$ of shape $(M, N)$.
+
+    Raises:
+        DimensionMismatchError: If `A.cols != B.rows`.
     """
+
     if A.cols != B.rows:
         raise DimensionMismatchError.error(
             "A.cols == B.rows",
@@ -469,8 +499,23 @@ def lstsq[
     b: List[Scalar[dtype]],
     rcond: Float64 = -1.0,
 ) raises -> List[Scalar[dtype]]:
-    """Solves the linear least-squares problem min ||A * x - b||_2 using SVD (dgelss/sgelss).
+    """Solve linear least-squares problem $\\min_x \\|A x - b\\|_2$ using SVD.
+
+    Uses LAPACK `dgelss`/`sgelss` to compute the minimum-norm least-squares solution.
+
+
+    Args:
+        A: Coefficient matrix of shape $(M, N)$.
+        b: Right-hand side vector of length $M$.
+        rcond: Cutoff for small singular values. Default -1.0 (machine precision).
+
+    Returns:
+        List[Scalar[dtype]]: Least-squares solution vector $x$ of length $N$.
+
+    Raises:
+        DimensionMismatchError: If `A.rows != len(b)`.
     """
+
     comptime assert (
         dtype.is_floating_point()
     ), "Floating-point type required for least squares"
