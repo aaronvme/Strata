@@ -105,3 +105,4 @@ from .metrics import (
     f1_score,
     confusion_matrix,
 )
+from .tree import DecisionTreeRegressor, DecisionTreeClassifier

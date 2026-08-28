@@ -23,7 +23,7 @@ from ._common import (
 
 
 struct MiniBatchKMeans[compute_dtype: DType = DType.float64](
-    Copyable, Movable, Clusterer
+    Clusterer, Copyable, Movable
 ):
     var is_fitted: Bool
     var n_clusters: Int
@@ -308,7 +308,9 @@ struct MiniBatchKMeans[compute_dtype: DType = DType.float64](
                 if ewa_inertia < 0:
                     ewa_inertia = batch_inertia
                 else:
-                    ewa_inertia = alpha * batch_inertia + (1.0 - alpha) * ewa_inertia
+                    ewa_inertia = (
+                        alpha * batch_inertia + (1.0 - alpha) * ewa_inertia
+                    )
 
                 for i in range(actual_batch_size):
                     var c = batch_labels[i]
@@ -323,7 +325,9 @@ struct MiniBatchKMeans[compute_dtype: DType = DType.float64](
                     for c in range(k):
                         total_samples += counts[c]
                     var min_count = Int(
-                        Float64(total_samples) / Float64(k) * self.reassignment_ratio
+                        Float64(total_samples)
+                        / Float64(k)
+                        * self.reassignment_ratio
                     )
                     for c in range(k):
                         if counts[c] < min_count:
@@ -335,7 +339,9 @@ struct MiniBatchKMeans[compute_dtype: DType = DType.float64](
                                     max_d_idx = b
                             if max_d_idx >= 0:
                                 for j in range(d):
-                                    current_centers[c, j] = X_batch[max_d_idx, j]
+                                    current_centers[c, j] = X_batch[
+                                        max_d_idx, j
+                                    ]
                                 batch_dists[max_d_idx] = 0
                             else:
                                 var rand_b = rng.next_int(actual_batch_size)
@@ -364,7 +370,9 @@ struct MiniBatchKMeans[compute_dtype: DType = DType.float64](
                 ):
                     break
 
-                var normalized_shift = center_shift / Scalar[Self.compute_dtype](k)
+                var normalized_shift = center_shift / Scalar[
+                    Self.compute_dtype
+                ](k)
                 if self.tol > 0.0 and normalized_shift <= effective_tol:
                     break
 
@@ -390,9 +398,7 @@ struct MiniBatchKMeans[compute_dtype: DType = DType.float64](
         self.n_features_in_ = d
         self.is_fitted = True
 
-    def predict[
-        in_dtype: DType
-    ](self, X: Matrix[in_dtype]) raises -> List[Int]:
+    def predict[in_dtype: DType](self, X: Matrix[in_dtype]) raises -> List[Int]:
         check_is_fitted("MiniBatchKMeans", self.is_fitted)
         check_array[in_dtype](X)
         if X.cols != self.n_features_in_:
