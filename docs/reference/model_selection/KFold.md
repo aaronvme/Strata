@@ -19,6 +19,16 @@ training set.
 
 ---
 
+## Arguments
+
+| Argument | Description |
+| :--- | :--- |
+| **`n_splits`** | Number of folds ($K >= 2$). Default 5. |
+| **`shuffle`** | Whether to shuffle the data before splitting into batches. Default False. |
+| **`random_state`** | PRNG seed when shuffle=True. Default 42. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

@@ -151,7 +151,6 @@ def cross_val_score[
         X: Feature matrix of shape $(N, D)$.
         y: Target values vector of length $N$.
         cv: Number of cross-validation folds ($K >= 2$). Default 5.
-
         scoring: Evaluation metric name ('r2', 'mse', 'rmse', 'mae', etc.). Default 'r2'.
 
     Returns:

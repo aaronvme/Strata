@@ -20,7 +20,6 @@ def train_test_split[
         dataset: Input dataset pairing features and target values.
         test_size: Proportion of the dataset to include in the test split ($0 < \\text{test\\_size} < 1$). Default 0.25.
         shuffle: Whether to shuffle the data before splitting. Default True.
-
         seed: PRNG seed for reproducible pseudo-random shuffling. Default 42.
 
     Returns:

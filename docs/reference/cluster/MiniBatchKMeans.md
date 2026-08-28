@@ -11,6 +11,52 @@ struct MiniBatchKMeans[compute_dtype: DType = DType.float64](Clusterer, Copyable
 from strata.cluster import MiniBatchKMeans
 ```
 
+**Mini-Batch K-Means clustering algorithm.**
+
+Mini-Batch K-Means uses mini-batches of samples to reduce computation time while
+optimizing the same objective function as full-batch K-Means:
+$$
+\arg\min_{C} \sum_{i=1}^{N} \min_{\mu_j \in C} \|x_i - \mu_j\|_2^2
+$$
+
+---
+
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`n_clusters`** | The number of clusters to form as well as the number of centroids to generate. Default 8. |
+| **`init`** | Method for initialization ('k-means++', 'random'). Default 'k-means++'. |
+| **`max_iter`** | Maximum number of mini-batch iterations. Default 100. |
+| **`batch_size`** | Size of mini-batches drawn per iteration. Default 1024. |
+| **`tol`** | Tolerance threshold for early stopping based on center shift. Default 1e-4. |
+| **`max_no_improvement`** | Early stopping iteration count without inertia improvement. Default 10. |
+| **`n_init`** | Number of random initialization attempts. Default 3. |
+| **`reassignment_ratio`** | Fraction of max count threshold for center reassignment. Default 0.01. |
+| **`random_state`** | PRNG seed for reproducible centroid initializations. Default 42. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`cluster_centers_`** | Coordinates of cluster centers matrix of shape $(K, D)$. |
+| **`labels_`** | Labels of each point vector of length $N$. |
+| **`inertia_`** | Sum of squared distances of samples to their closest cluster center. |
+| **`n_iter_`** | Number of iterations run during fitting. |
+| **`n_steps_`** | Total mini-batch update steps performed. |
+| **`n_features_in_`** | Number of features seen during fit. |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
 ---
 
 ## Methods Overview

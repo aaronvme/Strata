@@ -44,6 +44,9 @@ struct DecisionTreeClassifier[
     $$
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         criterion: The function to measure the quality of a split ('gini', 'entropy', 'log_loss'). Default 'gini'.
         splitter: Strategy used to choose the split at each node ('best', 'random'). Default 'best'.
         max_depth: Maximum tree depth. -1 indicates unlimited depth. Default -1.

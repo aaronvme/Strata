@@ -21,6 +21,33 @@ $$
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`fit_intercept`** | Whether to calculate the intercept bias term. Default True. |
+| **`solver`** | Solver algorithm to use ('lstsq', 'qr', 'cholesky', 'solve'). Default 'lstsq'. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`coef_`** | Weight vector coefficients of length $D$. |
+| **`intercept_`** | Independent bias intercept term. |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

@@ -13,7 +13,7 @@
 | [`DimensionMismatchError`](DimensionMismatchError.md) | Exception raised when input matrix/vector dimensions do not match requirements. |
 | [`ConvergenceError`](ConvergenceError.md) | Exception raised when iterative optimization fails to converge within max iterations. |
 | [`InvalidParameterError`](InvalidParameterError.md) | Exception raised when an invalid hyperparameter value is supplied. |
-| [`DataConversionError`](DataConversionError.md) | — |
+| [`DataConversionError`](DataConversionError.md) | Exception raised when data type conversion or matrix array formatting fails. |
 
 ## Functions
 

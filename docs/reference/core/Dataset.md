@@ -18,6 +18,26 @@ feature/target name metadata.
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`feat_dtype`** | Data type of the feature matrix (default: Float64). |
+| **`target_dtype`** | Data type of the target values (default: Float64). |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`records`** | Feature matrix of shape $(N, D)$. |
+| **`targets`** | Target label/value vector of length $N$. |
+| **`feature_names`** | List of feature names of length $D$. |
+| **`target_names`** | List of class or target variable names. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

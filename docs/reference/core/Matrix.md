@@ -18,6 +18,24 @@ slicing, element-wise arithmetic, and BLAS/LAPACK interop.
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`dtype`** | Numerical data type of matrix elements. Default DType.float64. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`rows`** | Number of matrix rows ($N$). |
+| **`cols`** | Number of matrix columns ($D$). |
+| **`data`** | Flat 1D buffer of matrix elements in row-major order. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

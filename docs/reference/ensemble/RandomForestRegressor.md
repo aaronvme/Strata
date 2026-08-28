@@ -18,6 +18,46 @@ Predictions are computed as the arithmetic mean of individual tree predictions.
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`n_estimators`** | Number of trees in the forest. Default 100. |
+| **`criterion`** | Impurity split criterion ('squared_error', 'friedman_mse', 'absolute_error'). Default 'squared_error'. |
+| **`max_depth`** | Maximum tree depth. -1 means unlimited. Default -1. |
+| **`min_samples_split`** | Minimum samples required to split an internal node. Default 2. |
+| **`min_samples_leaf`** | Minimum samples required to be a leaf node. Default 1. |
+| **`min_impurity_decrease`** | Split threshold if impurity decrease >= this value. Default 0.0. |
+| **`max_features`** | Number of features to consider per split ('all', 'sqrt', 'log2'). Default 'sqrt'. |
+| **`max_features_count`** | Exact number of features per split. Default -1 (disabled). |
+| **`max_features_ratio`** | Proportion of features per split. Default 0.0 (disabled). |
+| **`bootstrap`** | Whether to use bootstrap sampling. Default True. |
+| **`max_samples_ratio`** | Proportion of samples drawn per tree when bootstrap=True. Default 1.0. |
+| **`max_samples_count`** | Exact number of samples drawn per tree. Default -1 (disabled). |
+| **`oob_score`** | Whether to compute out-of-bag $R^2$ score after fitting. Default False. |
+| **`random_state`** | PRNG seed for deterministic tree builds. Default 42. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`n_features_in_`** | Number of features seen during fit. |
+| **`feature_importances_`** | Normalized impurity feature importance vector. |
+| **`oob_score_`** | Out-of-bag $R^2$ score (available when oob_score=True). |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

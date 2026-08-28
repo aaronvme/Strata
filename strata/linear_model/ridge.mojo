@@ -28,6 +28,9 @@ struct Ridge[
     $$
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         alpha: Regularization strength ($\\alpha \\ge 0$). Larger values enforce stronger shrinkage. Default 1.0.
         fit_intercept: Whether to calculate the intercept bias term. Default True.
         solver: Solver algorithm to use ('auto', 'cholesky', 'svd', 'solve'). Default 'auto'.

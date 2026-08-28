@@ -42,6 +42,9 @@ struct RandomForestRegressor[
     Predictions are computed as the arithmetic mean of individual tree predictions.
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         n_estimators: Number of trees in the forest. Default 100.
         criterion: Impurity split criterion ('squared_error', 'friedman_mse', 'absolute_error'). Default 'squared_error'.
         max_depth: Maximum tree depth. -1 means unlimited. Default -1.
@@ -462,6 +465,9 @@ struct RandomForestClassifier[
     across all trees and selecting the argmax class).
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         n_estimators: Number of trees in the forest. Default 100.
         criterion: Impurity split criterion ('gini', 'entropy', 'log_loss'). Default 'gini'.
         max_depth: Maximum tree depth. -1 means unlimited. Default -1.

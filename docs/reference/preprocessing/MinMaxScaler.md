@@ -21,6 +21,37 @@ $$
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`feature_range_min`** | Lower bound of the desired transformed range. Default 0.0. |
+| **`feature_range_max`** | Upper bound of the desired transformed range. Default 1.0. |
+| **`clip`** | Whether to clip transformed values to the feature range. Default False. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`data_min_`** | Per-feature minimum seen in the training data. |
+| **`data_max_`** | Per-feature maximum seen in the training data. |
+| **`data_range_`** | Per-feature range ($x_{\max} - x_{\min}$) seen in the data. |
+| **`scale_`** | Per-feature relative scaling factor. |
+| **`min_`** | Per-feature minimum adjustment. |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

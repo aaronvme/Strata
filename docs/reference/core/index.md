@@ -20,7 +20,7 @@ Fundamental 2D dense Matrix, MatrixView, CSRMatrix, CSCMatrix sparse representat
 
 | Trait | Description |
 | :--- | :--- |
-| [`SparseMatrix`](SparseMatrix.md) | — |
+| [`SparseMatrix`](SparseMatrix.md) | Base interface trait for 2D sparse matrix representations. |
 
 ## Functions
 

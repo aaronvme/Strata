@@ -38,7 +38,8 @@ MODULE_METADATA = {
         "description": "StandardScaler, MinMaxScaler, RobustScaler, Normalizer, Binarizer, and OneHotEncoder with streaming SIMD statistics.",
         "files": [
             "preprocessing/scaler.mojo",
-            "preprocessing/encoder.mojo",
+            "preprocessing/binarizer.mojo",
+            "preprocessing/encoders.mojo",
         ]
     },
     "linear_model": {
@@ -142,6 +143,7 @@ def parse_docstring_sections(doc: str):
         "summary": "",
         "details": "",
         "parameters": [],
+        "args": [],
         "attributes": [],
         "returns": "",
         "examples": ""
@@ -157,6 +159,19 @@ def parse_docstring_sections(doc: str):
     summary_lines = []
     detail_lines = []
 
+    def save_current_item():
+        nonlocal param_name, param_type, param_desc
+        if param_name and current_section in ("parameters", "args", "attributes"):
+            target_list = sections[current_section]
+            target_list.append({
+                "name": param_name,
+                "type": param_type,
+                "description": " ".join(param_desc).strip()
+            })
+            param_name = ""
+            param_type = ""
+            param_desc = []
+
     i = 0
     while i < len(lines):
         raw_line = lines[i]
@@ -166,16 +181,7 @@ def parse_docstring_sections(doc: str):
         has_underline = i + 1 < len(lines) and lines[i + 1].strip().startswith("---")
 
         if header_match or has_underline:
-            if param_name:
-                target_list = sections["parameters"] if current_section == "parameters" else sections["attributes"]
-                target_list.append({
-                    "name": param_name,
-                    "type": param_type,
-                    "description": " ".join(param_desc).strip()
-                })
-                param_name = ""
-                param_type = ""
-                param_desc = []
+            save_current_item()
 
             sec_name = (header_match.group(1) if header_match else line).lower()
             if has_underline:
@@ -183,8 +189,10 @@ def parse_docstring_sections(doc: str):
             else:
                 i += 1
 
-            if sec_name in ("parameters", "args", "arguments"):
+            if sec_name == "parameters":
                 current_section = "parameters"
+            elif sec_name in ("args", "arguments"):
+                current_section = "args"
             elif sec_name in ("attributes",):
                 current_section = "attributes"
             elif sec_name in ("returns", "return"):
@@ -203,16 +211,10 @@ def parse_docstring_sections(doc: str):
         elif current_section == "details":
             if line:
                 detail_lines.append(line)
-        elif current_section in ("parameters", "attributes"):
+        elif current_section in ("parameters", "args", "attributes"):
             param_match = re.match(r"^([a-zA-Z0-9_]+)(?:\s*\(([^)]+)\))?\s*:\s*(.*)$", line)
-            if param_match and not (raw_line.startswith("    ") or raw_line.startswith("\t")):
-                if param_name:
-                    target_list = sections["parameters"] if current_section == "parameters" else sections["attributes"]
-                    target_list.append({
-                        "name": param_name,
-                        "type": param_type,
-                        "description": " ".join(param_desc).strip()
-                    })
+            if param_match:
+                save_current_item()
                 param_name = param_match.group(1)
                 explicit_type = param_match.group(2)
                 rest = param_match.group(3).strip()
@@ -239,13 +241,7 @@ def parse_docstring_sections(doc: str):
 
         i += 1
 
-    if param_name:
-        target_list = sections["parameters"] if current_section == "parameters" else sections["attributes"]
-        target_list.append({
-            "name": param_name,
-            "type": param_type,
-            "description": " ".join(param_desc).strip()
-        })
+    save_current_item()
 
     sections["summary"] = " ".join(summary_lines).strip()
     sections["details"] = "\n".join(detail_lines).strip()
@@ -263,8 +259,8 @@ def extract_mojo_symbols(filepath: Path):
     symbols = []
 
     type_pattern = re.compile(
-        r'^(struct|trait)\s+([A-Za-z0-9_]+)(?:\[([^\]]*)\])?(?:\s*\(([^)]*)\))?\s*:\s*(?:"""(.*?)""")?',
-        re.MULTILINE | re.DOTALL
+        r'^(struct|trait)\s+([A-Za-z0-9_]+)(?:\[([\s\S]*?)\])?(?:\s*\(([\s\S]*?)\))?\s*:(?:\s*\n\s*"""([\s\S]*?)""")?',
+        re.MULTILINE
     )
 
     fn_pattern = re.compile(
@@ -294,7 +290,7 @@ def extract_mojo_symbols(filepath: Path):
         methods = []
         for fn_match in fn_pattern.finditer(type_body):
             fn_name = fn_match.group(1)
-            if fn_name.startswith("_") and fn_name != "__init__":
+            if fn_name.startswith("_"):
                 continue
 
             raw_fn_params = fn_match.group(2) or ""
@@ -546,17 +542,12 @@ def generate_symbol_markdown_page(mod_key: str, s: dict) -> str:
             md.append(pdoc["details"])
             md.append("")
 
-        # Parameters Table (Constructor parameters)
+        # Parameters Table (Compile-Time Parameters)
         params = pdoc.get("parameters", [])
-        if not params and s.get("methods"):
-            init_m = next((m for m in s["methods"] if m["name"] == "__init__"), None)
-            if init_m and init_m.get("parsed_doc", {}).get("parameters"):
-                params = init_m["parsed_doc"]["parameters"]
-
         if params:
             md.append("---")
             md.append("")
-            md.append("## Parameters")
+            md.append("## Parameters (Compile-Time)")
             md.append("")
             has_types = any(p["type"] for p in params)
             if has_types:
@@ -576,17 +567,51 @@ def generate_symbol_markdown_page(mod_key: str, s: dict) -> str:
                     md.append(f"| **`{p_name}`** | {p_desc} |")
             md.append("")
 
+        # Arguments Table (Runtime Constructor / Function Arguments)
+        args_list = pdoc.get("args", [])
+        if not args_list and s.get("methods"):
+            init_m = next((m for m in s["methods"] if m["name"] == "__init__"), None)
+            if init_m and init_m.get("parsed_doc", {}).get("args"):
+                args_list = init_m["parsed_doc"]["args"]
+            elif init_m and init_m.get("parsed_doc", {}).get("parameters"):
+                args_list = init_m["parsed_doc"]["parameters"]
+
+        if args_list:
+            md.append("---")
+            md.append("")
+            header_title = "## Arguments (Runtime)" if params else "## Arguments"
+            md.append(header_title)
+            md.append("")
+            has_types = any(a["type"] for a in args_list)
+            if has_types:
+                md.append("| Argument | Type | Description |")
+                md.append("| :--- | :--- | :--- |")
+                for a in args_list:
+                    a_name = a["name"]
+                    a_type = f"`{a['type']}`" if a["type"] else "—"
+                    a_desc = a["description"] or "—"
+                    md.append(f"| **`{a_name}`** | {a_type} | {a_desc} |")
+            else:
+                md.append("| Argument | Description |")
+                md.append("| :--- | :--- |")
+                for a in args_list:
+                    a_name = a["name"]
+                    a_desc = a["description"] or "—"
+                    md.append(f"| **`{a_name}`** | {a_desc} |")
+            md.append("")
+
         # Attributes Table
-        if pdoc.get("attributes"):
+        attributes = [a for a in pdoc.get("attributes", []) if not a["name"].startswith("_")]
+        if attributes:
             md.append("---")
             md.append("")
             md.append("## Attributes")
             md.append("")
-            has_attr_types = any(a["type"] for a in pdoc["attributes"])
+            has_attr_types = any(a["type"] for a in attributes)
             if has_attr_types:
                 md.append("| Attribute | Type | Description |")
                 md.append("| :--- | :--- | :--- |")
-                for a in pdoc["attributes"]:
+                for a in attributes:
                     a_name = a["name"]
                     a_type = f"`{a['type']}`" if a['type'] else "—"
                     a_desc = a["description"] or "—"
@@ -594,7 +619,7 @@ def generate_symbol_markdown_page(mod_key: str, s: dict) -> str:
             else:
                 md.append("| Attribute | Description |")
                 md.append("| :--- | :--- |")
-                for a in pdoc["attributes"]:
+                for a in attributes:
                     a_name = a["name"]
                     a_desc = a["description"] or "—"
                     md.append(f"| **`{a_name}`** | {a_desc} |")

@@ -36,6 +36,9 @@ struct KMeans[compute_dtype: DType = DType.float64](
 
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         n_clusters: The number of clusters to form as well as the number of centroids to generate. Default 8.
         init: Method for initialization ('k-means++', 'random'). Default 'k-means++'.
         n_init: Number of times the k-means algorithm will be run with different centroid seeds. Default 10.

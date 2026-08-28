@@ -25,6 +25,9 @@ struct PCA[compute_dtype: DType = DType.float64](
 
 
     Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
         n_components: Number of components to keep. If 0, all components are kept. Default 0.
         whiten: When True, components vectors are divided by the singular values to ensure uncorrelated outputs with unit component-wise variances. Default False.
 

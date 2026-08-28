@@ -1,23 +1,23 @@
-# `StandardScaler`
+# `Binarizer`
 
 **Module**: [`strata.preprocessing`](index.md) &bull; **Kind**: `struct` &bull; **Traits**: `Copyable, Movable, Transformer`  
-**Source**: [`strata/preprocessing/scaler.mojo`](file:////home/ewu/Code/Strata/strata/preprocessing/scaler.mojo)
+**Source**: [`strata/preprocessing/binarizer.mojo`](file:////home/ewu/Code/Strata/strata/preprocessing/binarizer.mojo)
 
 ```mojo
-struct StandardScaler[compute_dtype: DType = DType.float64](Copyable, Movable, Transformer)
+struct Binarizer[compute_dtype: DType = DType.float64](Copyable, Movable, Transformer)
 ```
 
 ```mojo
-from strata.preprocessing import StandardScaler
+from strata.preprocessing import Binarizer
 ```
 
-**Standardize features by removing the mean and scaling to unit variance.**
+**Binarize feature values according to a threshold.**
 
-The standard score of a sample $x$ is calculated as:
+Values strictly greater than the threshold map to 1, while values less than
+or equal to the threshold map to 0:
 $$
-z = \frac{x - \mu}{\sigma}
+x_{\text{bin}} = \begin{cases} 1 & \text{if } x > \text{threshold} \\ 0 & \text{otherwise} \end{cases}
 $$
-where $\mu$ is the mean of the training samples and $\sigma$ is the standard deviation.
 
 ---
 
@@ -33,8 +33,7 @@ where $\mu$ is the mean of the training samples and $\sigma$ is the standard dev
 
 | Argument | Description |
 | :--- | :--- |
-| **`with_mean`** | If True, center the data before scaling. Default True. |
-| **`with_std`** | If True, scale the data to unit variance (unit standard deviation). Default True. |
+| **`threshold`** | Feature values greater than this are mapped to 1. Default 0.0. |
 
 ---
 
@@ -42,8 +41,7 @@ where $\mu$ is the mean of the training samples and $\sigma$ is the standard dev
 
 | Attribute | Description |
 | :--- | :--- |
-| **`mean_`** | Mean value for each feature in the training set. |
-| **`scale_`** | Per-feature standard deviation scaling factor. |
+| **`n_features_in_`** | Number of features seen during fit. |
 | **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
 
 ---
@@ -52,15 +50,15 @@ where $\mu$ is the mean of the training samples and $\sigma$ is the standard dev
 
 | Method | Description |
 | :--- | :--- |
-| [`StandardScaler.fit()`](#fit) | — |
-| [`StandardScaler.transform()`](#transform) | — |
-| [`StandardScaler.fit_transform()`](#fit_transform) | — |
+| [`Binarizer.fit()`](#fit) | — |
+| [`Binarizer.transform()`](#transform) | — |
+| [`Binarizer.fit_transform()`](#fit_transform) | — |
 
 ---
 
 ## Method Details
 
-### `StandardScaler.fit()`
+### `Binarizer.fit()`
 
 ```mojo
 def fit[in_dtype: DType](mut self, X: Matrix[in_dtype])
@@ -74,7 +72,7 @@ def fit[feat_dtype: DType, target_dtype: DType](mut self, dataset: Dataset[feat_
 
 ---
 
-### `StandardScaler.transform()`
+### `Binarizer.transform()`
 
 ```mojo
 def transform[in_dtype: DType](self, X: Matrix[in_dtype]) -> Matrix[in_dtype]
@@ -90,7 +88,7 @@ def transform[feat_dtype: DType, target_dtype: DType](self, dataset: Dataset[fea
 
 ---
 
-### `StandardScaler.fit_transform()`
+### `Binarizer.fit_transform()`
 
 ```mojo
 def fit_transform[in_dtype: DType](mut self, X: Matrix[in_dtype]) -> Matrix[in_dtype]
@@ -108,10 +106,10 @@ def fit_transform[feat_dtype: DType, target_dtype: DType](mut self, dataset: Dat
 ## Example
 
 ```mojo
-from strata.preprocessing import StandardScaler
+from strata.preprocessing import Binarizer
 from strata.core import Matrix
 
-var scaler = StandardScaler[DType.float64]()
-scaler.fit(X_train)
-var X_scaled = scaler.transform(X_train)
+var binarizer = Binarizer[DType.float64](threshold=0.5)
+binarizer.fit(X_train)
+var X_bin = binarizer.transform(X_train)
 ```

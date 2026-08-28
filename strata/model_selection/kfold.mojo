@@ -29,7 +29,7 @@ struct KFold(Movable):
     Each fold is used once as a validation set while the remaining $K-1$ folds form the
     training set.
 
-    Parameters:
+    Args:
         n_splits: Number of folds ($K >= 2$). Default 5.
         shuffle: Whether to shuffle the data before splitting into batches. Default False.
         random_state: PRNG seed when shuffle=True. Default 42.

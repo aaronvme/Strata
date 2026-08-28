@@ -11,6 +11,11 @@ trait SparseMatrix
 from strata.core import SparseMatrix
 ```
 
+**Base interface trait for 2D sparse matrix representations.**
+
+Provides common dimension queries (`num_rows`, `num_cols`) and structural
+sparsity counts (`nnz`) for Compressed Sparse Row (CSR) and Compressed Sparse Column (CSC) formats.
+
 ---
 
 ## Methods Overview

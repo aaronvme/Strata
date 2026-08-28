@@ -21,6 +21,35 @@ where $\text{IQR} = Q_3 - Q_1$ (by default 75th percentile minus 25th percentile
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`with_centering`** | If True, center the data before scaling by subtracting the median. Default True. |
+| **`with_scaling`** | If True, scale the data to interquartile range. Default True. |
+| **`quantile_min`** | Lower quantile percentage of the scaling range ($0 <= q_{\min} < q_{\max} <= 100$). Default 25.0. |
+| **`quantile_max`** | Upper quantile percentage of the scaling range. Default 75.0. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`center_`** | Median value for each feature in the training set. |
+| **`scale_`** | Interquartile range scaling factor for each feature. |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

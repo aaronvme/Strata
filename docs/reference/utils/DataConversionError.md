@@ -11,13 +11,15 @@ struct DataConversionError(Copyable, Movable, Writable)
 from strata.utils import DataConversionError
 ```
 
+**Exception raised when data type conversion or matrix array formatting fails.**
+
 ---
 
 ## Methods Overview
 
 | Method | Description |
 | :--- | :--- |
-| [`DataConversionError.error()`](#error) | — |
+| [`DataConversionError.error()`](#error) | Create a formatted DataConversionError message. |
 | [`DataConversionError.write_to()`](#write_to) | — |
 
 ---
@@ -29,6 +31,8 @@ from strata.utils import DataConversionError
 ```mojo
 def error(msg: String) -> Error
 ```
+
+Create a formatted DataConversionError message.
 
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
