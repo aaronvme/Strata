@@ -200,7 +200,7 @@ struct RandomizedSearchClassifier[
     ModelType: Classifier,
     feat_dtype: DType = DType.float64,
     target_dtype: DType = DType.int32,
-](Copyable, Movable):
+](Classifier, Copyable, Movable):
     """Randomized hyperparameter search for classification models.
 
     Evaluates a random subset of the supplied candidate configurations rather
@@ -362,3 +362,33 @@ struct RandomizedSearchClassifier[
             self.best_estimator_.fit(X_cast, y_cast)
 
         self.is_fitted = True
+
+    def predict[
+        in_feat_dtype: DType
+    ](self, X: Matrix[in_feat_dtype]) raises -> List[Int]:
+        """Predicts class labels using the best discovered model configuration.
+        """
+        check_is_fitted("RandomizedSearchClassifier", self.is_fitted)
+        if not self.refit:
+            raise NotFittedError.error(
+                "This RandomizedSearchClassifier instance was initialized with"
+                " refit=False. "
+                + "Predictions are unavailable without refit."
+            )
+        var X_cast = X.cast[Self.feat_dtype]()
+        return self.best_estimator_.predict(X_cast)
+
+    def predict_proba[
+        in_feat_dtype: DType
+    ](self, X: Matrix[in_feat_dtype]) raises -> Matrix[in_feat_dtype]:
+        """Predicts class probabilities using the best model configuration."""
+        check_is_fitted("RandomizedSearchClassifier", self.is_fitted)
+        if not self.refit:
+            raise NotFittedError.error(
+                "This RandomizedSearchClassifier instance was initialized with"
+                " refit=False. "
+                + "Probability predictions are unavailable without refit."
+            )
+        var X_cast = X.cast[Self.feat_dtype]()
+        var proba_comp = self.best_estimator_.predict_proba(X_cast)
+        return proba_comp.cast[in_feat_dtype]()
