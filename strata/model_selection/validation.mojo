@@ -19,6 +19,120 @@ from .stratified_kfold import StratifiedKFold
 from .subsampling import take_rows, take_elements
 
 
+def _regression_metric_code(scoring: String) raises -> Int:
+    """Maps a regression metric name to an internal dispatch code.
+
+    Args:
+        scoring: Name of a supported regression metric.
+
+    Returns:
+        Dispatch code accepted by _apply_regression_metric.
+    """
+    if scoring == "r2":
+        return 0
+    elif scoring == "mse":
+        return 1
+    elif scoring == "neg_mean_squared_error":
+        return 2
+    elif scoring == "rmse":
+        return 3
+    elif scoring == "neg_root_mean_squared_error":
+        return 4
+    elif scoring == "mae":
+        return 5
+    elif scoring == "neg_mean_absolute_error":
+        return 6
+    raise InvalidParameterError.error(
+        "scoring",
+        "Unsupported regression scoring metric: '" + scoring + "'",
+    )
+
+
+def _apply_regression_metric[
+    target_dtype: DType, pred_dtype: DType
+](
+    metric_code: Int,
+    y_true: List[Scalar[target_dtype]],
+    preds: List[Scalar[pred_dtype]],
+) raises -> Float64:
+    """Evaluates a regression metric selected by dispatch code.
+
+    Args:
+        metric_code: Code returned by _regression_metric_code.
+        y_true: Observed target values.
+        preds: Predicted target values.
+
+    Returns:
+        The metric value, negated for the neg_ variants.
+    """
+    if metric_code == 0:
+        return r2_score(y_true, preds)
+    elif metric_code == 1:
+        return mean_squared_error(y_true, preds)
+    elif metric_code == 2:
+        return -mean_squared_error(y_true, preds)
+    elif metric_code == 3:
+        return root_mean_squared_error(y_true, preds)
+    elif metric_code == 4:
+        return -root_mean_squared_error(y_true, preds)
+    elif metric_code == 5:
+        return mean_absolute_error(y_true, preds)
+    return -mean_absolute_error(y_true, preds)
+
+
+def _classification_metric_code(scoring: String) raises -> Int:
+    """Maps a classification metric name to an internal dispatch code.
+
+    Args:
+        scoring: Name of a supported classification metric.
+
+    Returns:
+        Dispatch code accepted by _apply_classification_metric.
+    """
+    if scoring == "accuracy":
+        return 0
+    elif scoring == "f1":
+        return 1
+    elif scoring == "precision":
+        return 2
+    elif scoring == "recall":
+        return 3
+    raise InvalidParameterError.error(
+        "scoring",
+        "Unsupported classification scoring metric: '" + scoring + "'",
+    )
+
+
+def _apply_classification_metric[
+    target_dtype: DType
+](
+    metric_code: Int,
+    y_true: List[Scalar[target_dtype]],
+    preds: List[Int],
+) raises -> Float64:
+    """Evaluates a classification metric selected by dispatch code.
+
+    Args:
+        metric_code: Code returned by _classification_metric_code.
+        y_true: Observed class labels.
+        preds: Predicted class labels.
+
+    Returns:
+        The metric value.
+    """
+    var y_int = List[Int](capacity=len(y_true))
+    for i in range(len(y_true)):
+        y_int.append(Int(y_true[i]))
+
+    if metric_code == 0:
+        return accuracy_score(y_int, preds)
+    elif metric_code == 1:
+        return f1_score(y_int, preds)
+    elif metric_code == 2:
+        return precision_score(y_int, preds)
+    return recall_score(y_int, preds)
+
+
 def cross_val_score[
     ModelType: Regressor,
     feat_dtype: DType = DType.float64,
@@ -58,26 +172,7 @@ def cross_val_score[
         )
 
     # Validate metric name upfront before running optimization folds
-    var metric_code: Int
-    if scoring == "r2":
-        metric_code = 0
-    elif scoring == "mse":
-        metric_code = 1
-    elif scoring == "neg_mean_squared_error":
-        metric_code = 2
-    elif scoring == "rmse":
-        metric_code = 3
-    elif scoring == "neg_root_mean_squared_error":
-        metric_code = 4
-    elif scoring == "mae":
-        metric_code = 5
-    elif scoring == "neg_mean_absolute_error":
-        metric_code = 6
-    else:
-        raise InvalidParameterError.error(
-            "scoring",
-            "Unsupported regression scoring metric: '" + scoring + "'",
-        )
+    var metric_code = _regression_metric_code(scoring)
 
     var scores = List[Float64](capacity=n_splits)
 
@@ -102,23 +197,7 @@ def cross_val_score[
         model.fit(X_train, y_train)
         var preds = model.predict(X_val)
 
-        var score: Float64
-        if metric_code == 0:
-            score = r2_score(y_val, preds)
-        elif metric_code == 1:
-            score = mean_squared_error(y_val, preds)
-        elif metric_code == 2:
-            score = -mean_squared_error(y_val, preds)
-        elif metric_code == 3:
-            score = root_mean_squared_error(y_val, preds)
-        elif metric_code == 4:
-            score = -root_mean_squared_error(y_val, preds)
-        elif metric_code == 5:
-            score = mean_absolute_error(y_val, preds)
-        else:
-            score = -mean_absolute_error(y_val, preds)
-
-        scores.append(score)
+        scores.append(_apply_regression_metric(metric_code, y_val, preds))
 
     return scores^
 
@@ -164,20 +243,7 @@ def cross_val_score[
         )
 
     # Validate metric name upfront before running optimization folds
-    var metric_code: Int
-    if scoring == "accuracy":
-        metric_code = 0
-    elif scoring == "f1":
-        metric_code = 1
-    elif scoring == "precision":
-        metric_code = 2
-    elif scoring == "recall":
-        metric_code = 3
-    else:
-        raise InvalidParameterError.error(
-            "scoring",
-            "Unsupported classification scoring metric: '" + scoring + "'",
-        )
+    var metric_code = _classification_metric_code(scoring)
 
     var scores = List[Float64](capacity=n_splits)
 
@@ -202,21 +268,7 @@ def cross_val_score[
         model.fit(X_train, y_train)
         var preds = model.predict(X_val)
 
-        var y_val_int = List[Int](capacity=len(y_val))
-        for i in range(len(y_val)):
-            y_val_int.append(Int(y_val[i]))
-
-        var score: Float64
-        if metric_code == 0:
-            score = accuracy_score(y_val_int, preds)
-        elif metric_code == 1:
-            score = f1_score(y_val_int, preds)
-        elif metric_code == 2:
-            score = precision_score(y_val_int, preds)
-        else:
-            score = recall_score(y_val_int, preds)
-
-        scores.append(score)
+        scores.append(_apply_classification_metric(metric_code, y_val, preds))
 
     return scores^
 
