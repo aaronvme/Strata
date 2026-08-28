@@ -23,8 +23,12 @@ Strata is a native machine learning library for Mojo designed around familiar sc
   - Numerically stable `softmax`, `log_sum_exp`, `sigmoid`
   - 64-bit SplitMix64 `PRNG` with unbiased Lemire rejection sampling, Fisher-Yates `permutation` & `shuffle`
   - Domain exceptions: `DimensionMismatchError`, `NotFittedError`, `InvalidParameterError`, `DataConversionError`
+- **Tree-Based Models**:
+  - `DecisionTreeClassifier` (Gini impurity, Shannon entropy, log-loss, discrete probability matrices)
+  - `DecisionTreeRegressor` (Squared error MSE, Friedman MSE, sample median MAE)
+  - Contiguous flat-array `Tree` / `Node` buffers with $O(1)$ streaming histogram split calculations
 - **Test Coverage**:
-  - 17 modular test suites (480+ passing tests)
+  - 19 modular test suites (560+ passing tests)
 
 ---
 
@@ -42,7 +46,7 @@ Strata is a native machine learning library for Mojo designed around familiar sc
 ### Preprocessing & Encoders
 - [x] `StandardScaler` (SIMD-vectorized mean/variance standardization)
 - [x] `MinMaxScaler` & `RobustScaler`
-- [ ] `Normalizer` (L1, L2, Max row-wise normalization)
+- [x] `Normalizer` (L1, L2, Max row-wise normalization)
 - [x] `OneHotEncoder` (Dense category expansion with `drop` and `handle_unknown` policies)
 - [ ] `OrdinalEncoder` & `LabelEncoder`
 - [ ] `SimpleImputer` (mean, median, most_frequent, constant)
@@ -58,8 +62,8 @@ Strata is a native machine learning library for Mojo designed around familiar sc
 - [ ] `SGDClassifier` & `SGDRegressor` (Streaming and online mini-batch optimization)
 
 ### Tree-Based & Ensemble Models
-- [ ] `DecisionTreeClassifier` (Gini impurity / Entropy)
-- [ ] `DecisionTreeRegressor` (MSE / MAE split criteria)
+- [x] `DecisionTreeClassifier` (Gini impurity / Entropy / Log-Loss)
+- [x] `DecisionTreeRegressor` (MSE / Friedman MSE / MAE split criteria)
 - [ ] `RandomForestClassifier` (Bagging with multithreaded tree generation)
 - [ ] `RandomForestRegressor`
 - [ ] `HistGradientBoostingClassifier` (UInt8 binning + parallel histogram building)
