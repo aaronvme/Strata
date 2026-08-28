@@ -21,6 +21,38 @@ $$
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`n_components`** | Number of components to keep. If 0, all components are kept. Default 0. |
+| **`whiten`** | When True, components vectors are divided by the singular values to ensure uncorrelated outputs with unit component-wise variances. Default False. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`components_`** | Principal axes in feature space, representing directions of maximum variance matrix of shape $(K, D)$. |
+| **`explained_variance_`** | Variance explained by each selected component vector of length $K$. |
+| **`explained_variance_ratio_`** | Percentage of variance explained by each component. |
+| **`singular_values_`** | Singular values corresponding to each of the selected components. |
+| **`mean_`** | Per-feature empirical mean estimated from the training set. |
+| **`n_components_`** | Estimated number of components. |
+| **`n_features_in_`** | Number of features seen during fit. |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

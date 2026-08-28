@@ -12,3 +12,12 @@ from strata.core import QRResult
 ```
 
 **Result of QR Decomposition ($A = Q R$).**
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`Q`** | Orthogonal matrix of shape $(M, K)$. |
+| **`R`** | Upper triangular matrix of shape $(K, N)$. |

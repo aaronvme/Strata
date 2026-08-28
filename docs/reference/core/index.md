@@ -16,12 +16,6 @@ Fundamental 2D dense Matrix, MatrixView, CSRMatrix, CSCMatrix sparse representat
 | [`QRResult`](QRResult.md) | Result of QR Decomposition ($A = Q R$). |
 | [`EigResult`](EigResult.md) | Result of Symmetric Eigenvalue Decomposition ($A V = V \Lambda$). |
 
-## Traits
-
-| Trait | Description |
-| :--- | :--- |
-| [`SparseMatrix`](SparseMatrix.md) | — |
-
 ## Functions
 
 | Function | Description |

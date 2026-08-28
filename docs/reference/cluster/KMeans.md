@@ -21,6 +21,41 @@ $$
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`n_clusters`** | The number of clusters to form as well as the number of centroids to generate. Default 8. |
+| **`init`** | Method for initialization ('k-means++', 'random'). Default 'k-means++'. |
+| **`n_init`** | Number of times the k-means algorithm will be run with different centroid seeds. Default 10. |
+| **`max_iter`** | Maximum number of iterations of the k-means algorithm for a single run. Default 300. |
+| **`tol`** | Relative tolerance with regards to Frobenius norm of the difference in cluster centers. Default 1e-4. |
+| **`algorithm`** | K-means algorithm to use ('lloyd'). Default 'lloyd'. |
+| **`random_state`** | PRNG seed for centroid initialization. Default 42. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`cluster_centers_`** | Coordinates of cluster centers matrix of shape $(K, D)$. |
+| **`labels_`** | Labels of each point vector of length $N$. |
+| **`inertia_`** | Sum of squared distances of samples to their closest cluster center. |
+| **`n_iter_`** | Number of iterations run. |
+| **`n_features_in_`** | Number of features seen during fit. |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

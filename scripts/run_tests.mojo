@@ -1,6 +1,5 @@
 from std.python import Python
 
-
 def main() raises:
     var glob = Python.import_module("glob")
     var os = Python.import_module("os")
@@ -10,9 +9,9 @@ def main() raises:
     var re = Python.import_module("re")
     var time = Python.import_module("time")
     var py_str = Python.import_module("builtins").str
+    var py_builtins = Python.import_module("builtins")
 
     var test_files_obj = glob.glob("tests/test_*.mojo")
-    var py_builtins = Python.import_module("builtins")
     var test_files = py_builtins.sorted(test_files_obj)
 
     var total_files = Int(String(len(test_files)))
@@ -28,107 +27,156 @@ def main() raises:
         linker_flags.append("-Xlinker")
         linker_flags.append("-llapack")
 
+    var cpu_cnt = Int(String(os.cpu_count()))
+    var sys_argv = sys.argv
+    var is_single_thread = False
+    var custom_jobs = 0
+
+    var argv_len = Int(String(len(sys_argv)))
+    for idx in range(argv_len):
+        var arg_str = String(sys_argv[idx])
+        if (
+            arg_str == "--single-threaded"
+            or arg_str == "-j1"
+            or arg_str == "--sequential"
+        ):
+            is_single_thread = True
+        elif arg_str == "-j" or arg_str == "--jobs":
+            if idx + 1 < argv_len:
+                try:
+                    custom_jobs = Int(String(sys_argv[idx + 1]))
+                except:
+                    pass
+
+    var max_workers = 1 if is_single_thread else (
+        custom_jobs if custom_jobs > 0 else (cpu_cnt if cpu_cnt <= 8 else 8)
+    )
+
+    var start_time = time.time()
+    var summary_pattern = re.compile(
+        r"Summary\s+\[\s*[\d.]+\s*\]\s+(\d+)\s+tests"
+        r" run:\s+(\d+)\s+passed\s*,\s*(\d+)\s+failed\s*,\s*(\d+)\s+skipped"
+    )
+
+    var active_jobs = Python.list()
+    var file_idx = 0
     var total_tests = 0
     var total_passed = 0
     var total_failed = 0
     var total_skipped = 0
     var failed_files = Python.list()
 
-    var start_time = time.time()
-    var summary_pattern = re.compile(
-        r"Summary\s+\[\s*[\d\.]+\s*\]\s+(\d+)\s+tests"
-        r" run:\s+(\d+)\s+passed\s*,\s*(\d+)\s+failed\s*,\s*(\d+)\s+skipped"
-    )
+    while file_idx < total_files or len(active_jobs) > 0:
+        while file_idx < total_files and len(active_jobs) < max_workers:
+            var test_file = test_files[file_idx]
+            file_idx += 1
 
-    for i in range(total_files):
-        var test_file = test_files[i]
-        var cmd = Python.list()
-        cmd.append("mojo")
-        cmd.append("run")
-        cmd.append("-I")
-        cmd.append(".")
-        cmd.extend(linker_flags)
-        cmd.append(test_file)
+            var cmd = Python.list()
+            cmd.append("mojo")
+            cmd.append("run")
+            cmd.append("-I")
+            cmd.append(".")
+            cmd.extend(linker_flags)
+            cmd.append(test_file)
 
-        # Allocate a pseudo-terminal (PTY) so Mojo detects a real TTY and outputs full native ANSI colors
-        var pty_pair = pty.openpty()
-        var master_fd = pty_pair[0]
-        var s_fd = pty_pair[1]
+            var pty_pair = pty.openpty()
+            var master_fd = pty_pair[0]
+            var s_fd = pty_pair[1]
 
-        var proc = subprocess.Popen(
-            cmd, stdout=s_fd, stderr=s_fd, close_fds=True
-        )
-        os.close(s_fd)
+            var proc = subprocess.Popen(
+                cmd, stdout=s_fd, stderr=s_fd, close_fds=True
+            )
+            os.close(s_fd)
+            var master_file = os.fdopen(master_fd, "r")
 
-        var master_file = os.fdopen(master_fd, "r")
-        var file_tests = 0
-        var file_passed = 0
-        var file_failed = 0
-        var file_skipped = 0
+            var job = Python.dict()
+            job["file"] = test_file
+            job["proc"] = proc
+            job["file_obj"] = master_file
+            job["file_tests"] = 0
+            job["file_passed"] = 0
+            job["file_failed"] = 0
+            job["file_skipped"] = 0
+            active_jobs.append(job)
 
-        while True:
-            var line: String
-            try:
-                var line_obj = master_file.readline()
-                if not line_obj:
+        var remaining_jobs = Python.list()
+        for j in range(len(active_jobs)):
+            var job = active_jobs[j]
+            var master_file = job["file_obj"]
+            var proc = job["proc"]
+            var test_file = job["file"]
+
+            while True:
+                var line_str: String
+                try:
+                    var line_obj = master_file.readline()
+                    if not line_obj:
+                        break
+                    line_str = String(line_obj)
+                except:
                     break
-                line = String(line_obj)
-            except:
-                break
 
-            sys.stdout.write(line)
-            sys.stdout.flush()
+                sys.stdout.write(line_str)
+                sys.stdout.flush()
 
-            # Strip ANSI escape sequences before pattern matching
-            var clean_line = String(re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", line))
-            var res = summary_pattern.search(clean_line)
-            if res:
-                file_tests = Int(String(res.group(1)))
-                file_passed = Int(String(res.group(2)))
-                file_failed = Int(String(res.group(3)))
-                file_skipped = Int(String(res.group(4)))
+                var clean_line = String(
+                    re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", line_str)
+                )
+                var res = summary_pattern.search(clean_line)
+                if res:
+                    job["file_tests"] = Int(String(res.group(1)))
+                    job["file_passed"] = Int(String(res.group(2)))
+                    job["file_failed"] = Int(String(res.group(3)))
+                    job["file_skipped"] = Int(String(res.group(4)))
 
-        try:
-            master_file.close()
-        except:
-            pass
-        proc.wait()
+            if proc.poll() is not None:
+                try:
+                    master_file.close()
+                except:
+                    pass
 
-        total_tests += file_tests
-        total_passed += file_passed
-        total_failed += file_failed
-        total_skipped += file_skipped
+                var returncode = Int(String(proc.returncode))
+                var f_tests = Int(String(job["file_tests"]))
+                var f_passed = Int(String(job["file_passed"]))
+                var f_failed = Int(String(job["file_failed"]))
+                var f_skipped = Int(String(job["file_skipped"]))
 
-        if proc.returncode != 0 or file_failed > 0:
-            failed_files.append(test_file)
+                total_tests += f_tests
+                total_passed += f_passed
+                total_failed += f_failed
+                total_skipped += f_skipped
+
+                if returncode != 0 or f_failed > 0:
+                    failed_files.append(test_file)
+            else:
+                remaining_jobs.append(job)
+
+        active_jobs = remaining_jobs
+        if len(active_jobs) > 0 and file_idx >= total_files:
+            time.sleep(0.01)
 
     var elapsed_val = Float64(String(time.time() - start_time))
     var failed_files_count = Int(String(len(failed_files)))
     var passed_files = total_files - failed_files_count
     var is_success = failed_files_count == 0 and total_failed == 0
 
-    # --- ANSI Styling ---
     var RESET = "\033[0m"
     var BOLD = "\033[1m"
-
     var FG_GREEN = "\033[38;5;48m"
     var FG_RED = "\033[38;5;203m"
     var FG_YELLOW = "\033[38;5;221m"
     var FG_CYAN = "\033[38;5;75m"
     var FG_WHITE = "\033[38;5;255m"
     var FG_MUTED = "\033[38;5;242m"
-
     var BG_GREEN = "\033[48;5;40;38;5;232;1m"
     var BG_RED = "\033[48;5;196;38;15;1m"
 
     var hr = String(py_str("─") * 48)
 
-    # --- 1. Header Divider & Status Badge ---
-    print("\n  " + FG_MUTED + hr + RESET)
+    print("\n" + FG_MUTED + hr + RESET)
     if is_success:
         print(
-            "  "
-            + BG_GREEN
+            BG_GREEN
             + " [PASS] "
             + RESET
             + " "
@@ -139,8 +187,7 @@ def main() raises:
         )
     else:
         print(
-            "  "
-            + BG_RED
+            BG_RED
             + " [FAIL] "
             + RESET
             + " "
@@ -151,7 +198,6 @@ def main() raises:
         )
     print()
 
-    # --- 2. Progress Bar ---
     var bar_width = 24
     var pass_ratio = 1.0
     if total_tests > 0:
@@ -164,7 +210,7 @@ def main() raises:
     var pct_str = String(Int(pass_ratio * 100))
 
     print(
-        "    "
+        "  "
         + FG_MUTED
         + "Progress:  "
         + RESET
@@ -180,8 +226,7 @@ def main() raises:
         + RESET
     )
 
-    # --- 3. Test Suites ---
-    print("    " + FG_WHITE + BOLD + "Suites:    " + RESET, end="")
+    print("  " + FG_WHITE + BOLD + "Suites:    " + RESET, end="")
     if passed_files > 0:
         print(
             FG_GREEN + BOLD + String(passed_files) + " passed" + RESET, end=""
@@ -195,8 +240,7 @@ def main() raises:
         )
     print(FG_MUTED + " (" + String(total_files) + " total)" + RESET)
 
-    # --- 4. Total Tests ---
-    print("    " + FG_WHITE + BOLD + "Tests:     " + RESET, end="")
+    print("  " + FG_WHITE + BOLD + "Tests:     " + RESET, end="")
     if total_passed > 0:
         print(
             FG_GREEN + BOLD + String(total_passed) + " passed" + RESET, end=""
@@ -214,10 +258,9 @@ def main() raises:
         )
     print(FG_MUTED + " (" + String(total_tests) + " total)" + RESET)
 
-    # --- 5. Duration ---
     var time_str = String(py_str("{:.2f}").format(elapsed_val))
     print(
-        "    "
+        "  "
         + FG_WHITE
         + BOLD
         + "Duration:  "
@@ -227,14 +270,13 @@ def main() raises:
         + "s"
         + RESET
     )
-    print("  " + FG_MUTED + hr + RESET)
+    print(FG_MUTED + hr + RESET)
 
-    # --- 6. Failure Callouts ---
     if not is_success:
-        print("\n    " + FG_RED + BOLD + "FAILED SUITES" + RESET)
+        print("\n" + FG_RED + BOLD + "FAILED SUITES" + RESET)
         for i in range(failed_files_count):
             print(
-                "    "
+                "  "
                 + FG_RED
                 + "│"
                 + RESET
@@ -247,5 +289,5 @@ def main() raises:
                 + String(failed_files[i])
                 + RESET
             )
-        print("    " + FG_RED + "└" + String(py_str("─") * 42) + RESET + "\n")
+        print(FG_RED + "└" + String(py_str("─") * 44) + RESET + "\n")
         sys.exit(1)

@@ -21,6 +21,38 @@ $$
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`penalty`** | Regularization norm ('l2' or 'none'). Default 'l2'. |
+| **`C`** | Inverse regularization strength ($C > 0$). Smaller values specify stronger regularization. Default 1.0. |
+| **`fit_intercept`** | Whether to calculate the intercept bias vector. Default True. |
+| **`max_iter`** | Maximum number of gradient optimization iterations. Default 100. |
+| **`tol`** | Tolerance threshold for stopping criterion based on gradient norm. Default 1e-4. |
+| **`learning_rate`** | Step size for gradient descent optimization updates. Default 0.1. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`classes_`** | Sorted list of unique class labels seen during fit. |
+| **`coef_`** | Learned weight coefficient matrix of shape $(K, D)$. |
+| **`intercept_`** | Learned bias intercept vector of length $K$. |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

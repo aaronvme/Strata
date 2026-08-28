@@ -21,6 +21,33 @@ where $\mu$ is the mean of the training samples and $\sigma$ is the standard dev
 
 ---
 
+## Parameters (Compile-Time)
+
+| Parameter | Description |
+| :--- | :--- |
+| **`compute_dtype`** | Computational precision data type. Default DType.float64. |
+
+---
+
+## Arguments (Runtime)
+
+| Argument | Description |
+| :--- | :--- |
+| **`with_mean`** | If True, center the data before scaling. Default True. |
+| **`with_std`** | If True, scale the data to unit variance (unit standard deviation). Default True. |
+
+---
+
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`mean_`** | Mean value for each feature in the training set. |
+| **`scale_`** | Per-feature standard deviation scaling factor. |
+| **`is_fitted`** | Boolean flag indicating if estimator has been fitted. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |

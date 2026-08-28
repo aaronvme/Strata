@@ -19,15 +19,6 @@
   },
   {
     "module": "core",
-    "name": "SparseMatrix",
-    "kind": "trait",
-    "summary": "",
-    "ref_file": "reference/core/SparseMatrix",
-    "traits": "",
-    "file": "strata/core/sparse.mojo"
-  },
-  {
-    "module": "core",
     "name": "DatasetSplit",
     "kind": "struct",
     "summary": "Container holding train and test partitions of a Dataset.",
@@ -205,15 +196,6 @@
     "ref_file": "reference/cluster/KMeans",
     "traits": "Clusterer, Copyable, Movable",
     "file": "strata/cluster/kmeans.mojo"
-  },
-  {
-    "module": "cluster",
-    "name": "MiniBatchKMeans",
-    "kind": "struct",
-    "summary": "",
-    "ref_file": "reference/cluster/MiniBatchKMeans",
-    "traits": "Clusterer, Copyable, Movable",
-    "file": "strata/cluster/minibatch_kmeans.mojo"
   },
   {
     "module": "decomposition",
@@ -725,15 +707,6 @@
     "kind": "struct",
     "summary": "Exception raised when an invalid hyperparameter value is supplied.",
     "ref_file": "reference/utils/InvalidParameterError",
-    "traits": "Copyable, Movable, Writable",
-    "file": "strata/exceptions/errors.mojo"
-  },
-  {
-    "module": "utils",
-    "name": "DataConversionError",
-    "kind": "struct",
-    "summary": "",
-    "ref_file": "reference/utils/DataConversionError",
     "traits": "Copyable, Movable, Writable",
     "file": "strata/exceptions/errors.mojo"
   }

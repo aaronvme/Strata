@@ -15,6 +15,15 @@ from strata.core import EigResult
 
 ---
 
+## Attributes
+
+| Attribute | Description |
+| :--- | :--- |
+| **`eigenvalues`** | Real eigenvalues vector of length $N$ in ascending order. |
+| **`eigenvectors`** | Eigenvector matrix of shape $(N, N)$ with columns representing eigenvectors. |
+
+---
+
 ## Methods Overview
 
 | Method | Description |
