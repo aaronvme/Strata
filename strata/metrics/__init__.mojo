@@ -11,5 +11,6 @@ from .classification import (
     f1_score,
     confusion_matrix,
     log_loss,
+    roc_auc_score,
     unique_labels,
 )

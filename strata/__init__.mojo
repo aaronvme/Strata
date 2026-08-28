@@ -105,5 +105,6 @@ from .metrics import (
     f1_score,
     confusion_matrix,
     log_loss,
+    roc_auc_score,
 )
 from .tree import DecisionTreeRegressor, DecisionTreeClassifier

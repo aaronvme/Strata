@@ -337,3 +337,71 @@ def log_loss[
     if not normalize:
         return total
     return total / Float64(len(y_true))
+
+
+def roc_auc_score[
+    true_dtype: DType = DType.float64, score_dtype: DType = DType.float64
+](
+    y_true: List[Scalar[true_dtype]],
+    y_score: List[Scalar[score_dtype]],
+    pos_label: Float64 = 1.0,
+) raises -> Float64:
+    """Area under the Receiver Operating Characteristic curve, binary targets.
+
+    Equivalently, the probability that a randomly drawn positive sample is
+    scored above a randomly drawn negative one, with ties counting as half.
+
+    Args:
+        y_true: Ground truth labels, one per sample, holding exactly 2 labels.
+        y_score: Score or probability of the positive class, one per sample.
+            Only the ordering of these values affects the result.
+        pos_label: The label of the positive class.
+
+    Returns:
+        The area under the ROC curve, between 0.0 and 1.0.
+    """
+    _check_classification_targets(y_true, y_score, "roc_auc_score")
+
+    var labels = unique_labels(y_true, y_true)
+    var k = len(labels)
+    if k != 2:
+        raise InvalidParameterError.error(
+            "y_true",
+            "roc_auc_score requires exactly 2 distinct labels in y_true, but "
+            + String(k)
+            + " were found",
+        )
+    if _search_sorted(labels, pos_label) < 0:
+        raise InvalidParameterError.error(
+            "pos_label", String(pos_label) + " is not present in y_true"
+        )
+
+    var n = len(y_true)
+    var order = List[Int](capacity=n)
+    for i in range(n):
+        order.append(i)
+
+    @parameter
+    def _lower_score(a: Int, b: Int) -> Bool:
+        return Float64(y_score[a]) < Float64(y_score[b])
+
+    sort[_lower_score](order)
+
+    var rank_sum: Float64 = 0.0
+    var n_pos: Float64 = 0.0
+    var start = 0
+    while start < n:
+        var stop = start
+        while stop + 1 < n and Float64(y_score[order[stop + 1]]) == Float64(
+            y_score[order[start]]
+        ):
+            stop += 1
+        var mid_rank = Float64(start + stop + 2) / 2.0
+        for t in range(start, stop + 1):
+            if Float64(y_true[order[t]]) == pos_label:
+                rank_sum += mid_rank
+                n_pos += 1.0
+        start = stop + 1
+
+    var n_neg = Float64(n) - n_pos
+    return (rank_sum - n_pos * (n_pos + 1.0) / 2.0) / (n_pos * n_neg)
