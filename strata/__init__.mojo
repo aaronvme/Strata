@@ -106,5 +106,6 @@ from .metrics import (
     confusion_matrix,
     log_loss,
     roc_auc_score,
+    silhouette_score,
 )
 from .tree import DecisionTreeRegressor, DecisionTreeClassifier

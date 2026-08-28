@@ -14,3 +14,4 @@ from .classification import (
     roc_auc_score,
     unique_labels,
 )
+from .cluster import silhouette_score
