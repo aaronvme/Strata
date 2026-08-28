@@ -1,4 +1,10 @@
-from std.testing import TestSuite, assert_equal, assert_true, assert_false
+from std.testing import (
+    TestSuite,
+    assert_equal,
+    assert_true,
+    assert_false,
+    assert_almost_equal,
+)
 from strata import (
     Matrix,
     Dataset,
@@ -3489,6 +3495,445 @@ def test_randomized_search_classifier_constructor_error_handling() raises:
     except:
         caught_cv = True
     assert_true(caught_cv)
+
+
+def test_randomized_search_pipeline_regression_integration() raises:
+    var X = Matrix[DType.float64](10, 2, 0)
+    var y = List[Scalar[DType.float64]](capacity=10)
+    for i in range(10):
+        X[i, 0] = Float64(i * 10)
+        X[i, 1] = Float64(i * 5)
+        y.append(Float64(i + 1))
+
+    var candidates = List[
+        PipelineRegressor[
+            StandardScaler[DType.float64],
+            Ridge[DType.float64],
+            DType.float64,
+        ]
+    ]()
+
+    var s1 = StandardScaler[DType.float64](with_mean=True, with_std=True)
+    var r1 = Ridge[DType.float64](alpha=0.01)
+    candidates.append(PipelineRegressor(s1^, r1^))
+
+    var s2 = StandardScaler[DType.float64](with_mean=False, with_std=False)
+    var r2 = Ridge[DType.float64](alpha=100.0)
+    candidates.append(PipelineRegressor(s2^, r2^))
+
+    var rnd = RandomizedSearchRegressor[
+        PipelineRegressor[
+            StandardScaler[DType.float64],
+            Ridge[DType.float64],
+            DType.float64,
+        ]
+    ](candidates^, n_iter=2, cv=3, scoring="r2", refit=True)
+
+    rnd.fit(X, y)
+    assert_true(rnd.is_fitted)
+    assert_equal(rnd.best_index_, 0)
+    assert_true(rnd.best_score_ > 0.95)
+
+    var preds = rnd.predict(X)
+    assert_equal(len(preds), 10)
+
+
+def test_randomized_search_pipeline_classification_integration() raises:
+    var X = Matrix[DType.float64](12, 2, 0)
+    var y = List[Scalar[DType.int32]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i * 10)
+        X[i, 1] = Float64(i * 2)
+        y.append(Int32(0 if i < 6 else 1))
+
+    var candidates = List[
+        PipelineClassifier[
+            StandardScaler[DType.float64],
+            LogisticRegression[DType.float64],
+            DType.int32,
+        ]
+    ]()
+
+    var s1 = StandardScaler[DType.float64](with_mean=True, with_std=True)
+    var c1 = LogisticRegression[DType.float64](C=10.0, max_iter=150)
+    candidates.append(PipelineClassifier(s1^, c1^))
+
+    var s2 = StandardScaler[DType.float64](with_mean=False, with_std=False)
+    var c2 = LogisticRegression[DType.float64](C=0.001, max_iter=50)
+    candidates.append(PipelineClassifier(s2^, c2^))
+
+    var rnd = RandomizedSearchClassifier[
+        PipelineClassifier[
+            StandardScaler[DType.float64],
+            LogisticRegression[DType.float64],
+            DType.int32,
+        ]
+    ](candidates^, n_iter=2, cv=3, scoring="accuracy", refit=True)
+
+    rnd.fit(X, y)
+    assert_true(rnd.is_fitted)
+    assert_equal(rnd.best_index_, 0)
+    assert_true(rnd.best_score_ > 0.8)
+
+    var preds = rnd.predict(X)
+    assert_equal(len(preds), 12)
+
+
+def test_stratified_shuffle_split_explicit_train_and_test_sizes() raises:
+    var labels = List[Scalar[DType.int32]]()
+    for i in range(30):
+        labels.append(Int32(0 if i < 15 else 1))
+
+    var sss = StratifiedShuffleSplit(
+        n_splits=3, test_size=0.2, train_size=0.6, random_state=42
+    )
+    assert_equal(sss.get_n_splits(), 3)
+
+    var splits = sss.split(labels)
+    assert_equal(len(splits), 3)
+
+    for s in range(3):
+        assert_equal(len(splits[s].train_indices), 18)
+        assert_equal(len(splits[s].val_indices), 6)
+
+
+def test_cross_validate_all_regression_metrics_simultaneous() raises:
+    var X = Matrix[DType.float64](12, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i + 1)
+        y.append(Float64(2 * (i + 1)))
+
+    var metrics = List[String]()
+    metrics.append("r2")
+    metrics.append("mse")
+    metrics.append("neg_mean_squared_error")
+    metrics.append("rmse")
+    metrics.append("neg_root_mean_squared_error")
+    metrics.append("mae")
+    metrics.append("neg_mean_absolute_error")
+
+    var model = LinearRegression[DType.float64]()
+    var res = cross_validate[LinearRegression[DType.float64]](
+        model, X, y, scoring=metrics, cv=3, return_train_score=True
+    )
+
+    assert_equal(len(res.metrics), 7)
+    var r2_scores = res.test_scores_for("r2")
+    assert_equal(len(r2_scores), 3)
+    for s in range(3):
+        assert_true(r2_scores[s] > 0.99)
+
+    var mse_scores = res.test_scores_for("mse")
+    var neg_mse_scores = res.test_scores_for("neg_mean_squared_error")
+    for s in range(3):
+        assert_true(abs(mse_scores[s] + neg_mse_scores[s]) < 1e-6)
+
+    var train_mae = res.train_scores_for("mae")
+    assert_equal(len(train_mae), 3)
+
+
+def test_audit_stratified_shuffle_split_four_classes_with_rare_class() raises:
+    var labels = List[Scalar[DType.int32]]()
+    for _ in range(20):
+        labels.append(Int32(0))
+    for _ in range(15):
+        labels.append(Int32(1))
+    for _ in range(10):
+        labels.append(Int32(2))
+    for _ in range(3):
+        labels.append(Int32(3))
+
+    var sss = StratifiedShuffleSplit(n_splits=5, test_size=0.25, random_state=7)
+    var splits = sss.split(labels)
+    assert_equal(len(splits), 5)
+
+    for s in range(5):
+        var train_counts = List[Int]()
+        for _ in range(4):
+            train_counts.append(0)
+        for i in range(len(splits[s].train_indices)):
+            var c = Int(labels[splits[s].train_indices[i]])
+            train_counts[c] += 1
+
+        var test_counts = List[Int]()
+        for _ in range(4):
+            test_counts.append(0)
+        for i in range(len(splits[s].val_indices)):
+            var c = Int(labels[splits[s].val_indices[i]])
+            test_counts[c] += 1
+
+        for c in range(4):
+            assert_true(train_counts[c] >= 1)
+            assert_true(test_counts[c] >= 1)
+
+
+def test_audit_stratified_shuffle_split_pairwise_disjoint_train_val() raises:
+    var labels = List[Scalar[DType.int32]]()
+    for i in range(40):
+        labels.append(Int32(i % 3))
+
+    var sss = StratifiedShuffleSplit(
+        n_splits=10, test_size=0.2, random_state=99
+    )
+    var splits = sss.split(labels)
+
+    for s in range(10):
+        for t in range(len(splits[s].train_indices)):
+            var tr = splits[s].train_indices[t]
+            for v in range(len(splits[s].val_indices)):
+                assert_true(tr != splits[s].val_indices[v])
+
+
+def test_audit_stratified_shuffle_split_matrix_overload_and_cast() raises:
+    var X = Matrix[DType.float32](20, 3, 1.5)
+    var y = List[Scalar[DType.int64]]()
+    for i in range(20):
+        y.append(Int64(0 if i < 10 else 1))
+
+    var sss = StratifiedShuffleSplit(n_splits=2, test_size=0.3, random_state=1)
+    var splits = sss.split[DType.float32, DType.int64](X, y)
+    assert_equal(len(splits), 2)
+    assert_equal(len(splits[0].train_indices), 14)
+    assert_equal(len(splits[0].val_indices), 6)
+
+
+def test_audit_stratified_shuffle_split_invalid_train_size_bounds() raises:
+    var caught_neg = False
+    try:
+        var _ = StratifiedShuffleSplit(train_size=-0.1)
+    except:
+        caught_neg = True
+    assert_true(caught_neg)
+
+    var caught_one = False
+    try:
+        var _ = StratifiedShuffleSplit(train_size=1.0)
+    except:
+        caught_one = True
+    assert_true(caught_one)
+
+
+def test_audit_stratified_shuffle_split_invalid_sum_exceeds_one() raises:
+    var caught = False
+    try:
+        var _ = StratifiedShuffleSplit(test_size=0.6, train_size=0.5)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_cross_val_predict_regressor_linear_exact_fit() raises:
+    var X = Matrix[DType.float64](15, 2, 0)
+    var y = List[Scalar[DType.float64]](capacity=15)
+    for i in range(15):
+        var x0 = Float64(i + 1)
+        var x1 = Float64((i + 1) * 2)
+        X[i, 0] = x0
+        X[i, 1] = x1
+        y.append(5.0 * x0 - 3.0 * x1 + 2.0)
+
+    var model = LinearRegression[DType.float64]()
+    var preds = cross_val_predict[LinearRegression[DType.float64]](
+        model, X, y, cv=3
+    )
+
+    assert_equal(len(preds), 15)
+    for i in range(15):
+        assert_true(abs(preds[i] - y[i]) < 1e-4)
+
+
+def test_audit_cross_val_predict_classifier_multiclass_separable() raises:
+    var X = Matrix[DType.float64](18, 2, 0)
+    var y = List[Scalar[DType.int32]](capacity=18)
+    for i in range(6):
+        X[i, 0] = -10.0 + Float64(i)
+        X[i, 1] = -10.0
+        y.append(Int32(0))
+    for i in range(6, 12):
+        X[i, 0] = 0.0 + Float64(i - 6)
+        X[i, 1] = 10.0
+        y.append(Int32(1))
+    for i in range(12, 18):
+        X[i, 0] = 20.0 + Float64(i - 12)
+        X[i, 1] = -10.0
+        y.append(Int32(2))
+
+    var model = LogisticRegression[DType.float64](C=10.0, max_iter=200)
+    var preds = cross_val_predict[LogisticRegression[DType.float64]](
+        model, X, y, cv=3
+    )
+
+    assert_equal(len(preds), 18)
+    for i in range(18):
+        assert_equal(preds[i], Int(y[i]))
+
+
+def test_audit_cross_val_predict_regressor_explicit_splits_matches_cv() raises:
+    var X = Matrix[DType.float64](12, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=12)
+    for i in range(12):
+        X[i, 0] = Float64(i + 1)
+        y.append(Float64(3 * (i + 1) + 1))
+
+    var model = LinearRegression[DType.float64]()
+    var preds_cv = cross_val_predict[LinearRegression[DType.float64]](
+        model, X, y, cv=4
+    )
+
+    var kf = KFold(n_splits=4)
+    var splits = kf.split(12)
+    var preds_splits = cross_val_predict[LinearRegression[DType.float64]](
+        model, X, y, splits
+    )
+
+    assert_equal(len(preds_cv), len(preds_splits))
+    for i in range(12):
+        assert_almost_equal(preds_cv[i], preds_splits[i], atol=1e-8)
+
+
+def test_audit_cross_val_predict_partition_rejects_duplicate_index() raises:
+    var X = Matrix[DType.float64](6, 1, 1.0)
+    var y: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+
+    var bad_splits = List[Split]()
+    var t1: List[Int] = [3, 4, 5]
+    var v1: List[Int] = [0, 1, 2]
+    var t2: List[Int] = [0, 1, 2]
+    var v2: List[Int] = [2, 3, 4, 5]
+    bad_splits.append(Split(t1^, v1^))
+    bad_splits.append(Split(t2^, v2^))
+
+    var model = LinearRegression[DType.float64]()
+    var caught = False
+    try:
+        var _ = cross_val_predict[LinearRegression[DType.float64]](
+            model, X, y, bad_splits
+        )
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_cross_val_predict_partition_rejects_missing_sample() raises:
+    var X = Matrix[DType.float64](6, 1, 1.0)
+    var y: List[Scalar[DType.float64]] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+
+    var bad_splits = List[Split]()
+    var t1: List[Int] = [3, 4, 5]
+    var v1: List[Int] = [0, 1]
+    var t2: List[Int] = [0, 1, 2]
+    var v2: List[Int] = [3, 4, 5]
+    bad_splits.append(Split(t1^, v1^))
+    bad_splits.append(Split(t2^, v2^))
+
+    var model = LinearRegression[DType.float64]()
+    var caught = False
+    try:
+        var _ = cross_val_predict[LinearRegression[DType.float64]](
+            model, X, y, bad_splits
+        )
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_cross_validate_classifier_all_four_metrics_simultaneous() raises:
+    var data = _separable_dataset(24)
+    var metrics = List[String]()
+    metrics.append("accuracy")
+    metrics.append("f1")
+    metrics.append("precision")
+    metrics.append("recall")
+
+    var model = LogisticRegression[DType.float64](C=10.0, max_iter=150)
+    var res = cross_validate[LogisticRegression[DType.float64]](
+        model, data[0], data[1], scoring=metrics, cv=3, return_train_score=True
+    )
+
+    assert_equal(len(res.metrics), 4)
+    for m in range(4):
+        var test_sc = res.test_scores_for(metrics[m])
+        var train_sc = res.train_scores_for(metrics[m])
+        assert_equal(len(test_sc), 3)
+        assert_equal(len(train_sc), 3)
+        for s in range(3):
+            assert_true(test_sc[s] > 0.8)
+            assert_true(train_sc[s] > 0.8)
+
+
+def test_audit_cross_validate_unrequested_train_scores_raises() raises:
+    var data = _separable_dataset(24)
+    var metrics = List[String]()
+    metrics.append("accuracy")
+
+    var model = LogisticRegression[DType.float64]()
+    var res = cross_validate[LogisticRegression[DType.float64]](
+        model, data[0], data[1], scoring=metrics, cv=3, return_train_score=False
+    )
+
+    var caught = False
+    try:
+        var _ = res.train_scores_for("accuracy")
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_cross_validate_unknown_metric_raises() raises:
+    var data = _separable_dataset(24)
+    var metrics = List[String]()
+    metrics.append("accuracy")
+
+    var model = LogisticRegression[DType.float64]()
+    var res = cross_validate[LogisticRegression[DType.float64]](
+        model, data[0], data[1], scoring=metrics, cv=3
+    )
+
+    var caught = False
+    try:
+        var _ = res.test_scores_for("nonexistent_metric")
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_audit_randomized_search_classifier_sampled_indices_uniqueness() raises:
+    var data = _separable_dataset(24)
+    var rnd = RandomizedSearchClassifier[LogisticRegression[DType.float64]](
+        _logreg_pool(), n_iter=4, cv=3, random_state=42
+    )
+    rnd.fit(data[0], data[1])
+
+    assert_equal(len(rnd.sampled_indices_), 4)
+    for i in range(4):
+        assert_true(
+            rnd.sampled_indices_[i] >= 0 and rnd.sampled_indices_[i] < 4
+        )
+        for j in range(i + 1, 4):
+            assert_true(rnd.sampled_indices_[i] != rnd.sampled_indices_[j])
+
+
+def test_audit_randomized_search_regressor_high_dimensional_refit() raises:
+    var X = Matrix[DType.float64](20, 25, 0)
+    var y = List[Scalar[DType.float64]](capacity=20)
+    for i in range(20):
+        for j in range(25):
+            X[i, j] = Float64((i + 1) * (j + 1)) * 0.01
+        y.append(Float64(i + 1))
+
+    var rnd = RandomizedSearchRegressor[Ridge[DType.float64]](
+        _ridge_pool(), n_iter=3, cv=3, scoring="r2", refit=True, random_state=11
+    )
+    rnd.fit(X, y)
+
+    assert_true(rnd.is_fitted)
+    assert_true(rnd.best_index_ >= 0)
+    assert_true(rnd.best_score_ > -1e10)
+
+    var probe = Matrix[DType.float64](2, 25, 0.5)
+    var preds = rnd.predict(probe)
+    assert_equal(len(preds), 2)
 
 
 def main() raises:
