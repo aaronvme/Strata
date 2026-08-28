@@ -34,7 +34,44 @@ def _binary_search_class(classes: List[Int], target: Int) -> Int:
 struct DecisionTreeClassifier[
     compute_dtype: DType = DType.float64,
 ](Classifier, Copyable, Movable):
-    """Decision Tree Classifier."""
+    """Decision Tree Classifier for non-parametric supervised classification.
+
+    Splits internal nodes to maximize impurity reduction based on Gini impurity
+    or Shannon entropy:
+
+    $$
+    H_{\\text{gini}}(Q) = 1 - \\sum_{k=1}^{K} p_k^2, \\quad H_{\\text{entropy}}(Q) = -\\sum_{k=1}^{K} p_k \\log_2(p_k)
+    $$
+
+    Parameters:
+        criterion: The function to measure the quality of a split ('gini', 'entropy', 'log_loss'). Default 'gini'.
+        splitter: Strategy used to choose the split at each node ('best', 'random'). Default 'best'.
+        max_depth: Maximum tree depth. -1 indicates unlimited depth. Default -1.
+        min_samples_split: Minimum samples required to split an internal node. Default 2.
+        min_samples_leaf: Minimum samples required to be at a leaf node. Default 1.
+        min_impurity_decrease: Split threshold if impurity decrease >= this value. Default 0.0.
+
+        max_features: Number of features to consider when looking for best split ('all', 'sqrt', 'log2', 'custom'). Default 'all'.
+        max_features_count: Explicit number of features to evaluate when max_features='custom'. Default -1.
+        max_features_ratio: Proportion of features to evaluate when max_features='custom'. Default 0.0.
+        random_state: PRNG seed for deterministic feature and split selection. Default 42.
+
+    Attributes:
+        classes_: Sorted list of unique class labels observed during fit.
+        n_classes_: Number of unique classes observed.
+        n_features_in_: Number of features seen during fit.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.tree import DecisionTreeClassifier
+        from strata.core import Matrix
+
+        var tree = DecisionTreeClassifier[DType.float64](max_depth=5, criterion="gini")
+        tree.fit(X_train, y_train)
+        var preds = tree.predict(X_test)
+        ```
+    """
 
     var is_fitted: Bool
     var criterion: String

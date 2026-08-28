@@ -16,7 +16,37 @@ struct PCA[compute_dtype: DType = DType.float64](
 ):
     """Principal Component Analysis (PCA).
 
-    Linear dimensionality reduction using Singular Value Decomposition.
+    Linear dimensionality reduction using Singular Value Decomposition of the
+    centered data matrix to project it to a lower dimensional subspace:
+
+    $$
+    X_{\\text{projected}} = (X - \\mu) V_k
+    $$
+
+
+    Parameters:
+        n_components: Number of components to keep. If 0, all components are kept. Default 0.
+        whiten: When True, components vectors are divided by the singular values to ensure uncorrelated outputs with unit component-wise variances. Default False.
+
+    Attributes:
+        components_: Principal axes in feature space, representing directions of maximum variance matrix of shape $(K, D)$.
+        explained_variance_: Variance explained by each selected component vector of length $K$.
+        explained_variance_ratio_: Percentage of variance explained by each component.
+        singular_values_: Singular values corresponding to each of the selected components.
+        mean_: Per-feature empirical mean estimated from the training set.
+        n_components_: Estimated number of components.
+        n_features_in_: Number of features seen during fit.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.decomposition import PCA
+        from strata.core import Matrix
+
+        var pca = PCA[DType.float64](n_components=2)
+        pca.fit(X_train)
+        var X_proj = pca.transform(X_train)
+        ```
     """
 
     var is_fitted: Bool
@@ -36,6 +66,13 @@ struct PCA[compute_dtype: DType = DType.float64](
         n_components: Int = 0,
         whiten: Bool = False,
     ):
+        """Initialize the PCA transformer.
+
+        Args:
+            n_components: Number of principal components to project onto. Default 0 (all).
+            whiten: Whether to scale component projections by variance. Default False.
+        """
+
         self.is_fitted = False
         self.n_components = n_components
         self.whiten = whiten

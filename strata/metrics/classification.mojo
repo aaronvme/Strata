@@ -224,7 +224,24 @@ def precision_score[
     pos_label: Float64 = 1.0,
     zero_division: Float64 = 0.0,
 ) raises -> Float64:
-    """Precision: tp / (tp + fp), falling back to zero_division when tp + fp is 0.
+    """Compute classification precision score.
+
+    $$
+    \\text{Precision} = \\frac{TP}{TP + FP}
+    $$
+
+    Args:
+        y_true: Ground truth target labels.
+        y_pred: Estimated target labels.
+        average: Averaging strategy ('binary', 'micro', 'macro', 'weighted'). Default 'binary'.
+        pos_label: Label of the positive class when average='binary'. Default 1.0.
+        zero_division: Value returned when there is zero division (e.g. 0.0). Default 0.0.
+
+    Returns:
+        Float64: Precision score ratio.
+
+    Raises:
+        InvalidParameterError: If inputs are empty or average strategy is unrecognized.
     """
     return _averaged_score(
         y_true, y_pred, average, pos_label, zero_division, 0, "precision_score"
@@ -240,7 +257,24 @@ def recall_score[
     pos_label: Float64 = 1.0,
     zero_division: Float64 = 0.0,
 ) raises -> Float64:
-    """Recall: tp / (tp + fn), falling back to zero_division when tp + fn is 0.
+    """Compute classification recall (sensitivity) score.
+
+    $$
+    \\text{Recall} = \\frac{TP}{TP + FN}
+    $$
+
+    Args:
+        y_true: Ground truth target labels.
+        y_pred: Estimated target labels.
+        average: Averaging strategy ('binary', 'micro', 'macro', 'weighted'). Default 'binary'.
+        pos_label: Label of the positive class when average='binary'. Default 1.0.
+        zero_division: Value returned when there is zero division. Default 0.0.
+
+    Returns:
+        Float64: Recall score ratio.
+
+    Raises:
+        InvalidParameterError: If inputs are empty or average strategy is unrecognized.
     """
     return _averaged_score(
         y_true, y_pred, average, pos_label, zero_division, 1, "recall_score"
@@ -256,7 +290,25 @@ def f1_score[
     pos_label: Float64 = 1.0,
     zero_division: Float64 = 0.0,
 ) raises -> Float64:
-    """F1: 2tp / (2tp + fp + fn), falling back to zero_division when that is 0.
+    """Compute classification F1 score (harmonic mean of precision and recall).
+
+    $$
+    F_1 = 2 \\cdot \\frac{\\text{Precision} \\cdot \\text{Recall}}{\\text{Precision} + \\text{Recall}} = \\frac{2 TP}{2 TP + FP + FN}
+    $$
+
+
+    Args:
+        y_true: Ground truth target labels.
+        y_pred: Estimated target labels.
+        average: Averaging strategy ('binary', 'micro', 'macro', 'weighted'). Default 'binary'.
+        pos_label: Label of the positive class when average='binary'. Default 1.0.
+        zero_division: Value returned when there is zero division. Default 0.0.
+
+    Returns:
+        Float64: F1 score between 0.0 and 1.0.
+
+    Raises:
+        InvalidParameterError: If inputs are empty or average strategy is unrecognized.
     """
     return _averaged_score(
         y_true, y_pred, average, pos_label, zero_division, 2, "f1_score"

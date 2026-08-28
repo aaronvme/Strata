@@ -19,7 +19,42 @@ from .splitter import find_best_split_regression
 struct DecisionTreeRegressor[
     compute_dtype: DType = DType.float64,
 ](Copyable, Movable, Regressor):
-    """Decision Tree Regressor."""
+    """Decision Tree Regressor for non-parametric continuous target regression.
+
+    Builds a regression tree by minimizing sample variance (mean squared error)
+    or mean absolute deviation across recursive binary splits:
+
+    $$
+    H_{\\text{MSE}}(Q) = \\frac{1}{|Q|} \\sum_{i \\in Q} (y_i - \\bar{y}_Q)^2
+    $$
+
+    Parameters:
+        criterion: The function to measure split quality ('squared_error', 'friedman_mse', 'absolute_error'). Default 'squared_error'.
+        splitter: Strategy used to choose the split at each node ('best', 'random'). Default 'best'.
+        max_depth: Maximum tree depth. -1 indicates unlimited depth. Default -1.
+        min_samples_split: Minimum samples required to split an internal node. Default 2.
+        min_samples_leaf: Minimum samples required to be at a leaf node. Default 1.
+        min_impurity_decrease: Split threshold if impurity decrease >= this value. Default 0.0.
+
+        max_features: Number of features to consider when looking for best split ('all', 'sqrt', 'log2', 'custom'). Default 'all'.
+        max_features_count: Explicit number of features to evaluate when max_features='custom'. Default -1.
+        max_features_ratio: Proportion of features to evaluate when max_features='custom'. Default 0.0.
+        random_state: PRNG seed for deterministic feature and split selection. Default 42.
+
+    Attributes:
+        n_features_in_: Number of features seen during fit.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.tree import DecisionTreeRegressor
+        from strata.core import Matrix
+
+        var reg = DecisionTreeRegressor[DType.float64](max_depth=4)
+        reg.fit(X_train, y_train)
+        var preds = reg.predict(X_test)
+        ```
+    """
 
     var is_fitted: Bool
     var criterion: String

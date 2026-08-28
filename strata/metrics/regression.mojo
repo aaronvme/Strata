@@ -24,7 +24,23 @@ def mean_squared_error[
 ](
     y_true: List[Scalar[true_dtype]], y_pred: List[Scalar[pred_dtype]]
 ) raises -> Float64:
-    """Mean squared error regression loss."""
+    """Compute Mean Squared Error (MSE) regression loss.
+
+    $$
+    \\text{MSE}(y, \\hat{y}) = \\frac{1}{N} \\sum_{i=1}^{N} (y_i - \\hat{y}_i)^2
+    $$
+
+    Args:
+        y_true: Ground truth target values of length $N$.
+        y_pred: Estimated target values of length $N$.
+
+    Returns:
+        Float64: Non-negative floating point mean squared error.
+
+    Raises:
+        InvalidParameterError: If inputs are empty or contain NaN/infinite values.
+        DimensionMismatchError: If `len(y_true) != len(y_pred)`.
+    """
     _check_regression_targets(y_true, y_pred, "mean_squared_error")
 
     var total: Float64 = 0.0
@@ -39,7 +55,22 @@ def root_mean_squared_error[
 ](
     y_true: List[Scalar[true_dtype]], y_pred: List[Scalar[pred_dtype]]
 ) raises -> Float64:
-    """Root mean squared error regression loss."""
+    """Compute Root Mean Squared Error (RMSE) regression loss.
+
+    $$
+    \\text{RMSE}(y, \\hat{y}) = \\sqrt{\\frac{1}{N} \\sum_{i=1}^{N} (y_i - \\hat{y}_i)^2}
+    $$
+
+    Args:
+        y_true: Ground truth target values of length $N$.
+        y_pred: Estimated target values of length $N$.
+
+    Returns:
+        Float64: Non-negative square root of mean squared error.
+
+    Raises:
+        InvalidParameterError: If inputs are empty or contain NaN/infinite values.
+    """
     return sqrt(mean_squared_error(y_true, y_pred))
 
 
@@ -48,7 +79,22 @@ def mean_absolute_error[
 ](
     y_true: List[Scalar[true_dtype]], y_pred: List[Scalar[pred_dtype]]
 ) raises -> Float64:
-    """Mean absolute error regression loss."""
+    """Compute Mean Absolute Error (MAE) regression loss.
+
+    $$
+    \\text{MAE}(y, \\hat{y}) = \\frac{1}{N} \\sum_{i=1}^{N} |y_i - \\hat{y}_i|
+    $$
+
+    Args:
+        y_true: Ground truth target values of length $N$.
+        y_pred: Estimated target values of length $N$.
+
+    Returns:
+        Float64: Non-negative floating point mean absolute error.
+
+    Raises:
+        InvalidParameterError: If inputs are empty or contain NaN/infinite values.
+    """
     _check_regression_targets(y_true, y_pred, "mean_absolute_error")
 
     var total: Float64 = 0.0
@@ -62,7 +108,23 @@ def r2_score[
 ](
     y_true: List[Scalar[true_dtype]], y_pred: List[Scalar[pred_dtype]]
 ) raises -> Float64:
-    """Coefficient of determination: 1 - SS_res / SS_tot."""
+    """Compute $R^2$ (coefficient of determination) regression score function.
+
+    $$
+    R^2(y, \\hat{y}) = 1 - \\frac{\\sum_{i=1}^N (y_i - \\hat{y}_i)^2}{\\sum_{i=1}^N (y_i - \\bar{y})^2}
+    $$
+
+
+    Args:
+        y_true: Ground truth target values of length $N$.
+        y_pred: Estimated target values of length $N$.
+
+    Returns:
+        Float64: $R^2$ score (best possible score is 1.0, can be negative for arbitrarily worse models).
+
+    Raises:
+        InvalidParameterError: If $N < 2$ or inputs contain non-finite values.
+    """
     _check_regression_targets(y_true, y_pred, "r2_score")
 
     var n = len(y_true)

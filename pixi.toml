@@ -44,4 +44,11 @@ test-ensemble = { depends-on = ["test-rf-regressor", "test-rf-classifier"] }
 test-all = { depends-on = ["test-matrix", "test-linalg", "test-sparse", "test-math", "test-dataset", "test-pipelines", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-model-selection", "test-metrics", "test-linear-regression", "test-ridge", "test-logistic-regression", "test-decomposition", "test-kmeans-common", "test-kmeans", "test-minibatch-kmeans", "test-tree-regressor", "test-tree-classifier", "test-rf-regressor", "test-rf-classifier"] }
 test = "find tests -name 'test_*.mojo' -exec mojo -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack {} \\;"
 format = "mojo format strata tests"
+format-check = "mojo format strata tests && git diff --exit-code -- strata tests"
+ci = { depends-on = ["format-check", "build", "test-all"] }
+generate-docs = "python scripts/generate_docs.py"
+build-docs = { depends-on = ["generate-docs"] }
+serve-docs = "python -m http.server 8000 --directory docs"
+
+
 
