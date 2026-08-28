@@ -99,3 +99,80 @@ struct RandomizedSearchRegressor[
         self.sampled_indices_ = copy.sampled_indices_.copy()
         self.cv_results_mean_ = copy.cv_results_mean_.copy()
         self.cv_results_std_ = copy.cv_results_std_.copy()
+
+    def fit[
+        in_feat_dtype: DType, in_target_dtype: DType
+    ](
+        mut self, X: Matrix[in_feat_dtype], y: List[Scalar[in_target_dtype]]
+    ) raises:
+        """Cross-validates a random subset of candidates and fits the best one.
+
+        Args:
+            X: Feature training matrix.
+            y: Target values.
+        """
+        check_X_y(X, y)
+        var X_cast = X.cast[Self.feat_dtype]()
+        var y_cast = List[Scalar[Self.target_dtype]](capacity=len(y))
+        for i in range(len(y)):
+            y_cast.append(Scalar[Self.target_dtype](y[i]))
+
+        var kf = KFold(n_splits=self.cv)
+        var splits = kf.split(X_cast.rows)
+
+        var n_candidates = len(self.candidates)
+        var n_sampled = self.n_iter
+        if n_sampled > n_candidates:
+            n_sampled = n_candidates
+
+        var order = permutation(n_candidates, seed=self.random_state)
+
+        self.sampled_indices_ = List[Int](capacity=n_sampled)
+        for i in range(n_sampled):
+            self.sampled_indices_.append(order[i])
+
+        self.cv_results_mean_ = List[Float64](capacity=n_sampled)
+        self.cv_results_std_ = List[Float64](capacity=n_sampled)
+
+        var best_idx = -1
+        var best_score = -1e30
+
+        for i in range(n_sampled):
+            var candidate_idx = self.sampled_indices_[i]
+            var candidate_eval = self.candidates[candidate_idx].copy()
+            var fold_scores = cross_val_score[
+                Self.ModelType, Self.feat_dtype, Self.target_dtype
+            ](
+                candidate_eval,
+                X_cast,
+                y_cast,
+                splits,
+                scoring=self.scoring,
+            )
+            var n_folds = len(fold_scores)
+            var mean_score: Float64 = 0.0
+            for f in range(n_folds):
+                mean_score += fold_scores[f]
+            mean_score /= Float64(n_folds)
+
+            var var_sum: Float64 = 0.0
+            for f in range(n_folds):
+                var diff = fold_scores[f] - mean_score
+                var_sum += diff * diff
+            var std_score = sqrt(var_sum / Float64(n_folds))
+
+            self.cv_results_mean_.append(mean_score)
+            self.cv_results_std_.append(std_score)
+
+            if mean_score > best_score or best_idx == -1:
+                best_score = mean_score
+                best_idx = candidate_idx
+
+        self.best_index_ = best_idx
+        self.best_score_ = best_score
+        self.best_estimator_ = self.candidates[best_idx].copy()
+
+        if self.refit:
+            self.best_estimator_.fit(X_cast, y_cast)
+
+        self.is_fitted = True
