@@ -532,6 +532,39 @@ def cross_validate[
     estimator: ModelType,
     X: Matrix[feat_dtype],
     y: List[Scalar[target_dtype]],
+    scoring: List[String],
+    cv: Int = 5,
+    return_train_score: Bool = False,
+) raises -> CrossValidateResult:
+    """Evaluates several regression metrics across K folds in one pass.
+
+    Args:
+        estimator: Model configuration cloned once per fold.
+        X: Feature matrix.
+        y: Target values.
+        scoring: Names of the regression metrics to record.
+        cv: Number of cross-validation folds.
+        return_train_score: Whether to also score the training rows of each
+            fold.
+
+    Returns:
+        Per-fold scores for every requested metric.
+    """
+    var kf = KFold(n_splits=cv)
+    var splits = kf.split(X.rows)
+    return cross_validate[ModelType, feat_dtype, target_dtype](
+        estimator, X, y, splits, scoring, return_train_score
+    )
+
+
+def cross_validate[
+    ModelType: Regressor,
+    feat_dtype: DType = DType.float64,
+    target_dtype: DType = DType.float64,
+](
+    estimator: ModelType,
+    X: Matrix[feat_dtype],
+    y: List[Scalar[target_dtype]],
     splits: List[Split],
     scoring: List[String],
     return_train_score: Bool = False,
