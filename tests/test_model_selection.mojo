@@ -19,6 +19,8 @@ from strata.model_selection import (
     Split,
     cross_val_score,
     cross_val_predict,
+    cross_validate,
+    CrossValidateResult,
     GridSearchRegressor,
     GridSearchClassifier,
     take_rows,
@@ -2596,6 +2598,433 @@ def test_cross_val_predict_leaves_estimator_unfitted() raises:
     try:
         var probe = Matrix[DType.float64](1, 1, 0)
         var _ = model.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def _curved_dataset(
+    n: Int,
+) -> Tuple[Matrix[DType.float64], List[Scalar[DType.float64]]]:
+    var X = Matrix[DType.float64](n, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=n)
+    for i in range(n):
+        X[i, 0] = Float64(i)
+        y.append(Float64(i * i))
+    return (X^, y^)
+
+
+def test_cross_validate_regression_single_metric_matches_cross_val_score() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var expected = cross_val_score(model, data[0], data[1], cv=5, scoring="r2")
+    var result = cross_validate(model, data[0], data[1], scoring, cv=5)
+    var actual = result.test_scores_for("r2")
+
+    assert_equal(len(actual), len(expected))
+    for f in range(len(expected)):
+        assert_equal(actual[f], expected[f])
+
+
+def test_cross_validate_regression_multiple_metrics_in_one_pass() raises:
+    var data = _curved_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2", "mae"]
+
+    var r2_alone = cross_val_score(model, data[0], data[1], cv=4, scoring="r2")
+    var mae_alone = cross_val_score(
+        model, data[0], data[1], cv=4, scoring="mae"
+    )
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    assert_equal(len(result.metrics), 2)
+    assert_equal(len(result.test_scores), 2)
+    for f in range(4):
+        assert_equal(result.test_scores_for("r2")[f], r2_alone[f])
+        assert_equal(result.test_scores_for("mae")[f], mae_alone[f])
+
+
+def test_cross_validate_metric_index_maps_names_to_rows() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["mae", "r2", "mse"]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    assert_equal(result.metric_index("mae"), 0)
+    assert_equal(result.metric_index("r2"), 1)
+    assert_equal(result.metric_index("mse"), 2)
+
+    for f in range(4):
+        assert_equal(result.test_scores_for("r2")[f], result.test_scores[1][f])
+
+
+def test_cross_validate_metric_index_rejects_unknown_name() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    var caught = False
+    try:
+        var _ = result.metric_index("mae")
+    except:
+        caught = True
+    assert_true(caught)
+
+    var caught_scores = False
+    try:
+        var _ = result.test_scores_for("mae")
+    except:
+        caught_scores = True
+    assert_true(caught_scores)
+
+
+def test_cross_validate_regression_negated_metrics_mirror_positives() raises:
+    var data = _curved_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = [
+        "mse",
+        "neg_mean_squared_error",
+        "rmse",
+        "neg_root_mean_squared_error",
+        "mae",
+        "neg_mean_absolute_error",
+    ]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    for f in range(4):
+        assert_equal(
+            result.test_scores_for("neg_mean_squared_error")[f],
+            -result.test_scores_for("mse")[f],
+        )
+        assert_equal(
+            result.test_scores_for("neg_root_mean_squared_error")[f],
+            -result.test_scores_for("rmse")[f],
+        )
+        assert_equal(
+            result.test_scores_for("neg_mean_absolute_error")[f],
+            -result.test_scores_for("mae")[f],
+        )
+
+
+def test_cross_validate_regression_all_supported_metrics() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = [
+        "r2",
+        "mse",
+        "neg_mean_squared_error",
+        "rmse",
+        "neg_root_mean_squared_error",
+        "mae",
+        "neg_mean_absolute_error",
+    ]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=5)
+
+    assert_equal(len(result.metrics), 7)
+    for m in range(7):
+        assert_equal(len(result.test_scores[m]), 5)
+
+
+def test_cross_validate_train_scores_absent_by_default() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=4)
+
+    assert_equal(len(result.train_scores), 0)
+
+    var caught = False
+    try:
+        var _ = result.train_scores_for("r2")
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_train_scores_recorded_when_requested() raises:
+    var data = _curved_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2", "mae"]
+
+    var result = cross_validate(
+        model, data[0], data[1], scoring, cv=4, return_train_score=True
+    )
+
+    assert_equal(len(result.train_scores), 2)
+    assert_equal(len(result.train_scores_for("r2")), 4)
+    assert_equal(len(result.train_scores_for("mae")), 4)
+
+    var differs = False
+    for f in range(4):
+        if result.train_scores_for("r2")[f] != result.test_scores_for("r2")[f]:
+            differs = True
+    assert_true(differs)
+
+
+def test_cross_validate_train_scores_beat_test_scores_on_curved_data() raises:
+    var data = _curved_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var result = cross_validate(
+        model, data[0], data[1], scoring, cv=4, return_train_score=True
+    )
+
+    for f in range(4):
+        assert_true(
+            result.train_scores_for("r2")[f] >= result.test_scores_for("r2")[f]
+        )
+
+
+def test_cross_validate_regression_cv_overload_matches_kfold_splits() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2", "mae"]
+
+    var kf = KFold(n_splits=4)
+    var splits = kf.split(16)
+
+    var from_cv = cross_validate(model, data[0], data[1], scoring, cv=4)
+    var from_splits = cross_validate(model, data[0], data[1], splits, scoring)
+
+    for m in range(2):
+        for f in range(4):
+            assert_equal(
+                from_cv.test_scores[m][f], from_splits.test_scores[m][f]
+            )
+
+
+def test_cross_validate_accepts_overlapping_shuffle_split_folds() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var ss = ShuffleSplit(n_splits=3, test_size=0.3)
+    var splits = ss.split(20)
+
+    var result = cross_validate(model, data[0], data[1], splits, scoring)
+    assert_equal(len(result.test_scores_for("r2")), 3)
+
+
+def test_cross_validate_accepts_time_series_split_folds() raises:
+    var data = _linear_dataset(20)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var tss = TimeSeriesSplit(n_splits=3)
+    var splits = tss.split(20)
+
+    var result = cross_validate(model, data[0], data[1], splits, scoring)
+    assert_equal(len(result.test_scores_for("r2")), 3)
+
+
+def test_cross_validate_regression_rejects_unknown_metric() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2", "not_a_metric"]
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], scoring, cv=4)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_empty_scoring_list() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring = List[String]()
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], scoring, cv=4)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_empty_split_list() raises:
+    var data = _linear_dataset(16)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+    var splits = List[Split]()
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], splits, scoring)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_empty_train_fold() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append(List[Int]())
+    val_sets.append([0, 1, 2, 3])
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], splits, scoring)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_empty_validation_fold() raises:
+    var data = _linear_dataset(4)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var train_sets = List[List[Int]]()
+    var val_sets = List[List[Int]]()
+    train_sets.append([0, 1, 2, 3])
+    val_sets.append(List[Int]())
+    var splits = _manual_splits(train_sets, val_sets)
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], splits, scoring)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_rejects_mismatched_x_and_y() raises:
+    var X = Matrix[DType.float64](20, 1, 0)
+    var y = List[Scalar[DType.float64]](capacity=19)
+    for i in range(19):
+        y.append(Float64(i))
+
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, X, y, scoring, cv=4)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_leaves_estimator_unfitted() raises:
+    var data = _linear_dataset(12)
+    var model = LinearRegression[DType.float64]()
+    var scoring: List[String] = ["r2"]
+
+    var _ = cross_validate(model, data[0], data[1], scoring, cv=3)
+
+    var caught = False
+    try:
+        var probe = Matrix[DType.float64](1, 1, 0)
+        var _ = model.predict(probe)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_classification_matches_cross_val_score() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+    var scoring: List[String] = ["accuracy"]
+
+    var expected = cross_val_score(
+        model, data[0], data[1], cv=3, scoring="accuracy"
+    )
+    var result = cross_validate(model, data[0], data[1], scoring, cv=3)
+    var actual = result.test_scores_for("accuracy")
+
+    assert_equal(len(actual), len(expected))
+    for f in range(len(expected)):
+        assert_equal(actual[f], expected[f])
+
+
+def test_cross_validate_classification_all_supported_metrics() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+    var scoring: List[String] = ["accuracy", "f1", "precision", "recall"]
+
+    var result = cross_validate(model, data[0], data[1], scoring, cv=3)
+
+    assert_equal(len(result.metrics), 4)
+    for m in range(4):
+        assert_equal(len(result.test_scores[m]), 3)
+        for f in range(3):
+            assert_true(
+                result.test_scores[m][f] >= 0.0
+                and result.test_scores[m][f] <= 1.0
+            )
+
+
+def test_cross_validate_classification_cv_overload_matches_stratified() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+    var scoring: List[String] = ["accuracy", "f1"]
+
+    var skf = StratifiedKFold(n_splits=3)
+    var splits = skf.split(data[0], data[1])
+
+    var from_cv = cross_validate(model, data[0], data[1], scoring, cv=3)
+    var from_splits = cross_validate(model, data[0], data[1], splits, scoring)
+
+    for m in range(2):
+        for f in range(3):
+            assert_equal(
+                from_cv.test_scores[m][f], from_splits.test_scores[m][f]
+            )
+
+
+def test_cross_validate_classification_train_scores() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=200)
+    var scoring: List[String] = ["accuracy"]
+
+    var result = cross_validate(
+        model, data[0], data[1], scoring, cv=3, return_train_score=True
+    )
+
+    assert_equal(len(result.train_scores), 1)
+    assert_equal(len(result.train_scores_for("accuracy")), 3)
+    for f in range(3):
+        assert_true(result.train_scores_for("accuracy")[f] > 0.9)
+
+
+def test_cross_validate_classification_rejects_regression_metric() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=100)
+    var scoring: List[String] = ["r2"]
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], scoring, cv=3)
+    except:
+        caught = True
+    assert_true(caught)
+
+
+def test_cross_validate_classification_rejects_empty_scoring() raises:
+    var data = _separable_dataset(24)
+    var model = LogisticRegression[DType.float64](max_iter=100)
+    var scoring = List[String]()
+
+    var caught = False
+    try:
+        var _ = cross_validate(model, data[0], data[1], scoring, cv=3)
     except:
         caught = True
     assert_true(caught)
