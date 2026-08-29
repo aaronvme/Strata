@@ -739,3 +739,54 @@ struct LabelEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
             codes.append(Scalar[in_dtype](idx))
 
         return codes^
+
+    def fit_transform[
+        in_dtype: DType
+    ](mut self, y: List[Scalar[in_dtype]]) raises -> List[Scalar[in_dtype]]:
+        """Learns the classes of a target vector and returns its codes."""
+        self.fit[in_dtype](y)
+        return self.transform[in_dtype](y)
+
+    def inverse_transform[
+        in_dtype: DType
+    ](self, y: List[Scalar[in_dtype]]) raises -> List[Scalar[in_dtype]]:
+        """Recovers the original labels from a list of integer codes.
+
+        Args:
+            y: Integer codes, one per sample.
+
+        Returns:
+            A list of the same length holding the original labels.
+
+        Raises:
+            InvalidParameterError: If a code is not a valid class index.
+        """
+        check_is_fitted("LabelEncoder", self.is_fitted)
+        if in_dtype != self.fit_dtype:
+            raise DataConversionError.error(
+                "LabelEncoder.inverse_transform received List[Scalar["
+                + String(in_dtype)
+                + "]] but was fitted on List[Scalar["
+                + String(self.fit_dtype)
+                + "]]"
+            )
+        check_finite(y, "y", "LabelEncoder.inverse_transform")
+
+        var labels = List[Scalar[in_dtype]](capacity=len(y))
+        for i in range(len(y)):
+            var code = Scalar[Self.compute_dtype](y[i])
+            var idx = Int(code)
+            if (
+                Scalar[Self.compute_dtype](idx) != code
+                or idx < 0
+                or idx >= len(self.classes_)
+            ):
+                raise InvalidParameterError.error(
+                    "y",
+                    "LabelEncoder.inverse_transform found code "
+                    + String(code)
+                    + " outside the valid range",
+                )
+            labels.append(Scalar[in_dtype](self.classes_[idx]))
+
+        return labels^
