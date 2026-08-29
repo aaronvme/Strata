@@ -27,8 +27,12 @@ Strata is a native machine learning library for Mojo designed around familiar sc
   - `DecisionTreeClassifier` (Gini impurity, Shannon entropy, log-loss, discrete probability matrices)
   - `DecisionTreeRegressor` (Squared error MSE, Friedman MSE, sample median MAE)
   - Contiguous flat-array `Tree` / `Node` buffers with $O(1)$ streaming histogram split calculations
+- **Evaluation Metrics**:
+  - Regression: `mean_squared_error` / `root_mean_squared_error`, `mean_absolute_error`, `r2_score`
+  - Classification: `accuracy_score`, `precision_score`, `recall_score`, `f1_score` (binary, micro, macro, weighted), `confusion_matrix`, `log_loss`
+  - Ranking & clustering: rank-based `roc_auc_score` with tie correction, `silhouette_score`
 - **Test Coverage**:
-  - 19 modular test suites (560+ passing tests)
+  - 22 modular test suites (880+ passing tests)
 
 ---
 
@@ -100,8 +104,8 @@ Strata is a native machine learning library for Mojo designed around familiar sc
 - [x] `accuracy_score`
 - [x] `precision_score`, `recall_score`, `f1_score`
 - [x] `confusion_matrix`
-- [ ] `roc_auc_score` & `log_loss`
+- [x] `roc_auc_score` & `log_loss`
 - [x] `mean_squared_error` ($MSE$ & $RMSE$)
 - [x] `mean_absolute_error` ($MAE$)
 - [x] `r2_score` ($R^2$)
-- [ ] `silhouette_score`
+- [x] `silhouette_score`
