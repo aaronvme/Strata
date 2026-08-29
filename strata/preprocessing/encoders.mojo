@@ -4,6 +4,7 @@ from ..core.dataset import Dataset
 from ..utils.validation import (
     check_is_fitted,
     check_array,
+    check_finite,
     check_floating_dtype,
 )
 from ..exceptions.errors import (
@@ -676,3 +677,26 @@ struct LabelEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
         self.is_fitted = copy.is_fitted
         self.fit_dtype = copy.fit_dtype
         self.classes_ = copy.classes_.copy()
+
+    def fit[in_dtype: DType](mut self, y: List[Scalar[in_dtype]]) raises:
+        """Learns the sorted distinct labels of a target vector.
+
+        Args:
+            y: Target labels, one per sample.
+
+        Raises:
+            InvalidParameterError: If y is empty or holds a non-finite value.
+        """
+        if len(y) == 0:
+            raise InvalidParameterError.error(
+                "y", "LabelEncoder.fit requires at least one label"
+            )
+        check_finite(y, "y", "LabelEncoder.fit")
+
+        var values = List[Scalar[Self.compute_dtype]](capacity=len(y))
+        for i in range(len(y)):
+            values.append(Scalar[Self.compute_dtype](y[i]))
+
+        self.classes_ = _sorted_uniques(values^)
+        self.fit_dtype = in_dtype
+        self.is_fitted = True
