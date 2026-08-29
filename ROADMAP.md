@@ -29,8 +29,13 @@ Strata is a native machine learning library for Mojo designed around familiar sc
   - `RandomForestClassifier` (Bootstrap aggregation, soft-voting probability averaging, batched OOB accuracy)
   - `RandomForestRegressor` (Bootstrap aggregation, mean prediction averaging, batched OOB R² score)
   - Mean Decrease in Impurity (MDI) feature importances and decoupled PRNG streams
+- **Preprocessing & Encoders**:
+  - Scalers: `StandardScaler`, `MinMaxScaler`, `RobustScaler`, `Normalizer`, `Binarizer`
+  - Encoders: `OneHotEncoder`, `OrdinalEncoder` (unknown-category policies), `LabelEncoder` (1D targets)
+  - `SimpleImputer` (mean, median, most_frequent, constant; NaN or sentinel missing markers)
+  - `PolynomialFeatures` (degree and interaction-only expansion with generated term names)
 - **Test Coverage**:
-  - 22 modular test suites (620+ passing tests)
+  - 24 modular test suites (1020+ passing tests)
 
 ---
 
@@ -50,10 +55,10 @@ Strata is a native machine learning library for Mojo designed around familiar sc
 - [x] `MinMaxScaler` & `RobustScaler`
 - [x] `Normalizer` (L1, L2, Max row-wise normalization)
 - [x] `OneHotEncoder` (Dense category expansion with `drop` and `handle_unknown` policies)
-- [ ] `OrdinalEncoder` & `LabelEncoder`
-- [ ] `SimpleImputer` (mean, median, most_frequent, constant)
+- [x] `OrdinalEncoder` & `LabelEncoder`
+- [x] `SimpleImputer` (mean, median, most_frequent, constant)
 - [x] `Binarizer` (threshold-based indicator mapping)
-- [ ] `PolynomialFeatures` (interaction and degree expansion)
+- [x] `PolynomialFeatures` (interaction and degree expansion)
 
 ### Linear Models
 - [x] `LinearRegression` (Ordinary Least Squares via QR, SVD, Cholesky, Solve)
