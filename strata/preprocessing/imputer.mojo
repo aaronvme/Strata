@@ -106,3 +106,51 @@ struct SimpleImputer[compute_dtype: DType = DType.float64](Copyable, Movable):
         if isnan(self.missing_values):
             return isnan(value)
         return value == self.missing_values
+
+    def _column_statistic(
+        self, var values: List[Scalar[Self.compute_dtype]], col: Int
+    ) raises -> Scalar[Self.compute_dtype]:
+        """Replacement value for one column, given its non-missing entries."""
+        if self.strategy == "constant":
+            return self.fill_value
+
+        var n = len(values)
+        if n == 0:
+            raise InvalidParameterError.error(
+                "X",
+                "SimpleImputer cannot take the "
+                + self.strategy
+                + " of column "
+                + String(col)
+                + " because every entry is missing",
+            )
+
+        if self.strategy == "mean":
+            var total: Float64 = 0.0
+            for i in range(n):
+                total += Float64(values[i])
+            return Scalar[Self.compute_dtype](total / Float64(n))
+
+        sort(values)
+
+        if self.strategy == "median":
+            var mid = n // 2
+            if n % 2 == 1:
+                return values[mid]
+            return Scalar[Self.compute_dtype](
+                (Float64(values[mid - 1]) + Float64(values[mid])) / 2.0
+            )
+
+        var best = values[0]
+        var best_count = 0
+        var start = 0
+        while start < n:
+            var stop = start
+            while stop + 1 < n and values[stop + 1] == values[start]:
+                stop += 1
+            var count = stop - start + 1
+            if count > best_count:
+                best_count = count
+                best = values[start]
+            start = stop + 1
+        return best
