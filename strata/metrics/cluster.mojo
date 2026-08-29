@@ -8,19 +8,25 @@ from .classification import _insert_label, _search_sorted
 def silhouette_score[
     dtype: DType = DType.float64
 ](X: Matrix[dtype], labels: List[Int]) raises -> Float64:
-    """Mean silhouette coefficient over all samples.
+    """Compute the mean Silhouette Coefficient of all samples.
 
-    For each sample the coefficient is (b - a) / max(a, b), where a is the mean
-    distance to the other members of its own cluster and b is the mean distance
-    to the members of the nearest other cluster. Samples alone in their cluster
-    score 0.
+    $$
+    s(i) = \\frac{b(i) - a(i)}{\\max(a(i), b(i))}
+    $$
+
+    where $a(i)$ is the mean intra-cluster distance and $b(i)$ is the mean nearest-cluster distance.
+    Samples alone in their cluster score 0.0.
 
     Args:
         X: Feature matrix with one row per sample.
-        labels: Cluster label of each sample, as returned by a Clusterer.
+        labels: Predicted cluster labels for each sample.
 
     Returns:
-        The mean silhouette coefficient, between -1.0 and 1.0.
+        Float64: Mean Silhouette Coefficient between -1.0 and 1.0.
+
+    Raises:
+        DimensionMismatchError: If sample count of X does not match length of labels.
+        InvalidParameterError: If number of distinct labels is less than 2 or greater than n_samples - 1, or if inputs contain NaN/Inf.
     """
     check_array(X)
     check_consistent_length(X, labels)

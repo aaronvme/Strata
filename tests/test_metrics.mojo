@@ -1327,6 +1327,86 @@ def test_silhouette_invalid_inputs() raises:
     with assert_raises():
         _ = silhouette_score(X, too_few)
 
+    # 2 samples with 2 clusters (k=2 > n-1=1, invalid)
+    var X2 = Matrix[DType.float64](2, 2, 1.0)
+    var labels2: List[Int] = [0, 1]
+    with assert_raises():
+        _ = silhouette_score(X2, labels2)
+
+    # NaN in feature matrix
+    var nan = Float64(0.0) / Float64(0.0)
+    var X_nan = Matrix[DType.float64](6, 2, nan)
+    var labels_valid: List[Int] = [0, 0, 0, 1, 1, 1]
+    with assert_raises():
+        _ = silhouette_score(X_nan, labels_valid)
+
+
+def test_silhouette_minimal_dataset_three_samples() raises:
+    # Minimal valid configuration: n=3, k=2 (one cluster of size 2, one singleton)
+    var vals: List[Scalar[DType.float64]] = [0.0, 0.0, 1.0, 0.0, 10.0, 10.0]
+    var X = Matrix[DType.float64](3, 2, vals^)
+    var labels: List[Int] = [0, 0, 1]
+    var score = silhouette_score(X, labels)
+    assert_true(not isnan(score))
+    assert_true(score > 0.0)
+
+
+def test_silhouette_negative_labels_match_positive() raises:
+    var X = _two_blobs()
+    var pos_labels: List[Int] = [0, 0, 0, 1, 1, 1]
+    var neg_labels: List[Int] = [-5, -5, -5, -2, -2, -2]
+    assert_equal(
+        silhouette_score(X, pos_labels), silhouette_score(X, neg_labels)
+    )
+
+
+def test_roc_auc_negative_labels() raises:
+    var y: List[Scalar[DType.float64]] = [-1.0, -1.0, 1.0, 1.0]
+    var s: List[Scalar[DType.float64]] = [-10.0, -5.0, 2.0, 8.0]
+    assert_almost_equal(roc_auc_score(y, s, pos_label=1.0), 1.0)
+    assert_almost_equal(roc_auc_score(y, s, pos_label=-1.0), 0.0)
+
+
+def test_roc_auc_all_tied_imbalanced() raises:
+    var y: List[Scalar[DType.float64]] = [0.0, 1.0, 1.0, 1.0]
+    var s: List[Scalar[DType.float64]] = [0.5, 0.5, 0.5, 0.5]
+    assert_almost_equal(roc_auc_score(y, s), 0.5)
+
+
+def test_roc_auc_nan_and_empty_rejected() raises:
+    var empty = List[Scalar[DType.float64]]()
+    with assert_raises():
+        _ = roc_auc_score(empty, empty)
+
+    var nan = Float64(0.0) / Float64(0.0)
+    var y_nan: List[Scalar[DType.float64]] = [0.0, 1.0, nan, 1.0]
+    var s_valid: List[Scalar[DType.float64]] = [0.1, 0.4, 0.5, 0.8]
+    with assert_raises():
+        _ = roc_auc_score(y_nan, s_valid)
+
+    var y_valid: List[Scalar[DType.float64]] = [0.0, 0.0, 1.0, 1.0]
+    var s_nan: List[Scalar[DType.float64]] = [0.1, nan, 0.5, 0.8]
+    with assert_raises():
+        _ = roc_auc_score(y_valid, s_nan)
+
+
+def test_log_loss_arbitrary_binary_labels() raises:
+    var y: List[Scalar[DType.float64]] = [-1.0, 1.0, 1.0, -1.0]
+    var one: List[Scalar[DType.float64]] = [0.1, 0.9, 0.8, 0.2]
+    var P1 = Matrix[DType.float64](4, 1, one^)
+    assert_true(log_loss(y, P1) < 0.25)
+
+
+def test_log_loss_column_mismatch_with_three_classes() raises:
+    var y: List[Scalar[DType.float64]] = [0.0, 1.0, 2.0]
+    var P_single = Matrix[DType.float64](3, 1, 0.5)
+    with assert_raises():
+        _ = log_loss(y, P_single)
+
+    var P_four = Matrix[DType.float64](3, 4, 0.25)
+    with assert_raises():
+        _ = log_loss(y, P_four)
+
 
 def main() raises:
     TestSuite.discover_tests[__functions_in_module()]().run()

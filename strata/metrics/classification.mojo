@@ -326,17 +326,25 @@ def log_loss[
     y_pred: Matrix[pred_dtype],
     normalize: Bool = True,
 ) raises -> Float64:
-    """Log loss, the negative log-likelihood of the true labels under y_pred.
+    """Compute log loss (cross-entropy loss), the negative log-likelihood of true labels.
+
+    $$
+    \\text{Log Loss} = -\\frac{1}{N} \\sum_{i=1}^N \\sum_{k=1}^K y_{i, k} \\log(p_{i, k})
+    $$
 
     Args:
         y_true: Ground truth labels, one per sample.
         y_pred: Predicted probabilities, one row per sample and one column per
             class ordered by the sorted distinct labels of y_true. A single
             column is read as the probability of the larger of two labels.
-        normalize: Return the mean loss per sample, otherwise the total.
+        normalize: Return the mean loss per sample, otherwise the total. Default True.
 
     Returns:
-        The mean (or total) cross-entropy between y_true and y_pred.
+        Float64: The mean (or total) cross-entropy between y_true and y_pred.
+
+    Raises:
+        DimensionMismatchError: If sample count of y_pred does not match y_true or column count does not match class count.
+        InvalidParameterError: If inputs are empty, contain fewer than 2 classes, or contain NaN/Inf.
     """
     check_consistent_length(y_pred, y_true)
     if len(y_true) == 0:
@@ -398,19 +406,23 @@ def roc_auc_score[
     y_score: List[Scalar[score_dtype]],
     pos_label: Float64 = 1.0,
 ) raises -> Float64:
-    """Area under the Receiver Operating Characteristic curve, binary targets.
+    """Compute Area Under the Receiver Operating Characteristic Curve (ROC AUC).
 
-    Equivalently, the probability that a randomly drawn positive sample is
-    scored above a randomly drawn negative one, with ties counting as half.
+    $$
+    \\text{ROC AUC} = \\frac{R_1 - \\frac{n_1(n_1 + 1)}{2}}{n_1 n_0}
+    $$
 
     Args:
         y_true: Ground truth labels, one per sample, holding exactly 2 labels.
-        y_score: Score or probability of the positive class, one per sample.
-            Only the ordering of these values affects the result.
-        pos_label: The label of the positive class.
+        y_score: Target scores or probabilities for the positive class.
+        pos_label: The label of the positive class. Default 1.0.
 
     Returns:
-        The area under the ROC curve, between 0.0 and 1.0.
+        Float64: The area under the ROC curve, between 0.0 and 1.0.
+
+    Raises:
+        DimensionMismatchError: If sample count of y_true does not match y_score.
+        InvalidParameterError: If y_true does not have exactly 2 distinct classes, pos_label is missing, or inputs contain NaN/Inf.
     """
     _check_classification_targets(y_true, y_score, "roc_auc_score")
 
