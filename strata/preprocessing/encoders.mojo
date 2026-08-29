@@ -454,3 +454,56 @@ struct OrdinalEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
     ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
         """Learns the categories from the feature matrix of a Dataset."""
         self.fit[feat_dtype](dataset.records)
+
+    def transform[
+        in_dtype: DType
+    ](self, X: Matrix[in_dtype]) raises -> Matrix[in_dtype]:
+        """Replaces each categorical value with its integer code.
+
+        Args:
+            X: Matrix of categorical features with one column per fitted feature.
+
+        Returns:
+            A matrix of the same shape holding the code of each value.
+
+        Raises:
+            InvalidParameterError: If an unseen category is found and handle_unknown is 'error'.
+        """
+        check_is_fitted("OrdinalEncoder", self.is_fitted)
+        if in_dtype != self.fit_dtype:
+            raise DataConversionError.error(
+                "OrdinalEncoder.transform received Matrix["
+                + String(in_dtype)
+                + "] but was fitted on Matrix["
+                + String(self.fit_dtype)
+                + "]"
+            )
+        check_array[in_dtype](X)
+        if X.cols != len(self.categories_):
+            raise DimensionMismatchError.error(
+                "X.cols == " + String(len(self.categories_)),
+                "X.cols == " + String(X.cols),
+                "OrdinalEncoder.transform",
+            )
+
+        var res = Matrix[in_dtype](X.rows, X.cols, 0)
+        for r in range(X.rows):
+            for c in range(X.cols):
+                var value = Scalar[Self.compute_dtype](X[r, c])
+                var idx = _index_of[Self.compute_dtype](
+                    self.categories_[c], value
+                )
+                if idx < 0:
+                    if self.handle_unknown == "error":
+                        raise InvalidParameterError.error(
+                            "X",
+                            "OrdinalEncoder.transform found unknown category "
+                            + String(value)
+                            + " in column "
+                            + String(c),
+                        )
+                    res[r, c] = Scalar[in_dtype](self.unknown_value)
+                    continue
+                res[r, c] = Scalar[in_dtype](idx)
+
+        return res^
