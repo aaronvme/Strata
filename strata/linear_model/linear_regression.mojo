@@ -22,11 +22,35 @@ struct LinearRegression[
 ](Copyable, Movable, Regressor):
     """Ordinary Least Squares Linear Regression.
 
-    Fits a linear model with coefficients w = (w_1, ..., w_p) to minimize
-    the residual sum of squares between observed targets and predictions.
+    Fits a linear model with coefficients $w = (w_1, \\dots, w_D)$ and intercept $b$
+    to minimize the residual sum of squares between observed targets and predictions:
+
+    $$
+    \\min_{w, b} \\frac{1}{2N} \\|y - (Xw + b)\\|_2^2
+    $$
+
 
     Parameters:
-        compute_dtype: Floating point precision for internal computations (default: Float64).
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
+        fit_intercept: Whether to calculate the intercept bias term. Default True.
+        solver: Solver algorithm to use ('lstsq', 'qr', 'cholesky', 'solve'). Default 'lstsq'.
+
+    Attributes:
+        coef_: Weight vector coefficients of length $D$.
+        intercept_: Independent bias intercept term.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.linear_model import LinearRegression
+        from strata.core import Matrix
+
+        var reg = LinearRegression[DType.float64](solver="cholesky")
+        reg.fit(X_train, y_train)
+        var preds = reg.predict(X_test)
+        ```
     """
 
     var is_fitted: Bool
@@ -40,11 +64,11 @@ struct LinearRegression[
         fit_intercept: Bool = True,
         solver: String = "lstsq",
     ):
-        """Initializes the linear regression estimator.
+        """Initialize the linear regression estimator.
 
         Args:
-            fit_intercept: Whether to calculate the intercept for this model.
-            solver: Solver algorithm ('lstsq', 'qr', 'cholesky', 'solve').
+            fit_intercept: Whether to calculate the intercept bias term. Default True.
+            solver: Solver algorithm ('lstsq', 'qr', 'cholesky', 'solve'). Default 'lstsq'.
         """
         check_floating_dtype[Self.compute_dtype, "LinearRegression"]()
         self.is_fitted = False
@@ -64,11 +88,14 @@ struct LinearRegression[
     def fit[
         feat_dtype: DType, in_target_dtype: DType
     ](mut self, X: Matrix[feat_dtype], y: List[Scalar[in_target_dtype]]) raises:
-        """Fits the linear model from training data (X, y).
+        """Fit the linear model from training data.
 
         Args:
-            X: Training feature matrix (N x D).
-            y: Target values (length N).
+            X: Training feature matrix of shape $(N, D)$.
+            y: Target values vector of length $N$.
+
+        Raises:
+            DimensionMismatchError: If $X$ rows do not match length of $y$.
         """
         check_X_y(X, y)
 
@@ -151,15 +178,20 @@ struct LinearRegression[
     def predict[
         feat_dtype: DType
     ](self, X: Matrix[feat_dtype]) raises -> List[Scalar[feat_dtype]]:
-        """Predicts continuous target values using the fitted linear model.
+        """Predict continuous target values using the fitted linear model.
 
         Args:
-            X: Feature matrix of shape (N x D) to predict on.
+            X: Feature matrix of shape $(N, D)$ to predict on.
 
         Returns:
-            List of predictions matching the input feature precision.
+            List[Scalar[feat_dtype]]: Predicted target vector of length $N$.
+
+        Raises:
+            NotFittedError: If the estimator has not been fitted.
+            DimensionMismatchError: If the number of columns in $X$ does not match `n_features_in_`.
         """
         check_is_fitted("LinearRegression", self.is_fitted)
+
         check_array[feat_dtype](X)
         if X.cols != len(self.coef_):
             raise DimensionMismatchError.error(
@@ -182,5 +214,9 @@ struct LinearRegression[
             )
             var preds = List[Scalar[feat_dtype]](capacity=len(preds_comp))
             for i in range(len(preds_comp)):
-                preds.append(Scalar[feat_dtype](preds_comp[i]))
+                comptime if feat_dtype.is_integral():
+                    preds.append(Scalar[feat_dtype](round(preds_comp[i])))
+                else:
+                    preds.append(Scalar[feat_dtype](preds_comp[i]))
+
             return preds^

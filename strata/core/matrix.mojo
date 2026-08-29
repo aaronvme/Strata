@@ -8,13 +8,41 @@ from ..exceptions.errors import DimensionMismatchError
 struct Matrix[dtype: DType = DType.float64](
     ArrayLike, Copyable, Movable, Writable
 ):
-    """Dense 2D row-major matrix container with striding and view support."""
+    """Dense 2D row-major matrix container with striding and view support.
+
+    Provides contiguous buffer allocation, SIMD-compatible row-major layout,
+    slicing, element-wise arithmetic, and BLAS/LAPACK interop.
+
+    Parameters:
+        dtype: Numerical data type of matrix elements. Default DType.float64.
+
+    Attributes:
+        rows: Number of matrix rows ($N$).
+        cols: Number of matrix columns ($D$).
+        data: Flat 1D buffer of matrix elements in row-major order.
+
+    Examples:
+        ```mojo
+        from strata.core import Matrix
+
+        var A = Matrix[DType.float64](2, 3, fill=1.0)
+        var B = Matrix[DType.float64].eye(3)
+        var C = A.dot(B)
+        ```
+    """
 
     var rows: Int
     var cols: Int
     var data: List[Scalar[Self.dtype]]
 
     def __init__(out self, rows: Int, cols: Int, fill: Scalar[Self.dtype] = 0):
+        """Initialize a Matrix of shape (rows, cols) filled with a constant value.
+
+        Args:
+            rows: Number of rows ($N >= 0$).
+            cols: Number of columns ($D >= 0$).
+            fill: Constant scalar value to fill the buffer. Default 0.
+        """
         self.rows = rows
         self.cols = cols
         var total = rows * cols
@@ -26,20 +54,31 @@ struct Matrix[dtype: DType = DType.float64](
     def __init__(
         out self, rows: Int, cols: Int, var data: List[Scalar[Self.dtype]]
     ):
+        """Initialize a Matrix from an existing 1D buffer.
+
+        Args:
+            rows: Number of rows ($N >= 0$).
+            cols: Number of columns ($D >= 0$).
+            data: Flat row-major element buffer of length `rows * cols`.
+        """
+
         self.rows = rows
         self.cols = cols
         self.data = data^
 
     @staticmethod
     def zeros(rows: Int, cols: Int) -> Self:
+        """Create a zero-filled Matrix of shape (rows, cols)."""
         return Self(rows, cols, 0)
 
     @staticmethod
     def ones(rows: Int, cols: Int) -> Self:
+        """Create a one-filled Matrix of shape (rows, cols)."""
         return Self(rows, cols, 1)
 
     @staticmethod
     def eye(n: Int) -> Self:
+        """Create an identity Matrix of shape (n, n)."""
         var res = Self.zeros(n, n)
         for i in range(n):
             res[i, i] = 1

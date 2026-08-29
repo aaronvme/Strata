@@ -678,8 +678,12 @@ def test_decision_tree_classifier_log_loss_entropy_criterion() raises:
 
 def test_decision_tree_classifier_random_state_determinism() raises:
     var data = _separable_2d_dataset()
-    var clf1 = DecisionTreeClassifier[DType.float64](splitter="random", random_state=123)
-    var clf2 = DecisionTreeClassifier[DType.float64](splitter="random", random_state=123)
+    var clf1 = DecisionTreeClassifier[DType.float64](
+        splitter="random", random_state=123
+    )
+    var clf2 = DecisionTreeClassifier[DType.float64](
+        splitter="random", random_state=123
+    )
     clf1.fit(data[0], data[1])
     clf2.fit(data[0], data[1])
 
@@ -697,7 +701,9 @@ def test_decision_tree_classifier_large_fat_matrix_100_features() raises:
             X[i, j] = Float64(i + j)
         y.append(Int32(0 if i < 8 else 1))
 
-    var clf = DecisionTreeClassifier[DType.float64](max_depth=3, max_features="sqrt", random_state=42)
+    var clf = DecisionTreeClassifier[DType.float64](
+        max_depth=3, max_features="sqrt", random_state=42
+    )
     clf.fit(X, y)
     assert_true(clf.is_fitted)
 
@@ -731,7 +737,9 @@ def test_decision_tree_classifier_four_quadrants_2d() raises:
 
 def test_decision_tree_classifier_min_samples_split_and_leaf_interaction() raises:
     var data = _separable_2d_dataset()
-    var clf = DecisionTreeClassifier[DType.float64](min_samples_split=4, min_samples_leaf=2)
+    var clf = DecisionTreeClassifier[DType.float64](
+        min_samples_split=4, min_samples_leaf=2
+    )
     clf.fit(data[0], data[1])
 
     for n in range(clf.tree_.node_count()):

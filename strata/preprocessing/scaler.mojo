@@ -18,7 +18,38 @@ from ..exceptions.errors import (
 struct StandardScaler[compute_dtype: DType = DType.float64](
     Copyable, Movable, Transformer
 ):
-    """Standardizes features by removing the mean and scaling to unit variance.
+    """Standardize features by removing the mean and scaling to unit variance.
+
+    The standard score of a sample $x$ is calculated as:
+
+    $$
+    z = \\frac{x - \\mu}{\\sigma}
+    $$
+
+    where $\\mu$ is the mean of the training samples and $\\sigma$ is the standard deviation.
+
+
+    Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
+        with_mean: If True, center the data before scaling. Default True.
+        with_std: If True, scale the data to unit variance (unit standard deviation). Default True.
+
+    Attributes:
+        mean_: Mean value for each feature in the training set.
+        scale_: Per-feature standard deviation scaling factor.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.preprocessing import StandardScaler
+        from strata.core import Matrix
+
+        var scaler = StandardScaler[DType.float64]()
+        scaler.fit(X_train)
+        var X_scaled = scaler.transform(X_train)
+        ```
     """
 
     var is_fitted: Bool
@@ -29,6 +60,12 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
     var scale_: List[Scalar[Self.compute_dtype]]
 
     def __init__(out self, with_mean: Bool = True, with_std: Bool = True):
+        """Initialize the StandardScaler.
+
+        Args:
+            with_mean: Whether to center data by subtracting feature means. Default True.
+            with_std: Whether to scale data to unit variance. Default True.
+        """
         self.is_fitted = False
         self.fit_dtype = DType.float64
         self.with_mean = with_mean
@@ -142,10 +179,41 @@ struct StandardScaler[compute_dtype: DType = DType.float64](
 struct MinMaxScaler[compute_dtype: DType = DType.float64](
     Copyable, Movable, Transformer
 ):
-    """Transforms features by scaling each one into a given range.
+    """Transform features by scaling each feature to a specified range.
 
-    Each feature is scaled and translated individually so that it spans
-    [feature_range_min, feature_range_max] on the training set.
+    Scales and translates each feature individually such that it is in the given
+    range on the training set, e.g. between zero and one:
+
+    $$
+    x_{\\text{scaled}} = \\frac{x - x_{\\min}}{x_{\\max} - x_{\\min}} \\cdot (\\text{max} - \\text{min}) + \\text{min}
+    $$
+
+    Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
+        feature_range_min: Lower bound of the desired transformed range. Default 0.0.
+        feature_range_max: Upper bound of the desired transformed range. Default 1.0.
+        clip: Whether to clip transformed values to the feature range. Default False.
+
+    Attributes:
+        data_min_: Per-feature minimum seen in the training data.
+        data_max_: Per-feature maximum seen in the training data.
+        data_range_: Per-feature range ($x_{\\max} - x_{\\min}$) seen in the data.
+
+        scale_: Per-feature relative scaling factor.
+        min_: Per-feature minimum adjustment.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.preprocessing import MinMaxScaler
+        from strata.core import Matrix
+
+        var scaler = MinMaxScaler[DType.float64](feature_range_min=0.0, feature_range_max=1.0)
+        scaler.fit(X_train)
+        var X_scaled = scaler.transform(X_train)
+        ```
     """
 
     var is_fitted: Bool
@@ -165,13 +233,17 @@ struct MinMaxScaler[compute_dtype: DType = DType.float64](
         feature_range_max: Scalar[Self.compute_dtype] = 1.0,
         clip: Bool = False,
     ) raises:
-        """Initializes the MinMaxScaler.
+        """Initialize the MinMaxScaler.
 
         Args:
-            feature_range_min: Lower bound of the transformed range.
-            feature_range_max: Upper bound of the transformed range.
-            clip: Whether to clip transformed values to the feature range.
+            feature_range_min: Lower bound of the transformed range. Default 0.0.
+            feature_range_max: Upper bound of the transformed range. Default 1.0.
+            clip: Whether to clip transformed values to the feature range. Default False.
+
+        Raises:
+            InvalidParameterError: If feature_range_min >= feature_range_max.
         """
+
         check_floating_dtype[Self.compute_dtype, "MinMaxScaler"]()
         if not feature_range_min < feature_range_max:
             raise InvalidParameterError.error(
@@ -368,10 +440,40 @@ def _quantile[
 struct RobustScaler[compute_dtype: DType = DType.float64](
     Copyable, Movable, Transformer
 ):
-    """Scales features using statistics that are robust to outliers.
+    """Scale features using statistics that are robust to outliers.
 
-    Centers on the median and scales by the configured quantile range,
-    which defaults to the interquartile range (25th to 75th percentile).
+    Centers the data on the median and scales by the Interquartile Range (IQR):
+
+    $$
+    x_{\\text{scaled}} = \\frac{x - \\text{median}}{\\text{IQR}}
+    $$
+
+    where $\\text{IQR} = Q_3 - Q_1$ (by default 75th percentile minus 25th percentile).
+
+    Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
+        with_centering: If True, center the data before scaling by subtracting the median. Default True.
+        with_scaling: If True, scale the data to interquartile range. Default True.
+        quantile_min: Lower quantile percentage of the scaling range ($0 <= q_{\\min} < q_{\\max} <= 100$). Default 25.0.
+        quantile_max: Upper quantile percentage of the scaling range. Default 75.0.
+
+
+    Attributes:
+        center_: Median value for each feature in the training set.
+        scale_: Interquartile range scaling factor for each feature.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.preprocessing import RobustScaler
+        from strata.core import Matrix
+
+        var scaler = RobustScaler[DType.float64]()
+        scaler.fit(X_train)
+        var X_scaled = scaler.transform(X_train)
+        ```
     """
 
     var is_fitted: Bool
@@ -390,14 +492,18 @@ struct RobustScaler[compute_dtype: DType = DType.float64](
         quantile_min: Float64 = 25.0,
         quantile_max: Float64 = 75.0,
     ) raises:
-        """Initializes the RobustScaler.
+        """Initialize the RobustScaler.
 
         Args:
-            with_centering: Whether to center the data on the median.
-            with_scaling: Whether to scale the data to the quantile range.
-            quantile_min: Lower quantile percentage of the scaling range.
-            quantile_max: Upper quantile percentage of the scaling range.
+            with_centering: Whether to center data by subtracting the median. Default True.
+            with_scaling: Whether to scale data to the quantile range. Default True.
+            quantile_min: Lower quantile percentage of the scaling range. Default 25.0.
+            quantile_max: Upper quantile percentage of the scaling range. Default 75.0.
+
+        Raises:
+            InvalidParameterError: If quantile bounds are invalid.
         """
+
         check_floating_dtype[Self.compute_dtype, "RobustScaler"]()
         if (
             quantile_min < 0.0

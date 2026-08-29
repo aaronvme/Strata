@@ -38,7 +38,20 @@ test-minibatch-kmeans = "mojo run -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -ll
 test-tree-regressor = "mojo run -I . tests/test_decision_tree_regressor.mojo"
 test-tree-classifier = "mojo run -I . tests/test_decision_tree_classifier.mojo"
 test-tree = { depends-on = ["test-tree-regressor", "test-tree-classifier"] }
-test-all = { depends-on = ["test-matrix", "test-linalg", "test-sparse", "test-math", "test-dataset", "test-pipelines", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-model-selection", "test-metrics", "test-linear-regression", "test-ridge", "test-logistic-regression", "test-decomposition", "test-kmeans-common", "test-kmeans", "test-minibatch-kmeans", "test-tree-regressor", "test-tree-classifier"] }
+test-rf-regressor = "mojo run -I . tests/test_random_forest_regressor.mojo"
+test-rf-classifier = "mojo run -I . tests/test_random_forest_classifier.mojo"
+test-ensemble = { depends-on = ["test-rf-regressor", "test-rf-classifier"] }
+test-all = { depends-on = ["test-matrix", "test-linalg", "test-sparse", "test-math", "test-dataset", "test-pipelines", "test-core", "test-view", "test-interop", "test-large", "test-preprocessing", "test-model-selection", "test-metrics", "test-linear-regression", "test-ridge", "test-logistic-regression", "test-decomposition", "test-kmeans-common", "test-kmeans", "test-minibatch-kmeans", "test-tree-regressor", "test-tree-classifier", "test-rf-regressor", "test-rf-classifier"] }
 test = "find tests -name 'test_*.mojo' -exec mojo -I . -Xlinker -L$CONDA_PREFIX/lib -Xlinker -llapack {} \\;"
+test-runner = "mojo run -I . scripts/run_tests.mojo"
+test-seq = "mojo run -I . scripts/run_tests.mojo --single-threaded"
 format = "mojo format strata tests"
+format-check = "mojo format strata tests && git diff --exit-code -- strata tests"
+ci = { depends-on = ["format-check", "build", "test-all"] }
+generate-docs = "python scripts/generate_docs.py"
+build-docs = { depends-on = ["generate-docs"] }
+serve-docs = "python -m http.server 8000 --directory docs"
+pre-pr = { depends-on = ["format-check", "build", "test-runner", "generate-docs"] }
+
+
 

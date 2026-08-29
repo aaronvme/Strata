@@ -144,7 +144,21 @@ def cross_val_score[
     cv: Int = 5,
     scoring: String = "r2",
 ) raises -> List[Float64]:
-    """Evaluates regression scores by cross-validation across K folds."""
+    """Evaluate regression scores by cross-validation across K folds.
+
+    Args:
+        estimator: The estimator object implementing `fit` and `predict`.
+        X: Feature matrix of shape $(N, D)$.
+        y: Target values vector of length $N$.
+        cv: Number of cross-validation folds ($K >= 2$). Default 5.
+        scoring: Evaluation metric name ('r2', 'mse', 'rmse', 'mae', etc.). Default 'r2'.
+
+    Returns:
+        List[Float64]: Array of evaluation metric scores for each run fold.
+
+    Raises:
+        InvalidParameterError: If cv < 2 or scoring metric is unrecognized.
+    """
     var kf = KFold(n_splits=cv)
     var splits = kf.split(X.rows)
     return cross_val_score[ModelType, feat_dtype, target_dtype](
@@ -163,7 +177,22 @@ def cross_val_score[
     splits: List[Split],
     scoring: String = "r2",
 ) raises -> List[Float64]:
-    """Evaluates regression scores by cross-validation on pre-defined splits."""
+    """Evaluate regression scores by cross-validation on predefined splits.
+
+    Args:
+        estimator: The estimator object implementing `fit` and `predict`.
+        X: Feature matrix of shape $(N, D)$.
+        y: Target values vector of length $N$.
+        splits: Predefined list of train/validation index split pairs.
+        scoring: Evaluation metric name ('r2', 'mse', 'rmse', 'mae', etc.). Default 'r2'.
+
+    Returns:
+        List[Float64]: Array of evaluation metric scores for each fold.
+
+    Raises:
+        InvalidParameterError: If splits list is empty or metric is unrecognized.
+    """
+
     check_X_y(X, y)
     var n_splits = len(splits)
     if n_splits == 0:

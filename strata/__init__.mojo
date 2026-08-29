@@ -109,3 +109,4 @@ from .metrics import (
     silhouette_score,
 )
 from .tree import DecisionTreeRegressor, DecisionTreeClassifier
+from .ensemble import RandomForestRegressor, RandomForestClassifier

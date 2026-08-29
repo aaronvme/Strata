@@ -16,9 +16,35 @@ from ..exceptions.errors import (
 struct Binarizer[compute_dtype: DType = DType.float64](
     Copyable, Movable, Transformer
 ):
-    """Binarizes features according to a threshold.
+    """Binarize feature values according to a threshold.
 
-    Values strictly greater than the threshold map to 1, all others map to 0.
+    Values strictly greater than the threshold map to 1, while values less than
+    or equal to the threshold map to 0:
+
+    $$
+    x_{\\text{bin}} = \\begin{cases} 1 & \\text{if } x > \\text{threshold} \\\\ 0 & \\text{otherwise} \\end{cases}
+    $$
+
+
+    Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
+        threshold: Feature values greater than this are mapped to 1. Default 0.0.
+
+    Attributes:
+        n_features_in_: Number of features seen during fit.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.preprocessing import Binarizer
+        from strata.core import Matrix
+
+        var binarizer = Binarizer[DType.float64](threshold=0.5)
+        binarizer.fit(X_train)
+        var X_bin = binarizer.transform(X_train)
+        ```
     """
 
     var is_fitted: Bool
@@ -27,11 +53,12 @@ struct Binarizer[compute_dtype: DType = DType.float64](
     var n_features_in_: Int
 
     def __init__(out self, threshold: Scalar[Self.compute_dtype] = 0.0) raises:
-        """Initializes the Binarizer.
+        """Initialize the Binarizer.
 
         Args:
-            threshold: Feature values above this are mapped to 1, others to 0.
+            threshold: Feature threshold boundary. Values greater than this map to 1. Default 0.0.
         """
+
         check_floating_dtype[Self.compute_dtype, "Binarizer"]()
         self.is_fitted = False
         self.fit_dtype = DType.float64

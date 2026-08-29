@@ -1,0 +1,758 @@
+[
+  {
+    "module": "core",
+    "name": "Matrix",
+    "kind": "struct",
+    "summary": "Dense 2D row-major matrix container with striding and view support.",
+    "ref_file": "reference/core/Matrix",
+    "traits": "ArrayLike, Copyable, Movable, Writable",
+    "file": "strata/core/matrix.mojo"
+  },
+  {
+    "module": "core",
+    "name": "MatrixView",
+    "kind": "struct",
+    "summary": "Non-owning 2D view over a contiguous or strided matrix memory buffer.",
+    "ref_file": "reference/core/MatrixView",
+    "traits": "ArrayLike, Copyable, Movable",
+    "file": "strata/core/view.mojo"
+  },
+  {
+    "module": "core",
+    "name": "SparseMatrix",
+    "kind": "trait",
+    "summary": "Base interface trait for 2D sparse matrix representations.",
+    "ref_file": "reference/core/SparseMatrix",
+    "traits": "",
+    "file": "strata/core/sparse.mojo"
+  },
+  {
+    "module": "core",
+    "name": "DatasetSplit",
+    "kind": "struct",
+    "summary": "Container holding train and test partitions of a Dataset.",
+    "ref_file": "reference/core/DatasetSplit",
+    "traits": "Movable",
+    "file": "strata/core/dataset.mojo"
+  },
+  {
+    "module": "core",
+    "name": "Dataset",
+    "kind": "struct",
+    "summary": "Machine learning dataset container pairing a feature matrix with targets.",
+    "ref_file": "reference/core/Dataset",
+    "traits": "Copyable, Movable",
+    "file": "strata/core/dataset.mojo"
+  },
+  {
+    "module": "core",
+    "name": "SVDResult",
+    "kind": "struct",
+    "summary": "Result of Singular Value Decomposition ($A = U \\Sigma V^T$).",
+    "ref_file": "reference/core/SVDResult",
+    "traits": "Copyable, Movable",
+    "file": "strata/core/linalg.mojo"
+  },
+  {
+    "module": "core",
+    "name": "QRResult",
+    "kind": "struct",
+    "summary": "Result of QR Decomposition ($A = Q R$).",
+    "ref_file": "reference/core/QRResult",
+    "traits": "Copyable, Movable",
+    "file": "strata/core/linalg.mojo"
+  },
+  {
+    "module": "core",
+    "name": "EigResult",
+    "kind": "struct",
+    "summary": "Result of Symmetric Eigenvalue Decomposition ($A V = V \\Lambda$).",
+    "ref_file": "reference/core/EigResult",
+    "traits": "Copyable, Movable",
+    "file": "strata/core/linalg.mojo"
+  },
+  {
+    "module": "core",
+    "name": "matrix_to_numpy",
+    "kind": "function",
+    "summary": "Converts a Strata Matrix[dtype] to a NumPy 2D array.",
+    "ref_file": "reference/core/matrix_to_numpy",
+    "traits": "",
+    "file": "strata/core/interop.mojo"
+  },
+  {
+    "module": "core",
+    "name": "matrix_from_numpy",
+    "kind": "function",
+    "summary": "Converts a 2D NumPy ndarray to a Strata Matrix[dtype].",
+    "ref_file": "reference/core/matrix_from_numpy",
+    "traits": "",
+    "file": "strata/core/interop.mojo"
+  },
+  {
+    "module": "core",
+    "name": "csr_to_scipy",
+    "kind": "function",
+    "summary": "Converts a Strata CSRMatrix[dtype] to a scipy.sparse.csr_matrix.",
+    "ref_file": "reference/core/csr_to_scipy",
+    "traits": "",
+    "file": "strata/core/interop.mojo"
+  },
+  {
+    "module": "core",
+    "name": "csr_from_scipy",
+    "kind": "function",
+    "summary": "Converts a scipy.sparse.csr_matrix to a Strata CSRMatrix[dtype].",
+    "ref_file": "reference/core/csr_from_scipy",
+    "traits": "",
+    "file": "strata/core/interop.mojo"
+  },
+  {
+    "module": "preprocessing",
+    "name": "StandardScaler",
+    "kind": "struct",
+    "summary": "Standardize features by removing the mean and scaling to unit variance.",
+    "ref_file": "reference/preprocessing/StandardScaler",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/preprocessing/scaler.mojo"
+  },
+  {
+    "module": "preprocessing",
+    "name": "MinMaxScaler",
+    "kind": "struct",
+    "summary": "Transform features by scaling each feature to a specified range.",
+    "ref_file": "reference/preprocessing/MinMaxScaler",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/preprocessing/scaler.mojo"
+  },
+  {
+    "module": "preprocessing",
+    "name": "RobustScaler",
+    "kind": "struct",
+    "summary": "Scale features using statistics that are robust to outliers.",
+    "ref_file": "reference/preprocessing/RobustScaler",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/preprocessing/scaler.mojo"
+  },
+  {
+    "module": "preprocessing",
+    "name": "Binarizer",
+    "kind": "struct",
+    "summary": "Binarize feature values according to a threshold.",
+    "ref_file": "reference/preprocessing/Binarizer",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/preprocessing/binarizer.mojo"
+  },
+  {
+    "module": "preprocessing",
+    "name": "OneHotEncoder",
+    "kind": "struct",
+    "summary": "Encode categorical features as a one-hot numeric array.",
+    "ref_file": "reference/preprocessing/OneHotEncoder",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/preprocessing/encoders.mojo"
+  },
+  {
+    "module": "linear_model",
+    "name": "LinearRegression",
+    "kind": "struct",
+    "summary": "Ordinary Least Squares Linear Regression.",
+    "ref_file": "reference/linear_model/LinearRegression",
+    "traits": "Copyable, Movable, Regressor",
+    "file": "strata/linear_model/linear_regression.mojo"
+  },
+  {
+    "module": "linear_model",
+    "name": "Ridge",
+    "kind": "struct",
+    "summary": "Ridge regression with L2 regularization.",
+    "ref_file": "reference/linear_model/Ridge",
+    "traits": "Copyable, Movable, Regressor",
+    "file": "strata/linear_model/ridge.mojo"
+  },
+  {
+    "module": "linear_model",
+    "name": "LogisticRegression",
+    "kind": "struct",
+    "summary": "Logistic Regression classifier with L2 regularization.",
+    "ref_file": "reference/linear_model/LogisticRegression",
+    "traits": "Classifier, Copyable, Movable",
+    "file": "strata/linear_model/logistic_regression.mojo"
+  },
+  {
+    "module": "tree",
+    "name": "DecisionTreeClassifier",
+    "kind": "struct",
+    "summary": "Decision Tree Classifier for non-parametric supervised classification.",
+    "ref_file": "reference/tree/DecisionTreeClassifier",
+    "traits": "Classifier, Copyable, Movable",
+    "file": "strata/tree/classifier.mojo"
+  },
+  {
+    "module": "tree",
+    "name": "DecisionTreeRegressor",
+    "kind": "struct",
+    "summary": "Decision Tree Regressor for non-parametric continuous target regression.",
+    "ref_file": "reference/tree/DecisionTreeRegressor",
+    "traits": "Copyable, Movable, Regressor",
+    "file": "strata/tree/regressor.mojo"
+  },
+  {
+    "module": "ensemble",
+    "name": "RandomForestRegressor",
+    "kind": "struct",
+    "summary": "Random Forest Regressor ensemble estimator.",
+    "ref_file": "reference/ensemble/RandomForestRegressor",
+    "traits": "Copyable, Movable, Regressor",
+    "file": "strata/ensemble/forest.mojo"
+  },
+  {
+    "module": "ensemble",
+    "name": "RandomForestClassifier",
+    "kind": "struct",
+    "summary": "Random Forest Classifier ensemble estimator.",
+    "ref_file": "reference/ensemble/RandomForestClassifier",
+    "traits": "Classifier, Copyable, Movable",
+    "file": "strata/ensemble/forest.mojo"
+  },
+  {
+    "module": "cluster",
+    "name": "KMeans",
+    "kind": "struct",
+    "summary": "K-Means clustering using Lloyd's or Elkan's algorithm.",
+    "ref_file": "reference/cluster/KMeans",
+    "traits": "Clusterer, Copyable, Movable",
+    "file": "strata/cluster/kmeans.mojo"
+  },
+  {
+    "module": "cluster",
+    "name": "MiniBatchKMeans",
+    "kind": "struct",
+    "summary": "Mini-Batch K-Means clustering algorithm.",
+    "ref_file": "reference/cluster/MiniBatchKMeans",
+    "traits": "Clusterer, Copyable, Movable",
+    "file": "strata/cluster/minibatch_kmeans.mojo"
+  },
+  {
+    "module": "decomposition",
+    "name": "PCA",
+    "kind": "struct",
+    "summary": "Principal Component Analysis (PCA).",
+    "ref_file": "reference/decomposition/PCA",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/decomposition/pca.mojo"
+  },
+  {
+    "module": "decomposition",
+    "name": "TruncatedSVD",
+    "kind": "struct",
+    "summary": "Dimensionality reduction using truncated SVD.",
+    "ref_file": "reference/decomposition/TruncatedSVD",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/decomposition/truncated_svd.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "train_test_split",
+    "kind": "function",
+    "summary": "Split a Dataset container into random train and test partitions.",
+    "ref_file": "reference/model_selection/train_test_split",
+    "traits": "",
+    "file": "strata/model_selection/split.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "train_test_split",
+    "kind": "function",
+    "summary": "Split feature matrix and target list into train and test partitions.",
+    "ref_file": "reference/model_selection/train_test_split",
+    "traits": "",
+    "file": "strata/model_selection/split.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "Split",
+    "kind": "struct",
+    "summary": "Pair of train and validation sample indices for a cross-validation fold.",
+    "ref_file": "reference/model_selection/Split",
+    "traits": "Movable",
+    "file": "strata/model_selection/kfold.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "KFold",
+    "kind": "struct",
+    "summary": "K-Fold cross-validator.",
+    "ref_file": "reference/model_selection/KFold",
+    "traits": "Movable",
+    "file": "strata/model_selection/kfold.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "StratifiedKFold",
+    "kind": "struct",
+    "summary": "Stratified K-Fold cross-validator for classification datasets.",
+    "ref_file": "reference/model_selection/StratifiedKFold",
+    "traits": "Movable",
+    "file": "strata/model_selection/stratified_kfold.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "TimeSeriesSplit",
+    "kind": "struct",
+    "summary": "Time Series cross-validator.",
+    "ref_file": "reference/model_selection/TimeSeriesSplit",
+    "traits": "Movable",
+    "file": "strata/model_selection/time_series_split.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "ShuffleSplit",
+    "kind": "struct",
+    "summary": "Random permutation cross-validator.",
+    "ref_file": "reference/model_selection/ShuffleSplit",
+    "traits": "Movable",
+    "file": "strata/model_selection/shuffle_split.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "StratifiedShuffleSplit",
+    "kind": "struct",
+    "summary": "Stratified random permutation cross-validator.",
+    "ref_file": "reference/model_selection/StratifiedShuffleSplit",
+    "traits": "Movable",
+    "file": "strata/model_selection/stratified_shuffle_split.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "CrossValidateResult",
+    "kind": "struct",
+    "summary": "Per-fold scores for one or more metrics from a cross-validation run.",
+    "ref_file": "reference/model_selection/CrossValidateResult",
+    "traits": "Movable",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "cross_val_score",
+    "kind": "function",
+    "summary": "Evaluate regression scores by cross-validation across K folds.",
+    "ref_file": "reference/model_selection/cross_val_score",
+    "traits": "",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "cross_val_score",
+    "kind": "function",
+    "summary": "Evaluate regression scores by cross-validation on predefined splits.",
+    "ref_file": "reference/model_selection/cross_val_score",
+    "traits": "",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "cross_val_score",
+    "kind": "function",
+    "summary": "Evaluates classification scores by stratified cross-validation across K folds.",
+    "ref_file": "reference/model_selection/cross_val_score",
+    "traits": "",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "cross_val_score",
+    "kind": "function",
+    "summary": "Evaluates classification scores by cross-validation on pre-defined splits.",
+    "ref_file": "reference/model_selection/cross_val_score",
+    "traits": "",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "cross_val_predict",
+    "kind": "function",
+    "summary": "Generates out-of-fold regression predictions across K folds.",
+    "ref_file": "reference/model_selection/cross_val_predict",
+    "traits": "",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "cross_val_predict",
+    "kind": "function",
+    "summary": "Generates out-of-fold regression predictions on pre-defined splits.",
+    "ref_file": "reference/model_selection/cross_val_predict",
+    "traits": "",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "cross_val_predict",
+    "kind": "function",
+    "summary": "Generates out-of-fold class label predictions across K stratified folds.",
+    "ref_file": "reference/model_selection/cross_val_predict",
+    "traits": "",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "cross_val_predict",
+    "kind": "function",
+    "summary": "Generates out-of-fold class label predictions on pre-defined splits.",
+    "ref_file": "reference/model_selection/cross_val_predict",
+    "traits": "",
+    "file": "strata/model_selection/validation.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "GridSearchRegressor",
+    "kind": "struct",
+    "summary": "Exhaustive hyperparameter grid search for regression models.",
+    "ref_file": "reference/model_selection/GridSearchRegressor",
+    "traits": "Copyable, Movable, Regressor",
+    "file": "strata/model_selection/grid_search.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "GridSearchClassifier",
+    "kind": "struct",
+    "summary": "Exhaustive hyperparameter grid search for classification models.",
+    "ref_file": "reference/model_selection/GridSearchClassifier",
+    "traits": "Classifier, Copyable, Movable",
+    "file": "strata/model_selection/grid_search.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "RandomizedSearchRegressor",
+    "kind": "struct",
+    "summary": "Randomized hyperparameter search for regression models.",
+    "ref_file": "reference/model_selection/RandomizedSearchRegressor",
+    "traits": "Copyable, Movable, Regressor",
+    "file": "strata/model_selection/randomized_search.mojo"
+  },
+  {
+    "module": "model_selection",
+    "name": "RandomizedSearchClassifier",
+    "kind": "struct",
+    "summary": "Randomized hyperparameter search for classification models.",
+    "ref_file": "reference/model_selection/RandomizedSearchClassifier",
+    "traits": "Classifier, Copyable, Movable",
+    "file": "strata/model_selection/randomized_search.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "mean_squared_error",
+    "kind": "function",
+    "summary": "Compute Mean Squared Error (MSE) regression loss.",
+    "ref_file": "reference/metrics/mean_squared_error",
+    "traits": "",
+    "file": "strata/metrics/regression.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "root_mean_squared_error",
+    "kind": "function",
+    "summary": "Compute Root Mean Squared Error (RMSE) regression loss.",
+    "ref_file": "reference/metrics/root_mean_squared_error",
+    "traits": "",
+    "file": "strata/metrics/regression.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "mean_absolute_error",
+    "kind": "function",
+    "summary": "Compute Mean Absolute Error (MAE) regression loss.",
+    "ref_file": "reference/metrics/mean_absolute_error",
+    "traits": "",
+    "file": "strata/metrics/regression.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "r2_score",
+    "kind": "function",
+    "summary": "Compute $R^2$ (coefficient of determination) regression score function.",
+    "ref_file": "reference/metrics/r2_score",
+    "traits": "",
+    "file": "strata/metrics/regression.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "unique_labels",
+    "kind": "function",
+    "summary": "Sorted list of the distinct labels appearing in y_true or y_pred.",
+    "ref_file": "reference/metrics/unique_labels",
+    "traits": "",
+    "file": "strata/metrics/classification.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "accuracy_score",
+    "kind": "function",
+    "summary": "Fraction (or count, if normalize is False) of correctly classified samples.",
+    "ref_file": "reference/metrics/accuracy_score",
+    "traits": "",
+    "file": "strata/metrics/classification.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "confusion_matrix",
+    "kind": "function",
+    "summary": "Confusion matrix C where C[i, j] counts samples of label i predicted as label j.",
+    "ref_file": "reference/metrics/confusion_matrix",
+    "traits": "",
+    "file": "strata/metrics/classification.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "precision_score",
+    "kind": "function",
+    "summary": "Compute classification precision score.",
+    "ref_file": "reference/metrics/precision_score",
+    "traits": "",
+    "file": "strata/metrics/classification.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "recall_score",
+    "kind": "function",
+    "summary": "Compute classification recall (sensitivity) score.",
+    "ref_file": "reference/metrics/recall_score",
+    "traits": "",
+    "file": "strata/metrics/classification.mojo"
+  },
+  {
+    "module": "metrics",
+    "name": "f1_score",
+    "kind": "function",
+    "summary": "Compute classification F1 score (harmonic mean of precision and recall).",
+    "ref_file": "reference/metrics/f1_score",
+    "traits": "",
+    "file": "strata/metrics/classification.mojo"
+  },
+  {
+    "module": "base",
+    "name": "Estimator",
+    "kind": "trait",
+    "summary": "Base marker trait for all Strata estimators.",
+    "ref_file": "reference/base/Estimator",
+    "traits": "Copyable, Deinitable, Movable",
+    "file": "strata/base/estimator.mojo"
+  },
+  {
+    "module": "base",
+    "name": "Transformer",
+    "kind": "trait",
+    "summary": "Interface for data preprocessing transformers.",
+    "ref_file": "reference/base/Transformer",
+    "traits": "Estimator",
+    "file": "strata/base/estimator.mojo"
+  },
+  {
+    "module": "base",
+    "name": "Regressor",
+    "kind": "trait",
+    "summary": "Interface for supervised regression models.",
+    "ref_file": "reference/base/Regressor",
+    "traits": "Estimator",
+    "file": "strata/base/estimator.mojo"
+  },
+  {
+    "module": "base",
+    "name": "Classifier",
+    "kind": "trait",
+    "summary": "Interface for supervised classification models.",
+    "ref_file": "reference/base/Classifier",
+    "traits": "Estimator",
+    "file": "strata/base/estimator.mojo"
+  },
+  {
+    "module": "base",
+    "name": "Clusterer",
+    "kind": "trait",
+    "summary": "Interface for unsupervised clustering algorithms.",
+    "ref_file": "reference/base/Clusterer",
+    "traits": "Estimator",
+    "file": "strata/base/estimator.mojo"
+  },
+  {
+    "module": "base",
+    "name": "PipelineTransformer",
+    "kind": "struct",
+    "summary": "Chains two data transformers into a single composite transformer.",
+    "ref_file": "reference/base/PipelineTransformer",
+    "traits": "Copyable, Movable, Transformer",
+    "file": "strata/base/pipeline.mojo"
+  },
+  {
+    "module": "base",
+    "name": "PipelineRegressor",
+    "kind": "struct",
+    "summary": "Sequentially applies a transformer pipeline before fitting a regressor.",
+    "ref_file": "reference/base/PipelineRegressor",
+    "traits": "Copyable, Movable, Regressor",
+    "file": "strata/base/pipeline.mojo"
+  },
+  {
+    "module": "base",
+    "name": "PipelineClassifier",
+    "kind": "struct",
+    "summary": "Sequentially applies a transformer pipeline before fitting a classifier.",
+    "ref_file": "reference/base/PipelineClassifier",
+    "traits": "Classifier, Copyable, Movable",
+    "file": "strata/base/pipeline.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "PRNG",
+    "kind": "struct",
+    "summary": "64-bit SplitMix64 pseudo-random number generator with unbiased range generation.",
+    "ref_file": "reference/utils/PRNG",
+    "traits": "Copyable, Movable",
+    "file": "strata/utils/random.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "sigmoid",
+    "kind": "function",
+    "summary": "Compute the logistic sigmoid function $\\sigma(x)$.",
+    "ref_file": "reference/utils/sigmoid",
+    "traits": "",
+    "file": "strata/utils/math.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "softmax",
+    "kind": "function",
+    "summary": "Compute numerically stable softmax probability distribution.",
+    "ref_file": "reference/utils/softmax",
+    "traits": "",
+    "file": "strata/utils/math.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "log_sum_exp",
+    "kind": "function",
+    "summary": "Compute numerically stable log-sum-exp: $\\text{LSE}(x) = \\ln \\sum_i e^{x_i}$.",
+    "ref_file": "reference/utils/log_sum_exp",
+    "traits": "",
+    "file": "strata/utils/math.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "check_is_fitted",
+    "kind": "function",
+    "summary": "",
+    "ref_file": "reference/utils/check_is_fitted",
+    "traits": "",
+    "file": "strata/utils/validation.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "check_floating_dtype",
+    "kind": "function",
+    "summary": "Asserts at compile time that the specified dtype is a floating-point type.",
+    "ref_file": "reference/utils/check_floating_dtype",
+    "traits": "",
+    "file": "strata/utils/validation.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "check_array",
+    "kind": "function",
+    "summary": "",
+    "ref_file": "reference/utils/check_array",
+    "traits": "",
+    "file": "strata/utils/validation.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "check_X_y",
+    "kind": "function",
+    "summary": "",
+    "ref_file": "reference/utils/check_X_y",
+    "traits": "",
+    "file": "strata/utils/validation.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "check_finite",
+    "kind": "function",
+    "summary": "Rejects NaN and infinite entries in a target or prediction list.",
+    "ref_file": "reference/utils/check_finite",
+    "traits": "",
+    "file": "strata/utils/validation.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "check_consistent_length",
+    "kind": "function",
+    "summary": "",
+    "ref_file": "reference/utils/check_consistent_length",
+    "traits": "",
+    "file": "strata/utils/validation.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "check_consistent_length",
+    "kind": "function",
+    "summary": "",
+    "ref_file": "reference/utils/check_consistent_length",
+    "traits": "",
+    "file": "strata/utils/validation.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "check_sparse",
+    "kind": "function",
+    "summary": "Validates CSR/CSC sparse matrix format invariants.",
+    "ref_file": "reference/utils/check_sparse",
+    "traits": "",
+    "file": "strata/utils/validation.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "NotFittedError",
+    "kind": "struct",
+    "summary": "Exception raised when an estimator is used before calling `fit`.",
+    "ref_file": "reference/utils/NotFittedError",
+    "traits": "Copyable, Movable, Writable",
+    "file": "strata/exceptions/errors.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "DimensionMismatchError",
+    "kind": "struct",
+    "summary": "Exception raised when input matrix/vector dimensions do not match requirements.",
+    "ref_file": "reference/utils/DimensionMismatchError",
+    "traits": "Copyable, Movable, Writable",
+    "file": "strata/exceptions/errors.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "ConvergenceError",
+    "kind": "struct",
+    "summary": "Exception raised when iterative optimization fails to converge within max iterations.",
+    "ref_file": "reference/utils/ConvergenceError",
+    "traits": "Copyable, Movable, Writable",
+    "file": "strata/exceptions/errors.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "InvalidParameterError",
+    "kind": "struct",
+    "summary": "Exception raised when an invalid hyperparameter value is supplied.",
+    "ref_file": "reference/utils/InvalidParameterError",
+    "traits": "Copyable, Movable, Writable",
+    "file": "strata/exceptions/errors.mojo"
+  },
+  {
+    "module": "utils",
+    "name": "DataConversionError",
+    "kind": "struct",
+    "summary": "Exception raised when data type conversion or matrix array formatting fails.",
+    "ref_file": "reference/utils/DataConversionError",
+    "traits": "Copyable, Movable, Writable",
+    "file": "strata/exceptions/errors.mojo"
+  }
+]

@@ -33,12 +33,34 @@ def _index_of[
 struct OneHotEncoder[compute_dtype: DType = DType.float64](
     Copyable, Movable, Transformer
 ):
-    """Encodes categorical integer or float features as a one-hot dense matrix.
+    """Encode categorical features as a one-hot numeric array.
 
-    Each input column is expanded into one indicator column per category
-    observed during `fit`, ordered ascending by category value. A `drop`
-    strategy removes one indicator per affected column, so a column with a
-    single category contributes no output columns under `drop="first"`.
+    The input to this transformer should be a 2D matrix of integer or float
+    categorical features. The features are encoded using a one-hot (also known as
+    'one-of-K' or 'dummy') encoding scheme.
+
+    Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
+        drop: Category dropping strategy ('none', 'first', 'if_binary'). Default 'none'.
+        handle_unknown: Behavior for unseen categories during transform ('error', 'ignore'). Default 'error'.
+
+    Attributes:
+        categories_: Categories of each feature determined during fitting.
+        drop_idx_: Indices of dropped categories for each feature.
+        n_features_in_: Number of features seen during fit.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.preprocessing import OneHotEncoder
+        from strata.core import Matrix
+
+        var encoder = OneHotEncoder[DType.float64](drop="if_binary")
+        encoder.fit(X_cat)
+        var X_encoded = encoder.transform(X_cat)
+        ```
     """
 
     var is_fitted: Bool
@@ -52,12 +74,16 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
     def __init__(
         out self, drop: String = "none", handle_unknown: String = "error"
     ) raises:
-        """Initializes the OneHotEncoder.
+        """Initialize the OneHotEncoder.
 
         Args:
-            drop: Category dropping strategy ('none', 'first', 'if_binary').
-            handle_unknown: Behavior for unseen categories ('error', 'ignore').
+            drop: Category dropping strategy ('none', 'first', 'if_binary'). Default 'none'.
+            handle_unknown: Behavior for unseen categories ('error', 'ignore'). Default 'error'.
+
+        Raises:
+            InvalidParameterError: If drop or handle_unknown strategies are unrecognized.
         """
+
         check_floating_dtype[Self.compute_dtype, "OneHotEncoder"]()
         if drop != "none" and drop != "first" and drop != "if_binary":
             raise InvalidParameterError.error(

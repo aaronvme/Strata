@@ -15,11 +15,41 @@ struct LogisticRegression[
 ](Classifier, Copyable, Movable):
     """Logistic Regression classifier with L2 regularization.
 
-    Supports binary and multiclass (multinomial) classification with
-    gradient optimization.
+    Supports binary and multiclass (multinomial) classification by minimizing
+    the regularized cross-entropy loss with gradient optimization:
+
+    $$
+    \\min_{W, b} -\\frac{1}{N} \\sum_{i=1}^{N} \\ln P(y_i \\mid x_i; W, b) + \\frac{1}{2C} \\|W\\|_F^2
+    $$
+
 
     Parameters:
-        compute_dtype: Floating point precision for internal computations (default: Float64).
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
+        penalty: Regularization norm ('l2' or 'none'). Default 'l2'.
+        C: Inverse regularization strength ($C > 0$). Smaller values specify stronger regularization. Default 1.0.
+        fit_intercept: Whether to calculate the intercept bias vector. Default True.
+        max_iter: Maximum number of gradient optimization iterations. Default 100.
+        tol: Tolerance threshold for stopping criterion based on gradient norm. Default 1e-4.
+        learning_rate: Step size for gradient descent optimization updates. Default 0.1.
+
+    Attributes:
+        classes_: Sorted list of unique class labels seen during fit.
+        coef_: Learned weight coefficient matrix of shape $(K, D)$.
+        intercept_: Learned bias intercept vector of length $K$.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.linear_model import LogisticRegression
+        from strata.core import Matrix
+
+        var clf = LogisticRegression[DType.float64](C=1.0, max_iter=200)
+        clf.fit(X_train, y_train)
+        var probs = clf.predict_proba(X_test)
+        var preds = clf.predict(X_test)
+        ```
     """
 
     var is_fitted: Bool
@@ -42,16 +72,20 @@ struct LogisticRegression[
         tol: Scalar[Self.compute_dtype] = 1e-4,
         learning_rate: Scalar[Self.compute_dtype] = 0.1,
     ) raises:
-        """Initializes the LogisticRegression estimator.
+        """Initialize the LogisticRegression estimator.
 
         Args:
-            penalty: Regularization norm ('l2' or 'none').
-            C: Inverse regularization strength (must be strictly positive).
-            fit_intercept: Whether to calculate the intercept / bias term.
-            max_iter: Maximum number of optimization iterations.
-            tol: Tolerance for stopping criterion.
-            learning_rate: Initial step size for gradient updates.
+            penalty: Regularization norm ('l2' or 'none'). Default 'l2'.
+            C: Inverse regularization strength (must be strictly positive). Default 1.0.
+            fit_intercept: Whether to calculate the intercept bias term. Default True.
+            max_iter: Maximum number of optimization iterations. Default 100.
+            tol: Tolerance for stopping criterion. Default 1e-4.
+            learning_rate: Initial step size for gradient updates. Default 0.1.
+
+        Raises:
+            InvalidParameterError: If penalty is unsupported, C <= 0, max_iter <= 0, or tol < 0.
         """
+
         check_floating_dtype[Self.compute_dtype, "LogisticRegression"]()
         if penalty != "l2" and penalty != "none" and penalty != "None":
             raise InvalidParameterError.error(
@@ -215,13 +249,18 @@ struct LogisticRegression[
     def predict_proba[
         feat_dtype: DType
     ](self, X: Matrix[feat_dtype]) raises -> Matrix[feat_dtype]:
-        """Predicts class probability distributions for samples in X.
+        """Predict class probability distributions for samples in X.
 
         Args:
-            X: Feature matrix of shape (N x D).
+            X: Feature matrix of shape $(N, D)$.
 
         Returns:
-            Matrix of shape (N x K) where row i contains normalized class probabilities.
+            Matrix[feat_dtype]: Probability matrix of shape $(N, K)$, where row $i$
+                contains the normalized probability distribution over $K$ classes.
+
+        Raises:
+            NotFittedError: If the estimator has not been fitted.
+            DimensionMismatchError: If the feature dimension of $X$ does not match `coef_.cols`.
         """
         check_is_fitted("LogisticRegression", self.is_fitted)
         check_array[feat_dtype](X)
@@ -257,15 +296,20 @@ struct LogisticRegression[
     def predict[
         feat_dtype: DType
     ](self, X: Matrix[feat_dtype]) raises -> List[Int]:
-        """Predicts discrete class labels for samples in X.
+        """Predict discrete class labels for samples in X.
 
         Args:
-            X: Feature matrix of shape (N x D).
+            X: Feature matrix of shape $(N, D)$.
 
         Returns:
-            List of predicted class labels (length N).
+            List[Int]: Predicted class labels vector of length $N$.
+
+        Raises:
+            NotFittedError: If the estimator has not been fitted.
+            DimensionMismatchError: If the feature dimension of $X$ does not match `coef_.cols`.
         """
         check_is_fitted("LogisticRegression", self.is_fitted)
+
         check_array[feat_dtype](X)
         var D = self.coef_.cols
         if X.cols != D:
