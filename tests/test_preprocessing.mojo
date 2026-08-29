@@ -1,3 +1,4 @@
+from std.math import isnan
 from std.testing import (
     TestSuite,
     assert_equal,
@@ -15,6 +16,7 @@ from strata import (
     OneHotEncoder,
     OrdinalEncoder,
     LabelEncoder,
+    SimpleImputer,
     NotFittedError,
     DataConversionError,
 )
@@ -2168,6 +2170,353 @@ def test_label_encoder_copy_constructor() raises:
 
     var codes = clone.transform(y)
     assert_equal(codes[0], 2.0)
+
+
+def _imputer_fixture() raises -> Matrix[DType.float64]:
+    var nan = Float64(0.0) / Float64(0.0)
+    var X = Matrix[DType.float64](4, 2, 0)
+    X[0, 0] = 1000.0
+    X[1, 0] = nan
+    X[2, 0] = 2000.0
+    X[3, 0] = 3000.0
+    X[0, 1] = 3.0
+    X[1, 1] = 2.0
+    X[2, 1] = nan
+    X[3, 1] = 3.0
+    return X^
+
+
+def test_simple_imputer_mean_statistics() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    imputer.fit(X)
+
+    assert_true(imputer.is_fitted)
+    assert_equal(imputer.n_features_in_, 2)
+    assert_equal(len(imputer.statistics_), 2)
+    assert_almost_equal(imputer.statistics_[0], 2000.0)
+    assert_almost_equal(imputer.statistics_[1], 2.6666666666666665)
+
+
+def test_simple_imputer_median_statistics() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("median")
+    imputer.fit(X)
+    assert_almost_equal(imputer.statistics_[0], 2000.0)
+    assert_almost_equal(imputer.statistics_[1], 3.0)
+
+
+def test_simple_imputer_median_even_count_averages_middles() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = 1.0
+    X[1, 0] = 2.0
+    X[2, 0] = 3.0
+    X[3, 0] = 4.0
+
+    var imputer = SimpleImputer("median")
+    imputer.fit(X)
+    assert_almost_equal(imputer.statistics_[0], 2.5)
+
+
+def test_simple_imputer_most_frequent_statistics() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("most_frequent")
+    imputer.fit(X)
+    assert_equal(imputer.statistics_[0], 1000.0)
+    assert_equal(imputer.statistics_[1], 3.0)
+
+
+def test_simple_imputer_most_frequent_tie_takes_smallest() raises:
+    var X = Matrix[DType.float64](4, 1, 0)
+    X[0, 0] = 7.0
+    X[1, 0] = 3.0
+    X[2, 0] = 7.0
+    X[3, 0] = 3.0
+
+    var imputer = SimpleImputer("most_frequent")
+    imputer.fit(X)
+    assert_equal(imputer.statistics_[0], 3.0)
+
+
+def test_simple_imputer_constant_ignores_data() raises:
+    var nan = Float64(0.0) / Float64(0.0)
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("constant", nan, -7.0)
+    imputer.fit(X)
+    assert_equal(imputer.statistics_[0], -7.0)
+    assert_equal(imputer.statistics_[1], -7.0)
+
+
+def test_simple_imputer_fills_holes() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    var Xf = imputer.fit_transform(X)
+
+    assert_equal(Xf.rows, 4)
+    assert_equal(Xf.cols, 2)
+    assert_almost_equal(Xf[1, 0], 2000.0)
+    assert_almost_equal(Xf[2, 1], 2.6666666666666665)
+
+
+def test_simple_imputer_output_has_no_missing_values() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    var Xf = imputer.fit_transform(X)
+    for r in range(Xf.rows):
+        for c in range(Xf.cols):
+            assert_true(not isnan(Xf[r, c]))
+
+
+def test_simple_imputer_preserves_observed_values() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    var Xf = imputer.fit_transform(X)
+
+    assert_equal(Xf[0, 0], 1000.0)
+    assert_equal(Xf[2, 0], 2000.0)
+    assert_equal(Xf[3, 0], 3000.0)
+    assert_equal(Xf[0, 1], 3.0)
+    assert_equal(Xf[1, 1], 2.0)
+    assert_equal(Xf[3, 1], 3.0)
+
+
+def test_simple_imputer_fit_transform_matches_fit_then_transform() raises:
+    var X = _imputer_fixture()
+    var a = SimpleImputer("mean")
+    var combined = a.fit_transform(X)
+
+    var b = SimpleImputer("mean")
+    b.fit(X)
+    var separate = b.transform(X)
+
+    for r in range(4):
+        for c in range(2):
+            assert_equal(combined[r, c], separate[r, c])
+
+
+def test_simple_imputer_transform_uses_fitted_statistics() raises:
+    var nan = Float64(0.0) / Float64(0.0)
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    imputer.fit(X)
+
+    var fresh = Matrix[DType.float64](1, 2, 0)
+    fresh[0, 0] = nan
+    fresh[0, 1] = 9.0
+
+    var out = imputer.transform(fresh)
+    assert_almost_equal(out[0, 0], 2000.0)
+    assert_equal(out[0, 1], 9.0)
+
+
+def test_simple_imputer_sentinel_missing_values() raises:
+    var X = Matrix[DType.float64](3, 1, 0)
+    X[0, 0] = -1.0
+    X[1, 0] = 4.0
+    X[2, 0] = 6.0
+
+    var imputer = SimpleImputer("mean", -1.0)
+    var Xf = imputer.fit_transform(X)
+    assert_almost_equal(imputer.statistics_[0], 5.0)
+    assert_almost_equal(Xf[0, 0], 5.0)
+    assert_equal(Xf[1, 0], 4.0)
+    assert_equal(Xf[2, 0], 6.0)
+
+
+def test_simple_imputer_zero_sentinel() raises:
+    var X = Matrix[DType.float64](3, 1, 0)
+    X[0, 0] = 0.0
+    X[1, 0] = 2.0
+    X[2, 0] = 4.0
+
+    var imputer = SimpleImputer("mean", 0.0)
+    var Xf = imputer.fit_transform(X)
+    assert_almost_equal(imputer.statistics_[0], 3.0)
+    assert_almost_equal(Xf[0, 0], 3.0)
+
+
+def test_simple_imputer_all_missing_column_raises() raises:
+    var nan = Float64(0.0) / Float64(0.0)
+    var X = Matrix[DType.float64](2, 1, nan)
+
+    var mean = SimpleImputer("mean")
+    with assert_raises():
+        mean.fit(X)
+    assert_true(not mean.is_fitted)
+
+    var median = SimpleImputer("median")
+    with assert_raises():
+        median.fit(X)
+
+    var mode = SimpleImputer("most_frequent")
+    with assert_raises():
+        mode.fit(X)
+
+
+def test_simple_imputer_all_missing_column_constant_fills() raises:
+    var nan = Float64(0.0) / Float64(0.0)
+    var X = Matrix[DType.float64](2, 1, nan)
+
+    var imputer = SimpleImputer("constant", nan, 7.0)
+    var Xf = imputer.fit_transform(X)
+    assert_equal(imputer.statistics_[0], 7.0)
+    assert_equal(Xf[0, 0], 7.0)
+    assert_equal(Xf[1, 0], 7.0)
+
+
+def test_simple_imputer_rejects_infinity() raises:
+    var inf = Float64(1.0) / Float64(0.0)
+    var X = Matrix[DType.float64](2, 1, 0)
+    X[0, 0] = 1.0
+    X[1, 0] = inf
+
+    var imputer = SimpleImputer("mean")
+    with assert_raises():
+        imputer.fit(X)
+
+
+def test_simple_imputer_rejects_stray_nan_with_sentinel() raises:
+    var nan = Float64(0.0) / Float64(0.0)
+    var X = Matrix[DType.float64](2, 1, 0)
+    X[0, 0] = 5.0
+    X[1, 0] = nan
+
+    var imputer = SimpleImputer("mean", -1.0)
+    with assert_raises():
+        imputer.fit(X)
+
+
+def test_simple_imputer_failed_refit_preserves_state() raises:
+    var nan = Float64(0.0) / Float64(0.0)
+    var good = Matrix[DType.float64](2, 1, 0)
+    good[0, 0] = 4.0
+    good[1, 0] = 6.0
+
+    var imputer = SimpleImputer("mean")
+    imputer.fit(good)
+    assert_almost_equal(imputer.statistics_[0], 5.0)
+
+    var bad = Matrix[DType.float64](2, 2, nan)
+    with assert_raises():
+        imputer.fit(bad)
+
+    assert_true(imputer.is_fitted)
+    assert_equal(imputer.n_features_in_, 1)
+    assert_equal(len(imputer.statistics_), 1)
+    assert_almost_equal(imputer.statistics_[0], 5.0)
+
+
+def test_simple_imputer_feature_names_default() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    imputer.fit(X)
+
+    var names = imputer.get_feature_names_out()
+    assert_equal(len(names), 2)
+    assert_equal(names[0], "x0")
+    assert_equal(names[1], "x1")
+
+
+def test_simple_imputer_feature_names_passthrough() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    imputer.fit(X)
+
+    var given: List[String] = ["sqft", "beds"]
+    var names = imputer.get_feature_names_out(given)
+    assert_equal(names[0], "sqft")
+    assert_equal(names[1], "beds")
+
+
+def test_simple_imputer_feature_names_length_mismatch() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    imputer.fit(X)
+
+    var given: List[String] = ["only_one"]
+    with assert_raises():
+        _ = imputer.get_feature_names_out(given)
+
+
+def test_simple_imputer_dataset_keeps_targets_and_names() raises:
+    var X = Matrix[DType.float64](4, 2, 0)
+    X[0, 0] = 1000.0
+    X[1, 0] = -1.0
+    X[2, 0] = 2000.0
+    X[3, 0] = 3000.0
+    X[0, 1] = 3.0
+    X[1, 1] = 2.0
+    X[2, 1] = -1.0
+    X[3, 1] = 3.0
+
+    var y: List[Scalar[DType.float64]] = [10.0, 20.0, 30.0, 40.0]
+    var fnames: List[String] = ["sqft", "beds"]
+    var tnames: List[String] = ["price"]
+    var ds = Dataset(X^, y^, fnames^, tnames^)
+
+    var imputer = SimpleImputer("mean", -1.0)
+    var ds_out = imputer.fit_transform(ds)
+
+    assert_equal(ds_out.n_samples(), 4)
+    assert_equal(ds_out.n_features(), 2)
+    assert_equal(ds_out.feature_names[0], "sqft")
+    assert_equal(ds_out.feature_names[1], "beds")
+    assert_equal(ds_out.target_names[0], "price")
+    assert_equal(ds_out.targets[3], 40.0)
+    assert_almost_equal(ds_out.records[1, 0], 2000.0)
+    assert_almost_equal(ds_out.records[2, 1], 2.6666666666666665)
+
+
+def test_simple_imputer_not_fitted() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+
+    with assert_raises():
+        _ = imputer.transform(X)
+    with assert_raises():
+        _ = imputer.get_feature_names_out()
+
+
+def test_simple_imputer_invalid_strategy() raises:
+    with assert_raises():
+        _ = SimpleImputer("mode")
+    with assert_raises():
+        _ = SimpleImputer("MEAN")
+
+
+def test_simple_imputer_dtype_incoherence_prevention() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    imputer.fit(X)
+
+    var X32 = Matrix[DType.float32](4, 2, 0)
+    with assert_raises():
+        _ = imputer.transform(X32)
+
+
+def test_simple_imputer_dimension_mismatch_transform() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("mean")
+    imputer.fit(X)
+
+    var wide = Matrix[DType.float64](2, 3, 0)
+    with assert_raises():
+        _ = imputer.transform(wide)
+
+
+def test_simple_imputer_copy_constructor() raises:
+    var X = _imputer_fixture()
+    var imputer = SimpleImputer("median")
+    imputer.fit(X)
+
+    var clone = SimpleImputer[DType.float64](copy=imputer)
+    assert_true(clone.is_fitted)
+    assert_equal(clone.strategy, "median")
+    assert_equal(clone.n_features_in_, 2)
+    assert_almost_equal(clone.statistics_[0], 2000.0)
+
+    var Xf = clone.transform(X)
+    assert_almost_equal(Xf[1, 0], 2000.0)
 
 
 def main() raises:

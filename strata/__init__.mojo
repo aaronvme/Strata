@@ -75,6 +75,7 @@ from .preprocessing import (
     OneHotEncoder,
     OrdinalEncoder,
     LabelEncoder,
+    SimpleImputer,
 )
 from .model_selection import (
     train_test_split,
