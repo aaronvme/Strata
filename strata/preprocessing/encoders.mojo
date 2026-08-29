@@ -338,7 +338,9 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
         return res^
 
 
-struct OrdinalEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
+struct OrdinalEncoder[compute_dtype: DType = DType.float64](
+    Copyable, Movable, Transformer
+):
     """Encode categorical features as integer codes.
 
     Each feature column is mapped onto the integers 0 to n_categories - 1,
@@ -507,3 +509,10 @@ struct OrdinalEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
                 res[r, c] = Scalar[in_dtype](idx)
 
         return res^
+
+    def fit_transform[
+        in_dtype: DType
+    ](mut self, X: Matrix[in_dtype]) raises -> Matrix[in_dtype]:
+        """Learns the categories of X and returns its integer codes."""
+        self.fit[in_dtype](X)
+        return self.transform[in_dtype](X)
