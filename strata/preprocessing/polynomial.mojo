@@ -212,3 +212,68 @@ struct PolynomialFeatures[compute_dtype: DType = DType.float64](
         """Builds the exponent table for X and returns its expanded terms."""
         self.fit[in_dtype](X)
         return self.transform[in_dtype](X)
+
+    def get_feature_names_out(
+        self, input_features: List[String] = List[String]()
+    ) raises -> List[String]:
+        """Output column names such as '1', 'x0', 'x0^2' and 'x0 x1'."""
+        check_is_fitted("PolynomialFeatures", self.is_fitted)
+        if (
+            len(input_features) != 0
+            and len(input_features) != self.n_features_in_
+        ):
+            raise DimensionMismatchError.error(
+                "len(input_features) == " + String(self.n_features_in_),
+                "len(input_features) == " + String(len(input_features)),
+                "PolynomialFeatures.get_feature_names_out",
+            )
+
+        var use_given = len(input_features) != 0
+        var base = List[String](capacity=self.n_features_in_)
+        for i in range(self.n_features_in_):
+            base.append(input_features[i] if use_given else "x" + String(i))
+
+        var names = List[String](capacity=len(self.powers_))
+        for j in range(len(self.powers_)):
+            var name = String("")
+            var empty = True
+            for i in range(self.n_features_in_):
+                var exponent = self.powers_[j][i]
+                if exponent == 0:
+                    continue
+                if not empty:
+                    name += " "
+                name += base[i]
+                if exponent > 1:
+                    name += "^" + String(exponent)
+                empty = False
+            if empty:
+                name = "1"
+            names.append(name)
+
+        return names^
+
+    def transform[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](self, dataset: Dataset[feat_dtype, target_dtype]) raises -> Dataset[
+        feat_dtype, target_dtype
+    ]:
+        """Expands the feature matrix of a Dataset, keeping targets."""
+        var expanded_records = self.transform[feat_dtype](dataset.records)
+        return Dataset[feat_dtype, target_dtype](
+            expanded_records^,
+            dataset.targets.copy(),
+            self.get_feature_names_out(dataset.feature_names),
+            dataset.target_names.copy(),
+        )
+
+    def fit_transform[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises -> Dataset[
+        feat_dtype, target_dtype
+    ]:
+        """Builds the exponent table for a Dataset and expands it."""
+        self.fit[feat_dtype, target_dtype](dataset)
+        return self.transform[feat_dtype, target_dtype](dataset)
