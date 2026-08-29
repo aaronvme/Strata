@@ -13,6 +13,7 @@ from strata import (
     RobustScaler,
     Binarizer,
     OneHotEncoder,
+    OrdinalEncoder,
     NotFittedError,
     DataConversionError,
 )
@@ -1610,6 +1611,338 @@ def test_robust_scaler_quantile_100_uses_maximum() raises:
     var half = RobustScaler(True, True, 0.0, 50.0)
     half.fit(X)
     assert_almost_equal(half.scale_[0], 5.0, atol=1e-12)
+
+
+def _ordinal_fixture() raises -> Matrix[DType.float64]:
+    var X = Matrix[DType.float64](4, 2, 0)
+    X[0, 0] = 20.0
+    X[1, 0] = 10.0
+    X[2, 0] = 20.0
+    X[3, 0] = 30.0
+    X[0, 1] = 5.0
+    X[1, 1] = 7.0
+    X[2, 1] = 7.0
+    X[3, 1] = 5.0
+    return X^
+
+
+def test_ordinal_encoder_categories_discovered_sorted() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    encoder.fit(X)
+
+    assert_true(encoder.is_fitted)
+    assert_equal(encoder.n_features_in_, 2)
+    assert_equal(len(encoder.categories_[0]), 3)
+    assert_equal(encoder.categories_[0][0], 10.0)
+    assert_equal(encoder.categories_[0][1], 20.0)
+    assert_equal(encoder.categories_[0][2], 30.0)
+    assert_equal(len(encoder.categories_[1]), 2)
+    assert_equal(encoder.categories_[1][0], 5.0)
+    assert_equal(encoder.categories_[1][1], 7.0)
+
+
+def test_ordinal_encoder_preserves_shape() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    var Xe = encoder.fit_transform(X)
+    assert_equal(Xe.rows, 4)
+    assert_equal(Xe.cols, 2)
+
+
+def test_ordinal_encoder_codes() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    var Xe = encoder.fit_transform(X)
+
+    var expected: List[List[Float64]] = [
+        [1.0, 0.0],
+        [0.0, 1.0],
+        [1.0, 1.0],
+        [2.0, 0.0],
+    ]
+    for r in range(4):
+        for c in range(2):
+            assert_equal(Xe[r, c], expected[r][c])
+
+
+def test_ordinal_encoder_columns_encoded_independently() raises:
+    var X = Matrix[DType.float64](2, 2, 0)
+    X[0, 0] = 100.0
+    X[1, 0] = 200.0
+    X[0, 1] = 3.0
+    X[1, 1] = 4.0
+
+    var encoder = OrdinalEncoder()
+    var Xe = encoder.fit_transform(X)
+    assert_equal(Xe[0, 0], 0.0)
+    assert_equal(Xe[1, 0], 1.0)
+    assert_equal(Xe[0, 1], 0.0)
+    assert_equal(Xe[1, 1], 1.0)
+
+
+def test_ordinal_encoder_fit_transform_matches_fit_then_transform() raises:
+    var X = _ordinal_fixture()
+    var a = OrdinalEncoder()
+    var combined = a.fit_transform(X)
+
+    var b = OrdinalEncoder()
+    b.fit(X)
+    var separate = b.transform(X)
+
+    for r in range(4):
+        for c in range(2):
+            assert_equal(combined[r, c], separate[r, c])
+
+
+def test_ordinal_encoder_single_category_column() raises:
+    var X = Matrix[DType.float64](3, 1, 7.0)
+    var encoder = OrdinalEncoder()
+    var Xe = encoder.fit_transform(X)
+    assert_equal(len(encoder.categories_[0]), 1)
+    for r in range(3):
+        assert_equal(Xe[r, 0], 0.0)
+
+
+def test_ordinal_encoder_negative_categories() raises:
+    var X = Matrix[DType.float64](3, 1, 0)
+    X[0, 0] = -5.0
+    X[1, 0] = 0.0
+    X[2, 0] = -9.0
+
+    var encoder = OrdinalEncoder()
+    var Xe = encoder.fit_transform(X)
+    assert_equal(encoder.categories_[0][0], -9.0)
+    assert_equal(encoder.categories_[0][1], -5.0)
+    assert_equal(encoder.categories_[0][2], 0.0)
+    assert_equal(Xe[0, 0], 1.0)
+    assert_equal(Xe[1, 0], 2.0)
+    assert_equal(Xe[2, 0], 0.0)
+
+
+def test_ordinal_encoder_unknown_category_raises() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    encoder.fit(X)
+
+    var Xn = Matrix[DType.float64](1, 2, 0)
+    Xn[0, 0] = 99.0
+    Xn[0, 1] = 5.0
+    with assert_raises():
+        _ = encoder.transform(Xn)
+
+
+def test_ordinal_encoder_unknown_uses_encoded_value() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder(handle_unknown="use_encoded_value")
+    encoder.fit(X)
+
+    var Xn = Matrix[DType.float64](2, 2, 0)
+    Xn[0, 0] = 99.0
+    Xn[0, 1] = 5.0
+    Xn[1, 0] = 10.0
+    Xn[1, 1] = 42.0
+
+    var Xe = encoder.transform(Xn)
+    assert_equal(Xe[0, 0], -1.0)
+    assert_equal(Xe[0, 1], 0.0)
+    assert_equal(Xe[1, 0], 0.0)
+    assert_equal(Xe[1, 1], -1.0)
+
+
+def test_ordinal_encoder_custom_unknown_value() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder("use_encoded_value", -42.0)
+    encoder.fit(X)
+
+    var Xn = Matrix[DType.float64](1, 2, 0)
+    Xn[0, 0] = 99.0
+    Xn[0, 1] = 7.0
+    var Xe = encoder.transform(Xn)
+    assert_equal(Xe[0, 0], -42.0)
+    assert_equal(Xe[0, 1], 1.0)
+
+
+def test_ordinal_encoder_unknown_value_collision_raises() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder("use_encoded_value", 1.0)
+    with assert_raises():
+        encoder.fit(X)
+    assert_true(not encoder.is_fitted)
+
+
+def test_ordinal_encoder_failed_refit_preserves_state() raises:
+    var small = Matrix[DType.float64](2, 1, 0)
+    small[0, 0] = 4.0
+    small[1, 0] = 5.0
+
+    var encoder = OrdinalEncoder("use_encoded_value", 2.0)
+    encoder.fit(small)
+    assert_equal(len(encoder.categories_[0]), 2)
+
+    var big = _ordinal_fixture()
+    with assert_raises():
+        encoder.fit(big)
+
+    assert_true(encoder.is_fitted)
+    assert_equal(encoder.n_features_in_, 1)
+    assert_equal(len(encoder.categories_), 1)
+    assert_equal(len(encoder.categories_[0]), 2)
+
+
+def test_ordinal_encoder_feature_names_default() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    encoder.fit(X)
+
+    var names = encoder.get_feature_names_out()
+    assert_equal(len(names), 2)
+    assert_equal(names[0], "x0")
+    assert_equal(names[1], "x1")
+
+
+def test_ordinal_encoder_feature_names_passthrough() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    encoder.fit(X)
+
+    var given: List[String] = ["city", "size"]
+    var names = encoder.get_feature_names_out(given)
+    assert_equal(len(names), 2)
+    assert_equal(names[0], "city")
+    assert_equal(names[1], "size")
+
+
+def test_ordinal_encoder_feature_names_length_mismatch() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    encoder.fit(X)
+
+    var given: List[String] = ["only_one"]
+    with assert_raises():
+        _ = encoder.get_feature_names_out(given)
+
+
+def test_ordinal_encoder_dataset_keeps_targets_and_names() raises:
+    var X = _ordinal_fixture()
+    var y: List[Scalar[DType.float64]] = [0.0, 1.0, 1.0, 0.0]
+    var fnames: List[String] = ["city", "size"]
+    var tnames: List[String] = ["label"]
+    var ds = Dataset(X^, y^, fnames^, tnames^)
+
+    var encoder = OrdinalEncoder()
+    var ds_enc = encoder.fit_transform(ds)
+    assert_equal(ds_enc.n_samples(), 4)
+    assert_equal(ds_enc.n_features(), 2)
+    assert_equal(len(ds_enc.feature_names), 2)
+    assert_equal(ds_enc.feature_names[0], "city")
+    assert_equal(ds_enc.feature_names[1], "size")
+    assert_equal(ds_enc.target_names[0], "label")
+    assert_equal(ds_enc.targets[1], 1.0)
+    assert_equal(ds_enc.records[0, 0], 1.0)
+    assert_equal(ds_enc.records[3, 0], 2.0)
+
+
+def test_ordinal_encoder_inverse_transform_roundtrip() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    var Xe = encoder.fit_transform(X)
+    var Xr = encoder.inverse_transform(Xe)
+
+    assert_equal(Xr.rows, 4)
+    assert_equal(Xr.cols, 2)
+    for r in range(4):
+        for c in range(2):
+            assert_equal(Xr[r, c], X[r, c])
+
+
+def test_ordinal_encoder_inverse_transform_rejects_bad_codes() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    encoder.fit(X)
+
+    var too_big = Matrix[DType.float64](1, 2, 0)
+    too_big[0, 0] = 3.0
+    with assert_raises():
+        _ = encoder.inverse_transform(too_big)
+
+    var negative = Matrix[DType.float64](1, 2, 0)
+    negative[0, 0] = -1.0
+    with assert_raises():
+        _ = encoder.inverse_transform(negative)
+
+    var fractional = Matrix[DType.float64](1, 2, 0)
+    fractional[0, 0] = 1.5
+    with assert_raises():
+        _ = encoder.inverse_transform(fractional)
+
+
+def test_ordinal_encoder_inverse_transform_unknown_raises() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder(handle_unknown="use_encoded_value")
+    encoder.fit(X)
+
+    var Xn = Matrix[DType.float64](1, 2, 0)
+    Xn[0, 0] = 99.0
+    Xn[0, 1] = 5.0
+    var Xe = encoder.transform(Xn)
+    with assert_raises():
+        _ = encoder.inverse_transform(Xe)
+
+
+def test_ordinal_encoder_not_fitted() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+
+    with assert_raises():
+        _ = encoder.transform(X)
+    with assert_raises():
+        _ = encoder.inverse_transform(X)
+    with assert_raises():
+        _ = encoder.get_feature_names_out()
+
+
+def test_ordinal_encoder_invalid_parameters() raises:
+    with assert_raises():
+        _ = OrdinalEncoder(handle_unknown="ignore")
+
+
+def test_ordinal_encoder_dtype_incoherence_prevention() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    encoder.fit(X)
+
+    var X32 = Matrix[DType.float32](4, 2, 0)
+    with assert_raises():
+        _ = encoder.transform(X32)
+    with assert_raises():
+        _ = encoder.inverse_transform(X32)
+
+
+def test_ordinal_encoder_dimension_mismatch_transform() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder()
+    encoder.fit(X)
+
+    var wide = Matrix[DType.float64](2, 3, 0)
+    with assert_raises():
+        _ = encoder.transform(wide)
+    with assert_raises():
+        _ = encoder.inverse_transform(wide)
+
+
+def test_ordinal_encoder_copy_constructor() raises:
+    var X = _ordinal_fixture()
+    var encoder = OrdinalEncoder("use_encoded_value", -3.0)
+    encoder.fit(X)
+
+    var clone = OrdinalEncoder[DType.float64](copy=encoder)
+    assert_true(clone.is_fitted)
+    assert_equal(clone.handle_unknown, "use_encoded_value")
+    assert_equal(clone.unknown_value, -3.0)
+    assert_equal(clone.n_features_in_, 2)
+    assert_equal(len(clone.categories_[0]), 3)
+    assert_equal(clone.categories_[0][1], 20.0)
 
 
 def main() raises:
