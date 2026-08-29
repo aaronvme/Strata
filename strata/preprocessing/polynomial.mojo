@@ -142,3 +142,25 @@ struct PolynomialFeatures[compute_dtype: DType = DType.float64](
     def n_output_features(self) -> Int:
         """Number of columns produced by transform."""
         return len(self.powers_)
+
+    def fit[in_dtype: DType](mut self, X: Matrix[in_dtype]) raises:
+        """Records the input width and builds the exponent table.
+
+        Args:
+            X: Matrix of features with one column per feature.
+        """
+        check_array[in_dtype](X)
+
+        self.powers_ = _build_powers(
+            X.cols, self.degree, self.interaction_only, self.include_bias
+        )
+        self.n_features_in_ = X.cols
+        self.fit_dtype = in_dtype
+        self.is_fitted = True
+
+    def fit[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
+        """Records the input width from the feature matrix of a Dataset."""
+        self.fit[feat_dtype](dataset.records)
