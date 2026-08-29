@@ -336,3 +336,81 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
                 res[r, f] = Scalar[in_dtype](self.categories_[f][active])
 
         return res^
+
+
+struct OrdinalEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
+    """Encode categorical features as integer codes.
+
+    Each feature column is mapped onto the integers 0 to n_categories - 1,
+    following the sorted order of the categories seen during fit. Unlike
+    OneHotEncoder the output keeps the shape of the input, producing a single
+    code per original column rather than a block of indicator columns.
+
+    Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Args:
+        handle_unknown: Behavior for unseen categories during transform ('error', 'use_encoded_value'). Default 'error'.
+        unknown_value: Code assigned to unseen categories when handle_unknown is 'use_encoded_value'. Default -1.0.
+
+    Attributes:
+        categories_: Categories of each feature determined during fitting.
+        n_features_in_: Number of features seen during fit.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.preprocessing import OrdinalEncoder
+        from strata.core import Matrix
+
+        var encoder = OrdinalEncoder[DType.float64]()
+        encoder.fit(X_cat)
+        var X_encoded = encoder.transform(X_cat)
+        ```
+    """
+
+    var is_fitted: Bool
+    var fit_dtype: DType
+    var handle_unknown: String
+    var unknown_value: Scalar[Self.compute_dtype]
+    var categories_: List[List[Scalar[Self.compute_dtype]]]
+    var n_features_in_: Int
+
+    def __init__(
+        out self,
+        handle_unknown: String = "error",
+        unknown_value: Scalar[Self.compute_dtype] = -1.0,
+    ) raises:
+        """Initialize the OrdinalEncoder.
+
+        Args:
+            handle_unknown: Behavior for unseen categories ('error', 'use_encoded_value'). Default 'error'.
+            unknown_value: Code assigned to unseen categories. Default -1.0.
+
+        Raises:
+            InvalidParameterError: If handle_unknown is unrecognized.
+        """
+
+        check_floating_dtype[Self.compute_dtype, "OrdinalEncoder"]()
+        if handle_unknown != "error" and handle_unknown != "use_encoded_value":
+            raise InvalidParameterError.error(
+                "handle_unknown",
+                "expected 'error' or 'use_encoded_value', got '"
+                + handle_unknown
+                + "'",
+            )
+        self.is_fitted = False
+        self.fit_dtype = DType.float64
+        self.handle_unknown = handle_unknown
+        self.unknown_value = unknown_value
+        self.categories_ = List[List[Scalar[Self.compute_dtype]]]()
+        self.n_features_in_ = 0
+
+    def __init__(out self, *, copy: Self):
+        """Copies an existing OrdinalEncoder instance."""
+        self.is_fitted = copy.is_fitted
+        self.fit_dtype = copy.fit_dtype
+        self.handle_unknown = copy.handle_unknown
+        self.unknown_value = copy.unknown_value
+        self.categories_ = copy.categories_.copy()
+        self.n_features_in_ = copy.n_features_in_
