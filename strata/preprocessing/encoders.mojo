@@ -14,19 +14,25 @@ from ..exceptions.errors import (
 )
 
 
+def _sorted_uniques[
+    dtype: DType
+](var values: List[Scalar[dtype]]) -> List[Scalar[dtype]]:
+    sort(values)
+
+    var uniques = List[Scalar[dtype]]()
+    for i in range(len(values)):
+        if i == 0 or values[i] != values[i - 1]:
+            uniques.append(values[i])
+    return uniques^
+
+
 def _unique_sorted_column[
     compute_dtype: DType, in_dtype: DType
 ](X: Matrix[in_dtype], col: Int) -> List[Scalar[compute_dtype]]:
     var values = List[Scalar[compute_dtype]](capacity=X.rows)
     for r in range(X.rows):
         values.append(Scalar[compute_dtype](X[r, col]))
-    sort(values)
-
-    var uniques = List[Scalar[compute_dtype]]()
-    for i in range(len(values)):
-        if i == 0 or values[i] != values[i - 1]:
-            uniques.append(values[i])
-    return uniques^
+    return _sorted_uniques(values^)
 
 
 def _index_of[
