@@ -414,3 +414,43 @@ struct OrdinalEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
         self.unknown_value = copy.unknown_value
         self.categories_ = copy.categories_.copy()
         self.n_features_in_ = copy.n_features_in_
+
+    def fit[in_dtype: DType](mut self, X: Matrix[in_dtype]) raises:
+        """Learns the sorted categories of each feature column.
+
+        Args:
+            X: Matrix of categorical features with one column per feature.
+
+        Raises:
+            InvalidParameterError: If unknown_value collides with a category code.
+        """
+        check_array[in_dtype](X)
+        var n_cols = X.cols
+
+        var categories = List[List[Scalar[Self.compute_dtype]]](capacity=n_cols)
+        for c in range(n_cols):
+            var uniques = _unique_sorted_column[Self.compute_dtype, in_dtype](
+                X, c
+            )
+            if self.handle_unknown == "use_encoded_value":
+                var n_cats = Scalar[Self.compute_dtype](len(uniques))
+                if self.unknown_value >= 0 and self.unknown_value < n_cats:
+                    raise InvalidParameterError.error(
+                        "unknown_value",
+                        String(self.unknown_value)
+                        + " is already used as a category code for column "
+                        + String(c),
+                    )
+            categories.append(uniques^)
+
+        self.categories_ = categories^
+        self.n_features_in_ = n_cols
+        self.fit_dtype = in_dtype
+        self.is_fitted = True
+
+    def fit[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
+        """Learns the categories from the feature matrix of a Dataset."""
+        self.fit[feat_dtype](dataset.records)
