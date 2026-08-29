@@ -564,3 +564,66 @@ struct OrdinalEncoder[compute_dtype: DType = DType.float64](
         """Learns the categories of a Dataset and returns its encoded copy."""
         self.fit[feat_dtype, target_dtype](dataset)
         return self.transform[feat_dtype, target_dtype](dataset)
+
+    def inverse_transform[
+        in_dtype: DType
+    ](self, X: Matrix[in_dtype]) raises -> Matrix[in_dtype]:
+        """Recovers the original categorical values from a matrix of codes.
+
+        Args:
+            X: Matrix of integer codes with one column per fitted feature.
+
+        Returns:
+            A matrix of the same shape holding the original category values.
+
+        Raises:
+            InvalidParameterError: If a code is out of range or encodes an unknown category.
+        """
+        check_is_fitted("OrdinalEncoder", self.is_fitted)
+        if in_dtype != self.fit_dtype:
+            raise DataConversionError.error(
+                "OrdinalEncoder.inverse_transform received Matrix["
+                + String(in_dtype)
+                + "] but was fitted on Matrix["
+                + String(self.fit_dtype)
+                + "]"
+            )
+        check_array[in_dtype](X)
+        if X.cols != len(self.categories_):
+            raise DimensionMismatchError.error(
+                "X.cols == " + String(len(self.categories_)),
+                "X.cols == " + String(X.cols),
+                "OrdinalEncoder.inverse_transform",
+            )
+
+        var res = Matrix[in_dtype](X.rows, X.cols, 0)
+        for r in range(X.rows):
+            for c in range(X.cols):
+                var code = Scalar[Self.compute_dtype](X[r, c])
+                if (
+                    self.handle_unknown == "use_encoded_value"
+                    and code == self.unknown_value
+                ):
+                    raise InvalidParameterError.error(
+                        "X",
+                        "OrdinalEncoder.inverse_transform cannot recover the"
+                        " original category behind unknown_value in column "
+                        + String(c),
+                    )
+
+                var idx = Int(code)
+                if (
+                    Scalar[Self.compute_dtype](idx) != code
+                    or idx < 0
+                    or idx >= len(self.categories_[c])
+                ):
+                    raise InvalidParameterError.error(
+                        "X",
+                        "OrdinalEncoder.inverse_transform found code "
+                        + String(code)
+                        + " outside the valid range for column "
+                        + String(c),
+                    )
+                res[r, c] = Scalar[in_dtype](self.categories_[c][idx])
+
+        return res^
