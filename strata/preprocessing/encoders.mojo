@@ -516,3 +516,51 @@ struct OrdinalEncoder[compute_dtype: DType = DType.float64](
         """Learns the categories of X and returns its integer codes."""
         self.fit[in_dtype](X)
         return self.transform[in_dtype](X)
+
+    def get_feature_names_out(
+        self, input_features: List[String] = List[String]()
+    ) raises -> List[String]:
+        """Output column names, which map one to one onto the input columns."""
+        check_is_fitted("OrdinalEncoder", self.is_fitted)
+        if len(input_features) != 0 and len(input_features) != len(
+            self.categories_
+        ):
+            raise DimensionMismatchError.error(
+                "len(input_features) == " + String(len(self.categories_)),
+                "len(input_features) == " + String(len(input_features)),
+                "OrdinalEncoder.get_feature_names_out",
+            )
+
+        if len(input_features) != 0:
+            return input_features.copy()
+
+        var names = List[String](capacity=len(self.categories_))
+        for f in range(len(self.categories_)):
+            names.append("x" + String(f))
+        return names^
+
+    def transform[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](self, dataset: Dataset[feat_dtype, target_dtype]) raises -> Dataset[
+        feat_dtype, target_dtype
+    ]:
+        """Encodes the feature matrix of a Dataset, keeping targets and names.
+        """
+        var encoded_records = self.transform[feat_dtype](dataset.records)
+        return Dataset[feat_dtype, target_dtype](
+            encoded_records^,
+            dataset.targets.copy(),
+            self.get_feature_names_out(dataset.feature_names),
+            dataset.target_names.copy(),
+        )
+
+    def fit_transform[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises -> Dataset[
+        feat_dtype, target_dtype
+    ]:
+        """Learns the categories of a Dataset and returns its encoded copy."""
+        self.fit[feat_dtype, target_dtype](dataset)
+        return self.transform[feat_dtype, target_dtype](dataset)
