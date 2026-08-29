@@ -24,6 +24,9 @@ struct SimpleImputer[compute_dtype: DType = DType.float64](
     defaults to NaN. Each column is filled independently using the chosen
     strategy, so the output keeps the shape of the input.
 
+    A Dataset rejects NaN when it is constructed, so the Dataset overloads are
+    usable only with a finite missing_values sentinel.
+
     Parameters:
         compute_dtype: Computational precision data type. Default DType.float64.
 
@@ -259,3 +262,50 @@ struct SimpleImputer[compute_dtype: DType = DType.float64](
         """Learns the values to fill X with and returns X with holes filled."""
         self.fit[in_dtype](X)
         return self.transform[in_dtype](X)
+
+    def get_feature_names_out(
+        self, input_features: List[String] = List[String]()
+    ) raises -> List[String]:
+        """Output column names, which map one to one onto the input columns."""
+        check_is_fitted("SimpleImputer", self.is_fitted)
+        if len(input_features) != 0 and len(input_features) != len(
+            self.statistics_
+        ):
+            raise DimensionMismatchError.error(
+                "len(input_features) == " + String(len(self.statistics_)),
+                "len(input_features) == " + String(len(input_features)),
+                "SimpleImputer.get_feature_names_out",
+            )
+
+        if len(input_features) != 0:
+            return input_features.copy()
+
+        var names = List[String](capacity=len(self.statistics_))
+        for f in range(len(self.statistics_)):
+            names.append("x" + String(f))
+        return names^
+
+    def transform[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](self, dataset: Dataset[feat_dtype, target_dtype]) raises -> Dataset[
+        feat_dtype, target_dtype
+    ]:
+        """Fills the feature matrix of a Dataset, keeping targets and names."""
+        var filled_records = self.transform[feat_dtype](dataset.records)
+        return Dataset[feat_dtype, target_dtype](
+            filled_records^,
+            dataset.targets.copy(),
+            self.get_feature_names_out(dataset.feature_names),
+            dataset.target_names.copy(),
+        )
+
+    def fit_transform[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises -> Dataset[
+        feat_dtype, target_dtype
+    ]:
+        """Learns the replacement values of a Dataset and fills its holes."""
+        self.fit[feat_dtype, target_dtype](dataset)
+        return self.transform[feat_dtype, target_dtype](dataset)
