@@ -17,6 +17,7 @@ from strata import (
     OrdinalEncoder,
     LabelEncoder,
     SimpleImputer,
+    PolynomialFeatures,
     NotFittedError,
     DataConversionError,
 )
@@ -2517,6 +2518,346 @@ def test_simple_imputer_copy_constructor() raises:
 
     var Xf = clone.transform(X)
     assert_almost_equal(Xf[1, 0], 2000.0)
+
+
+def _poly_fixture() raises -> Matrix[DType.float64]:
+    var X = Matrix[DType.float64](2, 2, 0)
+    X[0, 0] = 3.0
+    X[0, 1] = 4.0
+    X[1, 0] = 1.0
+    X[1, 1] = 2.0
+    return X^
+
+
+def test_polynomial_features_powers_table() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+    poly.fit(X)
+
+    assert_true(poly.is_fitted)
+    assert_equal(poly.n_features_in_, 2)
+    assert_equal(poly.n_output_features(), 6)
+
+    var expected: List[List[Int]] = [
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [2, 0],
+        [1, 1],
+        [0, 2],
+    ]
+    for j in range(6):
+        for i in range(2):
+            assert_equal(poly.powers_[j][i], expected[j][i])
+
+
+def test_polynomial_features_expansion_values() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+    var Xp = poly.fit_transform(X)
+
+    assert_equal(Xp.rows, 2)
+    assert_equal(Xp.cols, 6)
+
+    var expected: List[List[Float64]] = [
+        [1.0, 3.0, 4.0, 9.0, 12.0, 16.0],
+        [1.0, 1.0, 2.0, 1.0, 2.0, 4.0],
+    ]
+    for r in range(2):
+        for c in range(6):
+            assert_equal(Xp[r, c], expected[r][c])
+
+
+def test_polynomial_features_bias_column_is_ones() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+    var Xp = poly.fit_transform(X)
+    for r in range(Xp.rows):
+        assert_equal(Xp[r, 0], 1.0)
+
+
+def test_polynomial_features_include_bias_false_drops_column() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2, False, False)
+    var Xp = poly.fit_transform(X)
+
+    assert_equal(poly.n_output_features(), 5)
+    assert_equal(Xp.cols, 5)
+    assert_equal(Xp[0, 0], 3.0)
+    assert_equal(Xp[0, 4], 16.0)
+
+
+def test_polynomial_features_interaction_only_drops_powers() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2, True, True)
+    var Xp = poly.fit_transform(X)
+
+    assert_equal(poly.n_output_features(), 4)
+    assert_equal(Xp[0, 0], 1.0)
+    assert_equal(Xp[0, 1], 3.0)
+    assert_equal(Xp[0, 2], 4.0)
+    assert_equal(Xp[0, 3], 12.0)
+
+
+def test_polynomial_features_degree_three() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(3)
+    var Xp = poly.fit_transform(X)
+
+    assert_equal(poly.n_output_features(), 10)
+    var expected: List[Float64] = [
+        1.0,
+        3.0,
+        4.0,
+        9.0,
+        12.0,
+        16.0,
+        27.0,
+        36.0,
+        48.0,
+        64.0,
+    ]
+    for c in range(10):
+        assert_equal(Xp[0, c], expected[c])
+
+
+def test_polynomial_features_degree_one_no_bias_is_identity() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(1, False, False)
+    var Xp = poly.fit_transform(X)
+
+    assert_equal(Xp.rows, 2)
+    assert_equal(Xp.cols, 2)
+    for r in range(2):
+        for c in range(2):
+            assert_equal(Xp[r, c], X[r, c])
+
+
+def test_polynomial_features_degree_zero_is_bias_only() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(0)
+    var Xp = poly.fit_transform(X)
+
+    assert_equal(Xp.cols, 1)
+    assert_equal(Xp[0, 0], 1.0)
+    assert_equal(Xp[1, 0], 1.0)
+
+
+def test_polynomial_features_fit_transform_matches_fit_then_transform() raises:
+    var X = _poly_fixture()
+    var a = PolynomialFeatures(2)
+    var combined = a.fit_transform(X)
+
+    var b = PolynomialFeatures(2)
+    b.fit(X)
+    var separate = b.transform(X)
+
+    for r in range(combined.rows):
+        for c in range(combined.cols):
+            assert_equal(combined[r, c], separate[r, c])
+
+
+def test_polynomial_features_negative_values_are_exact() raises:
+    var X = Matrix[DType.float64](1, 2, 0)
+    X[0, 0] = -2.0
+    X[0, 1] = 5.0
+
+    var poly = PolynomialFeatures(2)
+    var Xp = poly.fit_transform(X)
+    assert_equal(Xp[0, 0], 1.0)
+    assert_equal(Xp[0, 1], -2.0)
+    assert_equal(Xp[0, 2], 5.0)
+    assert_equal(Xp[0, 3], 4.0)
+    assert_equal(Xp[0, 4], -10.0)
+    assert_equal(Xp[0, 5], 25.0)
+
+
+def test_polynomial_features_three_features() raises:
+    var X = Matrix[DType.float64](1, 3, 0)
+    X[0, 0] = 2.0
+    X[0, 1] = 3.0
+    X[0, 2] = 5.0
+
+    var poly = PolynomialFeatures(2)
+    var Xp = poly.fit_transform(X)
+
+    assert_equal(poly.n_output_features(), 10)
+    var expected: List[Float64] = [
+        1.0,
+        2.0,
+        3.0,
+        5.0,
+        4.0,
+        6.0,
+        10.0,
+        9.0,
+        15.0,
+        25.0,
+    ]
+    for c in range(10):
+        assert_equal(Xp[0, c], expected[c])
+
+
+def test_polynomial_features_interaction_degree_above_n_truncates() raises:
+    var X = _poly_fixture()
+    var high = PolynomialFeatures(4, True, True)
+    high.fit(X)
+
+    var low = PolynomialFeatures(2, True, True)
+    low.fit(X)
+
+    assert_equal(high.n_output_features(), low.n_output_features())
+    assert_equal(high.n_output_features(), 4)
+
+
+def test_polynomial_features_refit_changes_width() raises:
+    var X = _poly_fixture()
+    var wide = Matrix[DType.float64](1, 3, 1.0)
+
+    var poly = PolynomialFeatures(2)
+    poly.fit(wide)
+    assert_equal(poly.n_output_features(), 10)
+
+    poly.fit(X)
+    assert_equal(poly.n_features_in_, 2)
+    assert_equal(poly.n_output_features(), 6)
+
+
+def test_polynomial_features_feature_names_default() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+    poly.fit(X)
+
+    var names = poly.get_feature_names_out()
+    assert_equal(len(names), 6)
+    assert_equal(names[0], "1")
+    assert_equal(names[1], "x0")
+    assert_equal(names[2], "x1")
+    assert_equal(names[3], "x0^2")
+    assert_equal(names[4], "x0 x1")
+    assert_equal(names[5], "x1^2")
+
+
+def test_polynomial_features_feature_names_from_input() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+    poly.fit(X)
+
+    var given: List[String] = ["sqft", "beds"]
+    var names = poly.get_feature_names_out(given)
+    assert_equal(names[0], "1")
+    assert_equal(names[1], "sqft")
+    assert_equal(names[3], "sqft^2")
+    assert_equal(names[4], "sqft beds")
+    assert_equal(names[5], "beds^2")
+
+
+def test_polynomial_features_feature_names_degree_three() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(3)
+    poly.fit(X)
+
+    var names = poly.get_feature_names_out()
+    assert_equal(len(names), 10)
+    assert_equal(names[6], "x0^3")
+    assert_equal(names[7], "x0^2 x1")
+    assert_equal(names[8], "x0 x1^2")
+    assert_equal(names[9], "x1^3")
+
+
+def test_polynomial_features_feature_names_match_column_count() raises:
+    var X = _poly_fixture()
+
+    var plain = PolynomialFeatures(2)
+    var Xp = plain.fit_transform(X)
+    assert_equal(len(plain.get_feature_names_out()), Xp.cols)
+
+    var inter = PolynomialFeatures(3, True, False)
+    var Xi = inter.fit_transform(X)
+    assert_equal(len(inter.get_feature_names_out()), Xi.cols)
+
+
+def test_polynomial_features_feature_names_length_mismatch() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+    poly.fit(X)
+
+    var given: List[String] = ["only_one"]
+    with assert_raises():
+        _ = poly.get_feature_names_out(given)
+
+
+def test_polynomial_features_dataset_expands_names() raises:
+    var X = _poly_fixture()
+    var y: List[Scalar[DType.float64]] = [10.0, 20.0]
+    var fnames: List[String] = ["sqft", "beds"]
+    var tnames: List[String] = ["price"]
+    var ds = Dataset(X^, y^, fnames^, tnames^)
+
+    var poly = PolynomialFeatures(2)
+    var ds_out = poly.fit_transform(ds)
+
+    assert_equal(ds_out.n_samples(), 2)
+    assert_equal(ds_out.n_features(), 6)
+    assert_equal(len(ds_out.feature_names), 6)
+    assert_equal(ds_out.feature_names[4], "sqft beds")
+    assert_equal(ds_out.target_names[0], "price")
+    assert_equal(ds_out.targets[1], 20.0)
+    assert_equal(ds_out.records[0, 4], 12.0)
+
+
+def test_polynomial_features_not_fitted() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+
+    with assert_raises():
+        _ = poly.transform(X)
+    with assert_raises():
+        _ = poly.get_feature_names_out()
+
+
+def test_polynomial_features_invalid_parameters() raises:
+    with assert_raises():
+        _ = PolynomialFeatures(-1)
+    with assert_raises():
+        _ = PolynomialFeatures(0, False, False)
+
+
+def test_polynomial_features_dtype_incoherence_prevention() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+    poly.fit(X)
+
+    var X32 = Matrix[DType.float32](2, 2, 1.0)
+    with assert_raises():
+        _ = poly.transform(X32)
+
+
+def test_polynomial_features_dimension_mismatch_transform() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2)
+    poly.fit(X)
+
+    var wide = Matrix[DType.float64](2, 3, 1.0)
+    with assert_raises():
+        _ = poly.transform(wide)
+
+
+def test_polynomial_features_copy_constructor() raises:
+    var X = _poly_fixture()
+    var poly = PolynomialFeatures(2, True, False)
+    poly.fit(X)
+
+    var clone = PolynomialFeatures[DType.float64](copy=poly)
+    assert_true(clone.is_fitted)
+    assert_equal(clone.degree, 2)
+    assert_true(clone.interaction_only)
+    assert_true(not clone.include_bias)
+    assert_equal(clone.n_output_features(), 3)
+
+    var Xp = clone.transform(X)
+    assert_equal(Xp.cols, 3)
+    assert_equal(Xp[0, 2], 12.0)
 
 
 def main() raises:
