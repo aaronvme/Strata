@@ -700,3 +700,42 @@ struct LabelEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
         self.classes_ = _sorted_uniques(values^)
         self.fit_dtype = in_dtype
         self.is_fitted = True
+
+    def transform[
+        in_dtype: DType
+    ](self, y: List[Scalar[in_dtype]]) raises -> List[Scalar[in_dtype]]:
+        """Replaces each label with its integer code.
+
+        Args:
+            y: Target labels, one per sample.
+
+        Returns:
+            A list of the same length holding the code of each label.
+
+        Raises:
+            InvalidParameterError: If a label was not seen during fit.
+        """
+        check_is_fitted("LabelEncoder", self.is_fitted)
+        if in_dtype != self.fit_dtype:
+            raise DataConversionError.error(
+                "LabelEncoder.transform received List[Scalar["
+                + String(in_dtype)
+                + "]] but was fitted on List[Scalar["
+                + String(self.fit_dtype)
+                + "]]"
+            )
+        check_finite(y, "y", "LabelEncoder.transform")
+
+        var codes = List[Scalar[in_dtype]](capacity=len(y))
+        for i in range(len(y)):
+            var value = Scalar[Self.compute_dtype](y[i])
+            var idx = _index_of[Self.compute_dtype](self.classes_, value)
+            if idx < 0:
+                raise InvalidParameterError.error(
+                    "y",
+                    "LabelEncoder.transform found previously unseen label "
+                    + String(value),
+                )
+            codes.append(Scalar[in_dtype](idx))
+
+        return codes^
