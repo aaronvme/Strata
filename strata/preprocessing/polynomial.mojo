@@ -1,3 +1,4 @@
+from ..base.estimator import Transformer
 from ..core.matrix import Matrix
 from ..core.dataset import Dataset
 from ..utils.validation import (
@@ -54,7 +55,7 @@ def _build_powers(
 
 
 struct PolynomialFeatures[compute_dtype: DType = DType.float64](
-    Copyable, Movable
+    Copyable, Movable, Transformer
 ):
     """Expand features into polynomial and interaction terms.
 
@@ -164,3 +165,50 @@ struct PolynomialFeatures[compute_dtype: DType = DType.float64](
     ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
         """Records the input width from the feature matrix of a Dataset."""
         self.fit[feat_dtype](dataset.records)
+
+    def transform[
+        in_dtype: DType
+    ](self, X: Matrix[in_dtype]) raises -> Matrix[in_dtype]:
+        """Expands each row into its polynomial and interaction terms.
+
+        Args:
+            X: Matrix of features with one column per fitted feature.
+
+        Returns:
+            A matrix with one row per sample and one column per generated term.
+        """
+        check_is_fitted("PolynomialFeatures", self.is_fitted)
+        if in_dtype != self.fit_dtype:
+            raise DataConversionError.error(
+                "PolynomialFeatures.transform received Matrix["
+                + String(in_dtype)
+                + "] but was fitted on Matrix["
+                + String(self.fit_dtype)
+                + "]"
+            )
+        check_array[in_dtype](X)
+        if X.cols != self.n_features_in_:
+            raise DimensionMismatchError.error(
+                "X.cols == " + String(self.n_features_in_),
+                "X.cols == " + String(X.cols),
+                "PolynomialFeatures.transform",
+            )
+
+        var res = Matrix[in_dtype](X.rows, self.n_output_features(), 0)
+        for r in range(X.rows):
+            for j in range(len(self.powers_)):
+                var term = Scalar[Self.compute_dtype](1)
+                for i in range(self.n_features_in_):
+                    var value = Scalar[Self.compute_dtype](X[r, i])
+                    for _ in range(self.powers_[j][i]):
+                        term *= value
+                res[r, j] = Scalar[in_dtype](term)
+
+        return res^
+
+    def fit_transform[
+        in_dtype: DType
+    ](mut self, X: Matrix[in_dtype]) raises -> Matrix[in_dtype]:
+        """Builds the exponent table for X and returns its expanded terms."""
+        self.fit[in_dtype](X)
+        return self.transform[in_dtype](X)
