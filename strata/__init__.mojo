@@ -74,6 +74,7 @@ from .preprocessing import (
     Binarizer,
     OneHotEncoder,
     OrdinalEncoder,
+    LabelEncoder,
 )
 from .model_selection import (
     train_test_split,

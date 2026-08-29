@@ -14,6 +14,7 @@ from strata import (
     Binarizer,
     OneHotEncoder,
     OrdinalEncoder,
+    LabelEncoder,
     NotFittedError,
     DataConversionError,
 )
@@ -1943,6 +1944,230 @@ def test_ordinal_encoder_copy_constructor() raises:
     assert_equal(clone.n_features_in_, 2)
     assert_equal(len(clone.categories_[0]), 3)
     assert_equal(clone.categories_[0][1], 20.0)
+
+
+def _label_fixture() -> List[Scalar[DType.float64]]:
+    var y: List[Scalar[DType.float64]] = [30.0, 10.0, 30.0, 20.0, 10.0]
+    return y^
+
+
+def test_label_encoder_classes_discovered_sorted() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    encoder.fit(y)
+
+    assert_true(encoder.is_fitted)
+    assert_equal(len(encoder.classes_), 3)
+    assert_equal(encoder.classes_[0], 10.0)
+    assert_equal(encoder.classes_[1], 20.0)
+    assert_equal(encoder.classes_[2], 30.0)
+
+
+def test_label_encoder_codes() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    var codes = encoder.fit_transform(y)
+
+    var expected: List[Float64] = [2.0, 0.0, 2.0, 1.0, 0.0]
+    assert_equal(len(codes), 5)
+    for i in range(5):
+        assert_equal(codes[i], expected[i])
+
+
+def test_label_encoder_fit_transform_matches_fit_then_transform() raises:
+    var y = _label_fixture()
+    var a = LabelEncoder()
+    var combined = a.fit_transform(y)
+
+    var b = LabelEncoder()
+    b.fit(y)
+    var separate = b.transform(y)
+
+    for i in range(len(y)):
+        assert_equal(combined[i], separate[i])
+
+
+def test_label_encoder_single_class() raises:
+    var y: List[Scalar[DType.float64]] = [7.0, 7.0, 7.0]
+    var encoder = LabelEncoder()
+    var codes = encoder.fit_transform(y)
+
+    assert_equal(len(encoder.classes_), 1)
+    for i in range(3):
+        assert_equal(codes[i], 0.0)
+
+
+def test_label_encoder_negative_and_sparse_labels() raises:
+    var y: List[Scalar[DType.float64]] = [0.0, -5.0, 3.0, -5.0]
+    var encoder = LabelEncoder()
+    var codes = encoder.fit_transform(y)
+
+    assert_equal(encoder.classes_[0], -5.0)
+    assert_equal(encoder.classes_[1], 0.0)
+    assert_equal(encoder.classes_[2], 3.0)
+    assert_equal(codes[0], 1.0)
+    assert_equal(codes[1], 0.0)
+    assert_equal(codes[2], 2.0)
+    assert_equal(codes[3], 0.0)
+
+
+def test_label_encoder_transform_subset() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    encoder.fit(y)
+
+    var subset: List[Scalar[DType.float64]] = [20.0, 20.0, 10.0]
+    var codes = encoder.transform(subset)
+    assert_equal(len(codes), 3)
+    assert_equal(codes[0], 1.0)
+    assert_equal(codes[1], 1.0)
+    assert_equal(codes[2], 0.0)
+
+
+def test_label_encoder_transform_empty_is_allowed() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    encoder.fit(y)
+
+    var empty = List[Scalar[DType.float64]]()
+    assert_equal(len(encoder.transform(empty)), 0)
+    assert_equal(len(encoder.inverse_transform(empty)), 0)
+
+
+def test_label_encoder_unseen_label_raises() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    encoder.fit(y)
+
+    var unseen: List[Scalar[DType.float64]] = [30.0, 99.0]
+    with assert_raises():
+        _ = encoder.transform(unseen)
+
+
+def test_label_encoder_fit_rejects_empty() raises:
+    var empty = List[Scalar[DType.float64]]()
+    var encoder = LabelEncoder()
+    with assert_raises():
+        encoder.fit(empty)
+    assert_true(not encoder.is_fitted)
+
+
+def test_label_encoder_rejects_non_finite() raises:
+    var nan = Float64(0.0) / Float64(0.0)
+    var inf = Float64(1.0) / Float64(0.0)
+
+    var with_nan: List[Scalar[DType.float64]] = [1.0, nan]
+    var a = LabelEncoder()
+    with assert_raises():
+        a.fit(with_nan)
+
+    var with_inf: List[Scalar[DType.float64]] = [1.0, inf]
+    var b = LabelEncoder()
+    with assert_raises():
+        b.fit(with_inf)
+
+    var y = _label_fixture()
+    var c = LabelEncoder()
+    c.fit(y)
+    var bad: List[Scalar[DType.float64]] = [10.0, nan]
+    with assert_raises():
+        _ = c.transform(bad)
+    with assert_raises():
+        _ = c.inverse_transform(bad)
+
+
+def test_label_encoder_refit_replaces_classes() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    encoder.fit(y)
+    assert_equal(len(encoder.classes_), 3)
+
+    var other: List[Scalar[DType.float64]] = [1.0, 2.0]
+    encoder.fit(other)
+    assert_equal(len(encoder.classes_), 2)
+    assert_equal(encoder.classes_[0], 1.0)
+    assert_equal(encoder.classes_[1], 2.0)
+
+
+def test_label_encoder_inverse_transform_roundtrip() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    var codes = encoder.fit_transform(y)
+    var back = encoder.inverse_transform(codes)
+
+    assert_equal(len(back), len(y))
+    for i in range(len(y)):
+        assert_equal(back[i], y[i])
+
+
+def test_label_encoder_inverse_transform_rejects_bad_codes() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    encoder.fit(y)
+
+    var too_big: List[Scalar[DType.float64]] = [3.0]
+    with assert_raises():
+        _ = encoder.inverse_transform(too_big)
+
+    var negative: List[Scalar[DType.float64]] = [-1.0]
+    with assert_raises():
+        _ = encoder.inverse_transform(negative)
+
+    var fractional: List[Scalar[DType.float64]] = [1.5]
+    with assert_raises():
+        _ = encoder.inverse_transform(fractional)
+
+
+def test_label_encoder_not_fitted() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+
+    with assert_raises():
+        _ = encoder.transform(y)
+    with assert_raises():
+        _ = encoder.inverse_transform(y)
+
+
+def test_label_encoder_dtype_incoherence_prevention() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    encoder.fit(y)
+
+    var y32: List[Scalar[DType.float32]] = [30.0, 10.0]
+    with assert_raises():
+        _ = encoder.transform(y32)
+    with assert_raises():
+        _ = encoder.inverse_transform(y32)
+
+
+def test_label_encoder_integer_labels_roundtrip() raises:
+    var y: List[Scalar[DType.int32]] = [5, 1, 5, 3]
+    var encoder = LabelEncoder()
+    var codes = encoder.fit_transform(y)
+
+    assert_equal(codes[0], 2)
+    assert_equal(codes[1], 0)
+    assert_equal(codes[2], 2)
+    assert_equal(codes[3], 1)
+
+    var back = encoder.inverse_transform(codes)
+    for i in range(len(y)):
+        assert_equal(back[i], y[i])
+
+
+def test_label_encoder_copy_constructor() raises:
+    var y = _label_fixture()
+    var encoder = LabelEncoder()
+    encoder.fit(y)
+
+    var clone = LabelEncoder[DType.float64](copy=encoder)
+    assert_true(clone.is_fitted)
+    assert_equal(len(clone.classes_), 3)
+    assert_equal(clone.classes_[0], 10.0)
+    assert_equal(clone.classes_[2], 30.0)
+
+    var codes = clone.transform(y)
+    assert_equal(codes[0], 2.0)
 
 
 def main() raises:
