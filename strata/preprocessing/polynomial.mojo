@@ -13,6 +13,46 @@ from ..exceptions.errors import (
 )
 
 
+def _build_powers(
+    n_features: Int, degree: Int, interaction_only: Bool, include_bias: Bool
+) -> List[List[Int]]:
+    var powers = List[List[Int]]()
+    var start = 0 if include_bias else 1
+
+    for d in range(start, degree + 1):
+        if d > 0 and (n_features == 0 or (interaction_only and d > n_features)):
+            continue
+
+        var indices = List[Int](capacity=d)
+        for j in range(d):
+            indices.append(j if interaction_only else 0)
+
+        while True:
+            var exponents = List[Int](length=n_features, fill=0)
+            for j in range(d):
+                exponents[indices[j]] += 1
+            powers.append(exponents^)
+
+            var i = d - 1
+            if interaction_only:
+                while i >= 0 and indices[i] == i + n_features - d:
+                    i -= 1
+            else:
+                while i >= 0 and indices[i] == n_features - 1:
+                    i -= 1
+            if i < 0:
+                break
+
+            indices[i] += 1
+            for j in range(i + 1, d):
+                if interaction_only:
+                    indices[j] = indices[j - 1] + 1
+                else:
+                    indices[j] = indices[i]
+
+    return powers^
+
+
 struct PolynomialFeatures[compute_dtype: DType = DType.float64](
     Copyable, Movable
 ):
