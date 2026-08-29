@@ -633,3 +633,46 @@ struct OrdinalEncoder[compute_dtype: DType = DType.float64](
                 res[r, c] = Scalar[in_dtype](self.categories_[c][idx])
 
         return res^
+
+
+struct LabelEncoder[compute_dtype: DType = DType.float64](Copyable, Movable):
+    """Encode target labels with values between 0 and n_classes - 1.
+
+    This encoder is for 1D target vectors rather than feature matrices, so it
+    consumes and produces target lists instead of matrices. Labels are mapped
+    onto codes following the sorted order of the classes seen during fit.
+
+    Parameters:
+        compute_dtype: Computational precision data type. Default DType.float64.
+
+    Attributes:
+        classes_: Sorted distinct labels determined during fitting.
+        is_fitted: Boolean flag indicating if estimator has been fitted.
+
+    Examples:
+        ```mojo
+        from strata.preprocessing import LabelEncoder
+
+        var encoder = LabelEncoder[DType.float64]()
+        var codes = encoder.fit_transform(y_train)
+        var labels = encoder.inverse_transform(codes)
+        ```
+    """
+
+    var is_fitted: Bool
+    var fit_dtype: DType
+    var classes_: List[Scalar[Self.compute_dtype]]
+
+    def __init__(out self) raises:
+        """Initialize the LabelEncoder."""
+
+        check_floating_dtype[Self.compute_dtype, "LabelEncoder"]()
+        self.is_fitted = False
+        self.fit_dtype = DType.float64
+        self.classes_ = List[Scalar[Self.compute_dtype]]()
+
+    def __init__(out self, *, copy: Self):
+        """Copies an existing LabelEncoder instance."""
+        self.is_fitted = copy.is_fitted
+        self.fit_dtype = copy.fit_dtype
+        self.classes_ = copy.classes_.copy()
