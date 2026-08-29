@@ -1,4 +1,5 @@
 from std.math import isinf, isnan, nan
+from ..base.estimator import Transformer
 from ..core.matrix import Matrix
 from ..core.dataset import Dataset
 from ..utils.validation import (
@@ -14,7 +15,9 @@ from ..exceptions.errors import (
 )
 
 
-struct SimpleImputer[compute_dtype: DType = DType.float64](Copyable, Movable):
+struct SimpleImputer[compute_dtype: DType = DType.float64](
+    Copyable, Movable, Transformer
+):
     """Replace missing values with a statistic learned from each column.
 
     Missing entries are located by comparing against missing_values, which
@@ -210,3 +213,49 @@ struct SimpleImputer[compute_dtype: DType = DType.float64](Copyable, Movable):
         """Learns the replacement values from the feature matrix of a Dataset.
         """
         self.fit[feat_dtype](dataset.records)
+
+    def transform[
+        in_dtype: DType
+    ](self, X: Matrix[in_dtype]) raises -> Matrix[in_dtype]:
+        """Replaces each missing entry with its column replacement value.
+
+        Args:
+            X: Matrix of features with one column per fitted feature.
+
+        Returns:
+            A matrix of the same shape with every missing entry filled.
+        """
+        check_is_fitted("SimpleImputer", self.is_fitted)
+        if in_dtype != self.fit_dtype:
+            raise DataConversionError.error(
+                "SimpleImputer.transform received Matrix["
+                + String(in_dtype)
+                + "] but was fitted on Matrix["
+                + String(self.fit_dtype)
+                + "]"
+            )
+        self._check_input[in_dtype](X, "SimpleImputer.transform")
+        if X.cols != len(self.statistics_):
+            raise DimensionMismatchError.error(
+                "X.cols == " + String(len(self.statistics_)),
+                "X.cols == " + String(X.cols),
+                "SimpleImputer.transform",
+            )
+
+        var res = Matrix[in_dtype](X.rows, X.cols, 0)
+        for r in range(X.rows):
+            for c in range(X.cols):
+                var value = Scalar[Self.compute_dtype](X[r, c])
+                if self._is_missing(value):
+                    res[r, c] = Scalar[in_dtype](self.statistics_[c])
+                else:
+                    res[r, c] = X[r, c]
+
+        return res^
+
+    def fit_transform[
+        in_dtype: DType
+    ](mut self, X: Matrix[in_dtype]) raises -> Matrix[in_dtype]:
+        """Learns the values to fill X with and returns X with holes filled."""
+        self.fit[in_dtype](X)
+        return self.transform[in_dtype](X)
