@@ -14,6 +14,21 @@ from ..exceptions.errors import (
 )
 
 
+def _unique_sorted_column[
+    compute_dtype: DType, in_dtype: DType
+](X: Matrix[in_dtype], col: Int) -> List[Scalar[compute_dtype]]:
+    var values = List[Scalar[compute_dtype]](capacity=X.rows)
+    for r in range(X.rows):
+        values.append(Scalar[compute_dtype](X[r, col]))
+    sort(values)
+
+    var uniques = List[Scalar[compute_dtype]]()
+    for i in range(len(values)):
+        if i == 0 or values[i] != values[i - 1]:
+            uniques.append(values[i])
+    return uniques^
+
+
 def _index_of[
     dtype: DType
 ](categories: List[Scalar[dtype]], value: Scalar[dtype]) -> Int:
@@ -135,7 +150,6 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
 
     def fit[in_dtype: DType](mut self, X: Matrix[in_dtype]) raises:
         check_array[in_dtype](X)
-        var n_rows = X.rows
         var n_cols = X.cols
 
         self.categories_ = List[List[Scalar[Self.compute_dtype]]](
@@ -144,15 +158,9 @@ struct OneHotEncoder[compute_dtype: DType = DType.float64](
         self.drop_idx_ = List[Int](capacity=n_cols)
 
         for c in range(n_cols):
-            var col = List[Scalar[Self.compute_dtype]](capacity=n_rows)
-            for r in range(n_rows):
-                col.append(Scalar[Self.compute_dtype](X[r, c]))
-            sort(col)
-
-            var uniques = List[Scalar[Self.compute_dtype]]()
-            for i in range(len(col)):
-                if i == 0 or col[i] != col[i - 1]:
-                    uniques.append(col[i])
+            var uniques = _unique_sorted_column[Self.compute_dtype, in_dtype](
+                X, c
+            )
 
             if self.drop == "first" and len(uniques) > 0:
                 self.drop_idx_.append(0)
