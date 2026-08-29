@@ -1,4 +1,4 @@
-from std.math import isnan, nan
+from std.math import isinf, isnan, nan
 from ..core.matrix import Matrix
 from ..core.dataset import Dataset
 from ..utils.validation import (
@@ -154,3 +154,59 @@ struct SimpleImputer[compute_dtype: DType = DType.float64](Copyable, Movable):
                 best = values[start]
             start = stop + 1
         return best
+
+    def _check_input[
+        in_dtype: DType
+    ](self, X: Matrix[in_dtype], caller: String) raises:
+        check_array[in_dtype](X, force_all_finite=False)
+
+        comptime if in_dtype.is_floating_point():
+            var nan_is_missing = isnan(self.missing_values)
+            for r in range(X.rows):
+                for c in range(X.cols):
+                    var value = Float64(X[r, c])
+                    if isinf(value):
+                        raise InvalidParameterError.error(
+                            "X", caller + " does not accept infinite values"
+                        )
+                    if isnan(value) and not nan_is_missing:
+                        raise InvalidParameterError.error(
+                            "X",
+                            caller
+                            + " does not accept NaN values unless"
+                            " missing_values is NaN",
+                        )
+
+    def fit[in_dtype: DType](mut self, X: Matrix[in_dtype]) raises:
+        """Learns the replacement value of each feature column.
+
+        Args:
+            X: Matrix of features, possibly holding missing entries.
+
+        Raises:
+            InvalidParameterError: If a column is entirely missing and the strategy needs data.
+        """
+        self._check_input[in_dtype](X, "SimpleImputer.fit")
+
+        var n_cols = X.cols
+        var statistics = List[Scalar[Self.compute_dtype]](capacity=n_cols)
+        for c in range(n_cols):
+            var observed = List[Scalar[Self.compute_dtype]](capacity=X.rows)
+            for r in range(X.rows):
+                var value = Scalar[Self.compute_dtype](X[r, c])
+                if not self._is_missing(value):
+                    observed.append(value)
+            statistics.append(self._column_statistic(observed^, c))
+
+        self.statistics_ = statistics^
+        self.n_features_in_ = n_cols
+        self.fit_dtype = in_dtype
+        self.is_fitted = True
+
+    def fit[
+        feat_dtype: DType,
+        target_dtype: DType,
+    ](mut self, dataset: Dataset[feat_dtype, target_dtype]) raises:
+        """Learns the replacement values from the feature matrix of a Dataset.
+        """
+        self.fit[feat_dtype](dataset.records)
